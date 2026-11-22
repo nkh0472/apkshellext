@@ -1,5 +1,5 @@
 # Size gate for the publish artifacts. The repository bundles native and managed
-# dependencies (LibWebP, System.Memory, ...), so a stray reference shows
+# dependencies (the two libwebp_*.dll), so a stray reference shows
 # up as package growth long before anyone notices it in Explorer - a hard byte limit
 # is the only cheap way to catch that in CI.
 #
@@ -19,17 +19,22 @@
 # + 19 satellites). That is 192,000 B below T-I: the zip container reader now comes from
 # the framework, and the only replacement code is the capped reader layer in ZipSafety.cs
 # plus a small zlib/CRC-32 shim for the pinned PNGDecrush source.
-# The limits below keep ~5% headroom over that: enough for routine edits, tight
-# enough that a newly bundled dependency trips the gate. Phase 2 targets a <=2.5 MB
-# package, so these limits are meant to be tightened then, never relaxed silently.
+# T-K removed the System.Memory facade family after rewriting the SVG parsers against
+# plain strings (2026-11-23, VS route): dll 1,165,312 B, 7z ~746,500 B (archive
+# timestamps vary by a few hundred bytes), tree 2,344,225 B over 27 files (8 manifest
+# + 19 satellites). The four facade dlls (296,976 B) left the deployment; the dll itself
+# is unchanged in size because the span-based parsing was already a thin layer.
+# The limits below sit ~8% above that: enough for routine edits, tight enough that a
+# newly bundled dependency trips the gate. Phase 2 targets a <=2.5 MB package, which the
+# tree limit now enforces, so never relax these silently.
 param(
     [string]$OutputDir = 'ApkShellext2\bin\Release',
 
     # Overridable for the negative test (copy of the defaults, only smaller values
     # ever make sense); the CI job uses the defaults.
-    [long]$MaxDllBytes = 1650000,
-    [long]$MaxPackageBytes = 1100000,
-    [long]$MaxTreeBytes = 3600000
+    [long]$MaxDllBytes = 1260000,
+    [long]$MaxPackageBytes = 1000000,
+    [long]$MaxTreeBytes = 2500000
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,14 +44,12 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'package-name.ps1')
 $packageName = Get-ApkShellextPackageName -VersionFile (Join-Path $PSScriptRoot '..\version.txt')
 
-# The tree is counted from the same 12 manifest files the postbuild 7z packs plus
+# The tree is counted from the same 8 manifest files the postbuild 7z packs plus
 # the 19 satellite resource assemblies, so the number does not move when the
 # developer leaves extra files (pdb, logs, stale stdout) in bin\Release.
 $manifest = @(
     'ApkShellext2.dll', 'install.bat', 'install_user.bat', 'uninstall.bat',
-    'uninstall_user.bat', 'restart_explorer.bat', 'libwebp_x86.dll', 'libwebp_x64.dll',
-    'System.Memory.dll', 'System.Buffers.dll',
-    'System.Runtime.CompilerServices.Unsafe.dll', 'System.Numerics.Vectors.dll'
+    'uninstall_user.bat', 'restart_explorer.bat', 'libwebp_x86.dll', 'libwebp_x64.dll'
 )
 $langs = @(
     'ar-SA', 'de-DE', 'el-GR', 'es-ES', 'fa-IR', 'fr-FR', 'he-IL', 'it-IT', 'ja-JP',

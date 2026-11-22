@@ -36,7 +36,7 @@
 
 两条路线编译出的 IL 相同,但资源序列化格式因路线而异,这不是表面差异:只有 VS
 路线的产物才能安全装进 Explorer。出货用路线 B,路线 A 只用于开发 —— 两条路线的
-打包最终收敛为同一个 31 文件的包(§8)。
+打包最终收敛为同一个 27 文件的包(§8)。
 
 下文示例路径的参考环境(按你的机器调整):Windows x64;仓库在
 `E:\src\apkshellext`,工具链在 `E:\src\apkshellext-dep`;7-Zip 装在非标准路径
@@ -125,7 +125,7 @@ PackageReference):
 
 两条路线都会被咬(VS 共用同一份用户配置)。旧式工程布局根本不需要 restore
 (`packages\` 里的 HintPath DLL),所以没配源的机器以前从没暴露过这个问题 —— SDK 式
-工程改为从 nuget.org restore System.Memory 等(§5.2)。
+工程改为从 nuget.org restore System.Resources.Extensions(§5.2)。
 
 ### 4.2 签名密钥 snk(本地生成 —— 生成方式不对会弄坏 VS 路线)
 
@@ -246,7 +246,7 @@ csproj 重写为 **SDK 式**,从根上消掉这三件事 —— 这就是 §6–
 |---|---|
 | SVG v3.5.0 元素元数据要编译前手工生成(`pregen.ps1` → `SVG\Source\Generated\*.g.cs`) | `<ProjectReference Include="SVG\Generators\Svg.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />` —— 同一个上游生成器**在 Roslyn 内**每次编译自动跑,两条工具链都行 |
 | coreclr MSBuild 下卫星程序集崩(`MSB4064` AL/ToolPath)→ 外部 `dotnet-satellites.targets` shim + 2 个命令行参数 | SDK 式工程在 coreclr 下自动 `GenerateSatelliteAssembliesForCore=true`(用 Csc 生成);FullFramework MSBuild 用真 `al.exe`。什么都不用传 |
-| 手工下载 `packages\System.Runtime.CompilerServices.Unsafe.6.0.0`(HintPath 工程,无 restore) | `PackageReference` 全量 restore:System.Memory 4.5.5(带出 Buffers + Numerics.Vectors)、System.Runtime.CompilerServices.Unsafe 6.0.0(直接引用压过传递依赖的 4.5.3,与老 HintPath 解析结果一致),以及**仅在 coreclr 下**启用的 System.Resources.Extensions 6.0.0 |
+| 手工下载 `packages\System.Runtime.CompilerServices.Unsafe.6.0.0`(HintPath 工程,无 restore) | 只剩一个 `PackageReference`:**仅在 coreclr 下**启用的 System.Resources.Extensions 6.0.0。System.Memory facade 一族(System.Memory / System.Buffers / System.Runtime.CompilerServices.Unsafe / System.Numerics.Vectors)从 T-K 起完全不再引用 —— SVG 的 span 解析已改写成纯字符串(见 §8) |
 | 用户手敲 `-p:GenerateResourceUsePreserializedResources=true` | 写进 csproj:`Condition="'$(MSBuildRuntimeType)' == 'Core'"` —— dotnet CLI 自动用预序列化资源,VS 用经典资源,自动分岔(唯一运行时后果见 §8) |
 | .sln 里 `apkShellextService` 死条目(目录从来不存在) | 已从 .sln 删除 |
 | csproj `Content` 引用上游在 `4f30b7c` 删掉的 `SharpShellNativeBridge32/64.dll`;引用它们的 SharpPropertySheet 属性页机制是死代码 | 相应 `Content` 项已删除;死代码目录 `NativeBridge\`、`SharpPropertySheet\`、`SharpDeskBand\` 已从仓库删除;`Helpers\RegAsm.cs` 与 vendored `Properties\AssemblyInfo.cs` 仍在盘上,但它们从来不是编译输入。没有任何被编译的文件引用这些命名空间 |
@@ -324,12 +324,12 @@ CI(GitHub Actions,`.github/workflows/ci.yml`)对两个 job 故意用不同 SDK:
 & .\eng\check-size.ps1
 ```
 
-`ApkShellext2.dll`、7z 包或 31 文件的部署树超预算时脚本 exit 1(当前阈值
-1,650,000 / 1,100,000 / 3,600,000 B;当前 post-T-H 基线 1,551,360 / ~926,000 / 3,027,225 B)。
-约 5% 的余量让日常改动能过,而新打包进来的依赖会被拦下。部署树只按 12 个清单文件 +
+`ApkShellext2.dll`、7z 包或 27 文件的部署树超预算时脚本 exit 1(当前阈值
+1,260,000 / 1,000,000 / 2,500,000 B;当前 post-T-K 基线 1,165,312 / ~746,500 / 2,344,225 B)。
+约 8% 的余量让日常改动能过,而新打包进来的依赖会被拦下。部署树只按 8 个清单文件 +
 19 个卫星资源集计,不扫目录,所以 `bin\Release` 里多出的 pdb/日志不影响数字。阈值都是参数
-(`-MaxDllBytes` 等)—— 故意调小就是检验门禁本身的办法。阶段 2 目标 ≤2.5 MB,届时只会
-收紧这些数字,不会放宽。
+(`-MaxDllBytes` 等)—— 故意调小就是检验门禁本身的办法。阶段 2 目标 ≤2.5 MB:T-K 已到
+2,344,225 B,树的上限就钉在 2,500,000 B,之后只会继续收紧,不会放宽。
 
 ## 7. 编译测试工程
 
@@ -397,18 +397,20 @@ CI:`.github\workflows\ci.yml` 的 `dotnet-build` job,**Run unit tests** 一步 �
 - **`Resources\postbuild.cmd`**(仅 Release 干活;Debug 直接退出):删残留 `debug.bat`,
   定位 `7z.exe`(§4.3),用 `eng\package-name.ps1` 从 `version.txt` 算包名
   (`3.5.1.0` → `ApkShellext2-3.5.1.7z`;`check-layout.ps1`/`check-size.ps1` dot-source
-  的是同一条规则),删残留 `*.7z`(旧无版本名 + 上一版本留下的包),然后按**显式清单**打新包 —— 12 个
-  根文件(`ApkShellext2.dll`、五个 bat、两个 `libwebp_*` 二进制、
-  `System.Memory.dll`、`System.Buffers.dll`、`System.Runtime.CompilerServices.Unsafe.dll`、
-  `System.Numerics.Vectors.dll`)加上磁盘上存在的全部语言目录(`ar-SA` … `zh-TW`)。
+  的是同一条规则),删残留 `*.7z`(旧无版本名 + 上一版本留下的包),然后按**显式清单**打新包 —— 8 个
+  根文件(`ApkShellext2.dll`、五个 bat、两个 `libwebp_*` 二进制)加上磁盘上存在的
+  全部语言目录(`ar-SA` … `zh-TW`)。
   清单条目缺失会**让编译失败**,短包不可能静默出货。
-  `System.Numerics.Vectors.dll` 是**必须随包发布**的 app-local 依赖,不是工具链残留:
-  COM 宿主(explorer/dllhost)里 Fusion 的 Load 上下文只探测宿主 app base(`C:\Windows`),
-  `TypeDescriptor` 要绑定 Svg.NET 的数值类型转换器,只有该文件躺在 `ApkShellext2.dll`
-  旁边才加载得到 —— 缺失时每个数值 SVG 属性(渐变坐标、offset……)都抛
-  `FileNotFoundException`,自适应图标静默渲染成空白/碎片(2026-11-21 图标损坏报告的
-  根因)。只有一个 dll 被注为*排除项*,无论输出目录里躺着什么都不打包:
-  `System.Resources.Extensions.dll`(见下)。主包就是完整安装包:不再有
+  四个 System.Memory facade dll(`System.Memory.dll`、`System.Buffers.dll`、
+  `System.Runtime.CompilerServices.Unsafe.dll`、`System.Numerics.Vectors.dll`)以前正是
+  因为下面这条 app-local 理由才列在清单里:COM 宿主(explorer/dllhost)里 Fusion 的
+  Load 上下文只探测宿主 app base(`C:\Windows`)与 GAC,`TypeDescriptor` 要绑定 Svg.NET
+  的数值类型转换器,只有该文件躺在 `ApkShellext2.dll` 旁边才加载得到 —— 缺失时每个
+  数值 SVG 属性(渐变坐标、offset……)都抛 `FileNotFoundException`,自适应图标静默渲染
+  成空白/碎片(2026-11-21 图标损坏报告的根因)。T-K 把 SVG 里最后一处 `Span<char>`
+  解析改成了纯字符串,编译器不再绑定这些程序集,也就不需要部署它们;历史理由保留在
+  `Resources\postbuild.cmd` 的清单注释里。只有一个 dll 被注为*排除项*,无论输出目录里
+  躺着什么都不打包:`System.Resources.Extensions.dll`(见下)。主包就是完整安装包:不再有
   按语言分包(旧方案把 `<locale>.7z` 单独发,只装主包就会静默变英文界面)。没有
   7-Zip ⇒ WARNING + 跳过,编译照样成功。
 
@@ -459,13 +461,14 @@ NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat
    $rm.GetString('btnOK', [cultureinfo]::InvariantCulture)   # → OK     (中性资源,在主 DLL 内)
    ```
 
-4. **`bin\Release` 完整发布布局:** 12 个清单项 —— `ApkShellext2.dll(.pdb)`、五个 bat、
-   `libwebp_x86/x64.dll`、
-   `System.Memory/System.Buffers/System.Runtime.CompilerServices.Unsafe/System.Numerics.Vectors`,
-   再加上 19 个语言目录,以及 —— 找到 7-Zip 时 —— `ApkShellext2-3.5.1.7z`(约 1 MB)。
-   `7z l` 必须在**两条路线上都恰好共 31 个文件**:12 个根条目(没有
+4. **`bin\Release` 完整发布布局:** 8 个清单项 —— `ApkShellext2.dll(.pdb)`、五个 bat、
+   `libwebp_x86/x64.dll`,
+   再加上 19 个语言目录,以及 —— 找到 7-Zip 时 —— `ApkShellext2-3.5.1.7z`(约 750 KB)。
+   `7z l` 必须在**两条路线上都恰好共 27 个文件**:8 个根条目(没有
    `System.Resources.Extensions.dll` —— 即便 dotnet CLI 编译把它留在了目录里,
-   打包也照常排除),外加 19 条
+   打包也照常排除;也没有
+   `System.Memory/System.Buffers/System.Runtime.CompilerServices.Unsafe/System.Numerics.Vectors`
+   —— VS 路线根本不复制它们,dotnet CLI 因传递依赖复制了也从不打包),外加 19 条
    `xx-XX\ApkShellext2.resources.dll` 卫星条目;且 `bin\Release` 里不得有
    `Resources\`/`LibWebP\` 子目录。
 5. **Debug 布局:** `bin\Debug` 根有 `debug.bat` + bat + libwebp,且**没有 `.7z`**。
@@ -594,11 +597,12 @@ Set-Location $R
 & $msb ApkShellext2.sln -t:restore            -p:Configuration=Release -nologo -v:m; if ($LASTEXITCODE) { throw 'restore 失败' }
 & $msb ApkShellext2.sln -p:Configuration=Release              -nologo -v:m; if ($LASTEXITCODE) { throw '编译失败' }
 
-# 验证 VS 路线特有项:输出里没有 System.Resources.Extensions.dll;包应为 31 文件
-# (12 根文件(含 System.Numerics.Vectors.dll) + 19 条卫星资源),不含
+# 验证 VS 路线特有项:输出里没有 facade dll、没有 System.Resources.Extensions.dll;
+# 包应为 27 文件(8 根文件 + 19 条卫星资源),不含
 #  System.Resources.Extensions.dll(§8 打包清单排除)
 Test-Path "$R\ApkShellext2\bin\Release\System.Resources.Extensions.dll"   # 应为 False
-& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # 应为 31 文件(7z 路径按机器调整)
+Test-Path "$R\ApkShellext2\bin\Release\System.Memory.dll"                 # 应为 False
+& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # 应为 27 文件(7z 路径按机器调整)
 ```
 
 ---

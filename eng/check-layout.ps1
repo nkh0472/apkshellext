@@ -1,4 +1,4 @@
-﻿# Confirms a Release build produced the complete publish layout. Kept in the repo
+# Confirms a Release build produced the complete publish layout. Kept in the repo
 # (instead of inline in ci.yml) so the same checks can be run locally before pushing.
 param(
     [Parameter(Mandatory = $true)]
@@ -15,14 +15,12 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'package-name.ps1')
 $packageName = Get-ApkShellextPackageName -VersionFile (Join-Path $PSScriptRoot '..\version.txt')
 
-# Same 12 files the postbuild 7z manifest packs. A missing one means the publish
+# Same 8 files the postbuild 7z manifest packs. A missing one means the publish
 # folder is incomplete; the packaging step would fail too, but its error is easy
 # to lose among the compiler output.
 $manifest = @(
     'ApkShellext2.dll', 'install.bat', 'install_user.bat', 'uninstall.bat',
-    'uninstall_user.bat', 'restart_explorer.bat', 'libwebp_x86.dll', 'libwebp_x64.dll',
-    'System.Memory.dll', 'System.Buffers.dll',
-    'System.Runtime.CompilerServices.Unsafe.dll', 'System.Numerics.Vectors.dll'
+    'uninstall_user.bat', 'restart_explorer.bat', 'libwebp_x86.dll', 'libwebp_x64.dll'
 )
 $langs = @(
     'ar-SA', 'de-DE', 'el-GR', 'es-ES', 'fa-IR', 'fr-FR', 'he-IL', 'it-IT', 'ja-JP',
