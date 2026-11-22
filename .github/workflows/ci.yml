@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dotnet-build:
+    name: dotnet SDK build
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up .NET SDK (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # The snk is gitignored, so CI signs only when the base64 key is configured.
+      # A missing secret must never fail the build: the local-debug fallback is an
+      # unsigned Release (the publish route signs later, T-G3).
+      - name: Restore strong-name key (optional secret)
+        shell: pwsh
+        env:
+          SNK_B64: ${{ secrets.APKSHELLEXT2_SNK_B64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SNK_B64)) {
+            "SIGNING=off" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "signing skipped: no secret" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            Write-Host 'signing skipped: no secret'
+          } else {
+            $keyPath = Join-Path $env:GITHUB_WORKSPACE 'ApkShellext2\apkshellext2_hy.snk'
+            [System.IO.File]::WriteAllBytes($keyPath, [System.Convert]::FromBase64String($env:SNK_B64))
+            "SIGNING=on" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "signing enabled from secrets.APKSHELLEXT2_SNK_B64" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            Write-Host 'signing enabled: snk restored from secrets.APKSHELLEXT2_SNK_B64'
+          }
+
+      - name: Build Release (warnings as errors)
+        shell: pwsh
+        run: |
+          $signAssembly = if ($env:SIGNING -eq 'on') { 'true' } else { 'false' }
+          dotnet build ApkShellext2\ApkShellext2.csproj -c Release --nologo -warnaserror "-p:SignAssembly=$signAssembly"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check publish layout
+        shell: pwsh
+        run: |
+          & .\eng\check-layout.ps1 -Route dotnet
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: apkshellext2-dotnet
+          path: ApkShellext2\bin\Release
+          if-no-files-found: error
+
+  vs-build:
+    name: Visual Studio MSBuild build
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # setup-msbuild supplies the FullFramework MSBuild (the publish route), but
+      # its SDK resolver reads the machine-wide SDK list, so the .NET SDK from
+      # global.json has to be installed here too - setup-msbuild alone installs no SDK.
+      - name: Set up .NET SDK (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore strong-name key (optional secret)
+        shell: pwsh
+        env:
+          SNK_B64: ${{ secrets.APKSHELLEXT2_SNK_B64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SNK_B64)) {
+            "SIGNING=off" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "signing skipped: no secret" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            Write-Host 'signing skipped: no secret'
+          } else {
+            $keyPath = Join-Path $env:GITHUB_WORKSPACE 'ApkShellext2\apkshellext2_hy.snk'
+            [System.IO.File]::WriteAllBytes($keyPath, [System.Convert]::FromBase64String($env:SNK_B64))
+            "SIGNING=on" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "signing enabled from secrets.APKSHELLEXT2_SNK_B64" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+            Write-Host 'signing enabled: snk restored from secrets.APKSHELLEXT2_SNK_B64'
+          }
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          $signAssembly = if ($env:SIGNING -eq 'on') { 'true' } else { 'false' }
+          msbuild ApkShellext2\ApkShellext2.csproj -t:restore -p:Configuration=Release -nologo -v:m "-p:SignAssembly=$signAssembly"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build Release (warnings as errors)
+        shell: pwsh
+        run: |
+          $signAssembly = if ($env:SIGNING -eq 'on') { 'true' } else { 'false' }
+          msbuild ApkShellext2\ApkShellext2.csproj -p:Configuration=Release -nologo -v:m -warnaserror "-p:SignAssembly=$signAssembly"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check publish layout
+        shell: pwsh
+        run: |
+          & .\eng\check-layout.ps1 -Route vs
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: apkshellext2-vs
+          path: ApkShellext2\bin\Release
+          if-no-files-found: error
+
+      - name: Upload 7z package
+        uses: actions/upload-artifact@v4
+        with:
+          name: apkshellext2-vs-7z
+          path: ApkShellext2\bin\Release\ApkShellext2.7z
+          if-no-files-found: error
