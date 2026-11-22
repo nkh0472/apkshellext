@@ -52,6 +52,21 @@ namespace ApkQuickReader {
         /// legitimate packages.</summary>
         public const int MAX_ENTRIES = 65535;
 
+        /// <summary>
+        /// Hard ceiling on the decompressed bytes ONE SafeArchive instance may hand out
+        /// over its lifetime (roadmap C4, XAPK reference). The per-entry gate already
+        /// bounds a single entry; this bounds their sum, so a container cannot stay alive
+        /// by feeding a reader thousands of individually-legal entries.
+        ///
+        /// 1 GiB is deliberately far above what a legitimate package reads: a 147 MB
+        /// base apk hands out roughly its manifest, resource table and one icon (a few
+        /// MB), a nested container is itself capped at MAX_NESTED_CONTAINER (512 MiB)
+        /// and a split bundle buffers at most one base apk. Real packages all fit while
+        /// a compression bomb is stopped by the per-entry gate first and this budget
+        /// second.
+        /// </summary>
+        public const long MaxTotalReadBytes = 1024L * 1024 * 1024;
+
         /// <summary>The 32-bit "look in the zip64 record" sentinel the format uses for
         /// a size or offset that does not fit 32 bits.</summary>
         private const long Zip64SizeSentinel = 0xFFFFFFFFL;
@@ -72,6 +87,8 @@ namespace ApkQuickReader {
         private static readonly Encoding EntryNameEncoding = ResolveEntryNameEncoding();
 
         private readonly ZipArchive zip;
+        private readonly long maxTotalReadBytes;
+        private long totalReadBytes;
 
         private static Encoding ResolveEntryNameEncoding() {
             Encoding encoding = null;
@@ -91,14 +108,22 @@ namespace ApkQuickReader {
         /// log before the InvalidDataException reaches the handlers.
         /// </summary>
         public static IArchive Open(Stream stream) {
-            return new SafeArchive(stream);
+            return new SafeArchive(stream, MaxTotalReadBytes);
         }
 
-        private SafeArchive(Stream stream) {
+        /// <summary>
+        /// Opens with an explicit cumulative budget. The budget is a constructor
+        /// parameter rather than a constant read inside ReadEntryBounded so the tests can
+        /// drive the 1 GiB path with a few kilobytes; production always goes through
+        /// <see cref="Open"/> and therefore through MaxTotalReadBytes.
+        /// </summary>
+        internal SafeArchive(Stream stream, long maxTotalReadBytes) {
             if (stream == null)
                 throw new ArgumentNullException("stream");
             if (!stream.CanSeek)
                 throw new NotSupportedException("zip containers must be opened from a seekable stream");
+            if (maxTotalReadBytes <= 0)
+                throw new ArgumentOutOfRangeException("maxTotalReadBytes");
 
             ZipArchive opened = new ZipArchive(stream, ZipArchiveMode.Read, false, EntryNameEncoding);
             int count = opened.Entries.Count;
@@ -110,6 +135,7 @@ namespace ApkQuickReader {
                 throw error;
             }
             zip = opened;
+            this.maxTotalReadBytes = maxTotalReadBytes;
         }
 
         /// <summary>
@@ -209,7 +235,8 @@ namespace ApkQuickReader {
         }
 
         /// <summary>
-        /// Reads an entry with a hard byte cap and a compression-ratio cap.
+        /// Reads an entry with a hard byte cap, a compression-ratio cap and the
+        /// per-archive cumulative budget.
         /// The declared Length/CompressedLength are never trusted and never used
         /// for preallocation; the buffer grows only as real bytes arrive.
         /// Throws InvalidDataException when a cap is hit — handlers catch and
@@ -231,6 +258,10 @@ namespace ApkQuickReader {
                     total += n;
                     if (total > limit)
                         throw new InvalidDataException(what + ": decompressed size exceeds safety cap " + limit);
+                    totalReadBytes += n;
+                    if (totalReadBytes > maxTotalReadBytes)
+                        throw new InvalidDataException(what + ": container has handed out " + totalReadBytes
+                            + " decompressed bytes, over the " + maxTotalReadBytes + "-byte per-archive budget");
                     ms.Write(buf, 0, n);
                 }
             }
