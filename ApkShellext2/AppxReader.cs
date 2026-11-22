@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
-using ICSharpCode.SharpZipLib.Zip;
+using System.IO.Compression;
 using System.Xml;
 using System.Drawing;
 using System.Text.RegularExpressions;
@@ -29,7 +29,7 @@ namespace ApkShellext2 {
         private const string attrPublisher = @"Publisher";
         private const string attrPhoneProductID = @"PhoneProductId";
 
-        private ZipFile zip;
+        private ZipArchive zip;
         private string iconPath;
 
         private string version;
@@ -40,20 +40,20 @@ namespace ApkShellext2 {
 
         public AppxReader(Stream stream) {
             FileName = "";
-            zip = new ZipFile(stream);
+            zip = ZipSafety.OpenZip(stream);
             Extract();
         }
 
         public AppxReader(string path) {
             FileName = path;
             // open with FileShare.Delete so Explorer can delete/rename the package while handlers are alive (kkguo/apkshellext#103);
-            // ZipFile owns the stream (IsStreamOwner defaults to true), Dispose->zip.Close() closes it
-            zip = new ZipFile(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete));
+            // the ZipArchive owns the stream (OpenZip passes leaveOpen:false), Dispose closes it
+            zip = ZipSafety.OpenZip(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete));
             Extract();
         }
 
         public void Extract() {
-            ZipEntry en = zip.GetEntry(AppxManifestXml);
+            ZipArchiveEntry en = ZipSafety.GetEntry(zip, AppxManifestXml);
             if (en == null)
                 throw new EntryPointNotFoundException("cannot find " + AppxManifestXml);
             // bounded read (also fixes silent partial Stream.Read truncation on big entries)
@@ -124,10 +124,10 @@ namespace ApkShellext2 {
                 int dot = iconPath.LastIndexOf(".");
                 string name = iconPath.Substring(0, dot);
                 string extension = iconPath.Substring(dot + 1);
-                ZipEntry logo = null;
+                ZipArchiveEntry logo = null;
                 int scale = -1;
-                foreach (ZipEntry en in zip) {
-                    Match m = Regex.Match(en.Name, name + @"(\.scale\-(\d+))?" + @"\." + extension);
+                foreach (ZipArchiveEntry en in zip.Entries) {
+                    Match m = Regex.Match(en.FullName, name + @"(\.scale\-(\d+))?" + @"\." + extension);
                     if (m.Success) {
                         if (m.Groups[1].Value == "") { // exactly matching, no scale
                             logo = en;
@@ -142,8 +142,8 @@ namespace ApkShellext2 {
                 }
                 if (logo != null) {
                     // buffer fully: a Bitmap over the live zip stream decodes lazily and turns blank once
-                    // the reader/stream is disposed (shell draws later); SharpZipLib 1.4.2 streams are
-                    // non-seekable so GDI+ cannot recover.
+                    // the reader/stream is disposed (shell draws later); the BCL entry stream is
+                    // non-seekable too, so GDI+ cannot recover.
                     byte[] imageBytes = ZipSafety.ReadEntryBounded(zip, logo, ZipSafety.MAX_ICON, "logo " + iconPath);
                     return new Bitmap(new MemoryStream(imageBytes, 0, imageBytes.Length, false, false));
                 } else {
@@ -157,7 +157,7 @@ namespace ApkShellext2 {
             if (disposed) return;
             if (disposing) {
                 if (zip != null)
-                    zip.Close();
+                    zip.Dispose();
             }
             disposed = true;
             base.Dispose(disposing);

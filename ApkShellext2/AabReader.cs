@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using ICSharpCode.SharpZipLib.Zip;
 using System.IO;
+using System.IO.Compression;
 using ApkQuickReader;
 using ApkShellext2.Properties;
 using System.Globalization;
@@ -22,7 +22,7 @@ namespace ApkShellext2
     /// </summary>
     public class AabReader: AppPackageReader
     {
-        private ZipFile zip;
+        private ZipArchive zip;
         private byte[] manifest;
 
         private const string AndroidManifestXML = @"base/manifest/androidmanifest.xml";
@@ -48,8 +48,8 @@ namespace ApkShellext2
 
         private void openStream(Stream stream)
         {
-            zip = new ZipFile(stream);
-            ZipEntry en = zip.GetEntry(AndroidManifestXML);
+            zip = ZipSafety.OpenZip(stream);
+            ZipArchiveEntry en = ZipSafety.GetEntry(zip, AndroidManifestXML);
             Log("find manifest: " + (en == null).ToString());
             // bounded read: attacker-declared entry sizes must never drive
             // (int) casts or buffer allocation in explorer's process
@@ -141,8 +141,8 @@ namespace ApkShellext2
         /// <returns>Bitmap or </returns>
         public Bitmap getImage(string path, Size size)
         {
-            ZipEntry iconz;
-            if (zip.FindEntry(path, true) >= 0)
+            ZipArchiveEntry iconz;
+            if (ZipSafety.Contains(zip, path))
             {
                 iconz = ZipSafety.GetEntryExact(zip, path);
                 // case-insensitive extension dispatch, see kkguo/apkshellext#99
@@ -151,7 +151,7 @@ namespace ApkShellext2
                     ext == ".gif" || ext == ".tif" || ext == ".tiff")
                 {
                     // fully buffer before decoding: GDI+ decodes PNG lazily and renders BLANK pixels when
-                    // scaled from SharpZipLib 1.4.2's non-seekable zip streams after they are closed
+                    // scaled from a non-seekable zip entry stream after it is closed
                     byte[] imgBytes = ZipSafety.ReadEntryBounded(zip, iconz, ZipSafety.MAX_ICON, "image " + path);
                     using (MemoryStream ms = new MemoryStream(imgBytes, 0, imgBytes.Length, false, false))
                         return Utility.ResizeBitmap((Bitmap)Image.FromStream(ms), size);
@@ -689,7 +689,7 @@ namespace ApkShellext2
         {
             try
             {
-                ZipEntry en = ZipSafety.GetEntryExact(zip, path);
+                ZipArchiveEntry en = ZipSafety.GetEntryExact(zip, path);
                 byte[] bytes = ZipSafety.ReadEntryBounded(zip, en, ZipSafety.MAX_XML, "xml " + path);
                 return ExtractCompressedXml(bytes);
             }
@@ -1141,7 +1141,7 @@ namespace ApkShellext2
                 // resources = null;
                 manifest = null;
                 if (zip != null)
-                    zip.Close();
+                    zip.Dispose();
             }
             disposed = true;
             base.Dispose(disposing);

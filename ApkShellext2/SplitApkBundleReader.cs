@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using ApkShellext2;
-using ICSharpCode.SharpZipLib.Zip;
 
 namespace ApkQuickReader {
     /// <summary>
@@ -25,7 +25,7 @@ namespace ApkQuickReader {
     /// </summary>
     public class SplitApkBundleReader : AppPackageReader {
         private FileStream outerStream;
-        private ZipFile outer;
+        private ZipArchive outer;
         private AppPackageReader inner;
         private string baseEntryName;
 
@@ -42,7 +42,7 @@ namespace ApkQuickReader {
             FileName = filename;
             outerStream = new FileStream(filename, FileMode.Open, FileAccess.Read,
                 FileShare.Read | FileShare.Delete);
-            outer = new ZipFile(outerStream);
+            outer = ZipSafety.OpenZip(outerStream);
 
             baseEntryName = selectBaseEntry();
             if (baseEntryName == null)
@@ -54,9 +54,9 @@ namespace ApkQuickReader {
 
         private void EnsureInner() {
             if (inner != null) return;
-            ZipEntry baseEntry = outer.GetEntry(baseEntryName);
-            // The nested apk must be seekable for ZipFile; SZL's decompression
-            // streams are not, so buffer the whole entry — under hard caps so a
+            ZipArchiveEntry baseEntry = ZipSafety.GetEntry(outer, baseEntryName);
+            // The nested apk must be seekable for ZipArchive; entry streams are
+            // not, so buffer the whole entry — under hard caps so a
             // zip bomb cannot balloon explorer. (STORED-window zero-copy is a
             // possible later optimisation; correctness and safety first.)
             byte[] baseBytes = ZipSafety.ReadEntryBounded(outer, baseEntry, ZipSafety.MAX_BASE_APK, "base apk " + baseEntryName);
@@ -73,7 +73,7 @@ namespace ApkQuickReader {
 
         private string selectBaseEntry() {
             // 1. xapk manifest.json: {"split_apks":[{"file":"...","id":"base"}, ...]}
-            ZipEntry mf = outer.GetEntry("manifest.json");
+            ZipArchiveEntry mf = ZipSafety.GetEntry(outer, "manifest.json");
             if (mf != null) {
                 string json = ReadEntryText(mf);
                 // tolerant to BOM/whitespace; pair file/id inside each flat object
@@ -97,17 +97,17 @@ namespace ApkQuickReader {
             }
 
             // 2. APKMirror / most tooling: literal base.apk at root
-            if (outer.GetEntry("base.apk") != null) return "base.apk";
+            if (ZipSafety.GetEntry(outer, "base.apk") != null) return "base.apk";
 
             // 3. bundletool toc.pb container: try the well-known base paths
-            if (outer.GetEntry("toc.pb") != null) {
+            if (ZipSafety.GetEntry(outer, "toc.pb") != null) {
                 foreach (string p in tocBasePaths)
-                    if (outer.GetEntry(p) != null) return p;
+                    if (ZipSafety.GetEntry(outer, p) != null) return p;
                 Match standalone = null; // standalones/standalone<N>.apk, lowest N
                 int bestN = int.MaxValue;
-                foreach (ZipEntry e in outer) {
-                    if (!e.IsFile) continue;
-                    Match m = Regex.Match(e.Name, @"standalones/standalone(\d{1,6})\.apk$", RegexOptions.IgnoreCase);
+                foreach (ZipArchiveEntry e in outer.Entries) {
+                    if (!ZipSafety.IsFile(e)) continue;
+                    Match m = Regex.Match(e.FullName, @"standalones/standalone(\d{1,6})\.apk$", RegexOptions.IgnoreCase);
                     int n;
                     if (m.Success && int.TryParse(m.Groups[1].Value, out n) && n < bestN) {
                         bestN = n;
@@ -118,22 +118,22 @@ namespace ApkQuickReader {
             }
 
             // 4. guess: root-level *.apk that is not a config/split companion; largest wins
-            ZipEntry best = null;
-            foreach (ZipEntry e in outer) {
-                if (!e.IsFile) continue;
-                string n = e.Name;
+            ZipArchiveEntry best = null;
+            foreach (ZipArchiveEntry e in outer.Entries) {
+                if (!ZipSafety.IsFile(e)) continue;
+                string n = e.FullName;
                 if (!n.EndsWith(".apk", StringComparison.OrdinalIgnoreCase)) continue;
                 if (n.StartsWith("META-INF/", StringComparison.OrdinalIgnoreCase)) continue;
                 string leaf = Path.GetFileName(n);
                 if (leaf.IndexOf("config", StringComparison.OrdinalIgnoreCase) >= 0 ||
                     leaf.StartsWith("split", StringComparison.OrdinalIgnoreCase)) continue;
                 int depth = n.Count(c => c == '/');
-                int score = (depth == 0 ? 1 << 30 : 0) + (int)(e.Size >> 20);
+                int score = (depth == 0 ? 1 << 30 : 0) + (int)(e.Length >> 20);
                 int bestScore = best == null ? -1
-                    : (best.Name.Count(c => c == '/') == 0 ? 1 << 30 : 0) + (int)(best.Size >> 20);
+                    : (best.FullName.Count(c => c == '/') == 0 ? 1 << 30 : 0) + (int)(best.Length >> 20);
                 if (score > bestScore) best = e;
             }
-            return best == null ? null : best.Name;
+            return best == null ? null : best.FullName;
         }
 
         // names come from an attacker-controlled manifest.json; we only ever use
@@ -147,8 +147,8 @@ namespace ApkQuickReader {
             return true;
         }
 
-        private string ReadEntryText(ZipEntry entry) {
-            byte[] b = ZipSafety.ReadEntryBounded(outer, entry, MAX_JSON_BYTES, "metadata " + entry.Name);
+        private string ReadEntryText(ZipArchiveEntry entry) {
+            byte[] b = ZipSafety.ReadEntryBounded(outer, entry, MAX_JSON_BYTES, "metadata " + entry.FullName);
             int off = 0;
             if (b.Length >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF) off = 3; // BOM
             return Encoding.UTF8.GetString(b, off, b.Length - off);
@@ -186,19 +186,19 @@ namespace ApkQuickReader {
         }
 
         private Bitmap readRootIcon() {
-            ZipEntry best = null;
-            foreach (ZipEntry e in outer) {
-                if (!e.IsFile) continue;
-                string leaf = e.Name;
+            ZipArchiveEntry best = null;
+            foreach (ZipArchiveEntry e in outer.Entries) {
+                if (!ZipSafety.IsFile(e)) continue;
+                string leaf = e.FullName;
                 int slash = leaf.LastIndexOf('/');
                 if (slash >= 0) continue; // root only
                 if (!leaf.StartsWith("icon", StringComparison.OrdinalIgnoreCase)) continue;
                 if (!leaf.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) continue;
-                if (best == null || e.Size > best.Size) best = e; // prefer largest variant
+                if (best == null || e.Length > best.Length) best = e; // prefer largest variant
             }
             if (best == null) return null;
             try {
-                byte[] raw = ZipSafety.ReadEntryBounded(outer, best, ZipSafety.MAX_ICON, "root icon " + best.Name);
+                byte[] raw = ZipSafety.ReadEntryBounded(outer, best, ZipSafety.MAX_ICON, "root icon " + best.FullName);
                 using (MemoryStream ms = new MemoryStream(raw, 0, raw.Length, false, false)) {
                     // full buffer before FromStream: GDI+ lazy decode + non-seekable zip stream
                     return new Bitmap(ms, true);
@@ -212,7 +212,7 @@ namespace ApkQuickReader {
         protected override void Dispose(bool disposing) {
             if (disposing) {
                 if (inner != null) { inner.Dispose(); inner = null; }
-                if (outer != null) { outer.Close(); outer = null; }
+                if (outer != null) { outer.Dispose(); outer = null; }
                 if (outerStream != null) { outerStream.Dispose(); outerStream = null; }
             }
             base.Dispose(disposing);

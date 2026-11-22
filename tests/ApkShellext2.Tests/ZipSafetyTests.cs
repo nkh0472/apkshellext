@@ -1,21 +1,17 @@
 using System;
 using System.IO;
 using System.IO.Compression;
-using ICSharpCode.SharpZipLib.Zip;
 using NUnit.Framework;
-// the tests build archives with System.IO.Compression but read them with the
-// vendored SharpZipLib that the product itself uses, so the two ZipFile types coexist
-using ZipFile = ICSharpCode.SharpZipLib.Zip.ZipFile;
 
 namespace ApkShellext2.Tests
 {
     /// <summary>
     /// ZipSafety.ReadEntryBounded is the one sanctioned way the readers materialise
     /// an entry from an attacker-controlled APK, and the declared sizes in the
-    /// central directory are attacker data. These tests build real zips with
-    /// System.IO.Compression (hermetic: no sample library, no network) and pin the
-    /// two properties that matter - the cap is inclusive-exact, and hitting it stops
-    /// the read instead of buffering the entry first.
+    /// central directory are attacker data. These tests build real zips in memory
+    /// (hermetic: no sample library, no network) and pin the two properties that
+    /// matter - the cap is inclusive-exact, and hitting it stops the read instead
+    /// of buffering the entry first.
     /// </summary>
     [TestFixture]
     public class ZipSafetyTests
@@ -27,9 +23,9 @@ namespace ApkShellext2.Tests
         public void ReturnsTheEntry_WhenItFitsTheCap()
         {
             byte[] payload = Payload(4096);
-            using (ZipFile zip = OpenZip(BuildZip(payload, CompressionLevel.NoCompression)))
+            using (ZipArchive zip = OpenZip(BuildZip(payload, CompressionLevel.NoCompression)))
             {
-                ZipEntry entry = zip.GetEntry(EntryName);
+                ZipArchiveEntry entry = zip.GetEntry(EntryName);
                 Assert.That(entry, Is.Not.Null, EntryName + " is missing from the zip built by the test");
 
                 byte[] read = ProductApi.ReadEntryBounded(zip, entry, payload.Length, What);
@@ -42,9 +38,9 @@ namespace ApkShellext2.Tests
         {
             byte[] payload = Payload(1025);
             long cap = 1024;
-            using (ZipFile zip = OpenZip(BuildZip(payload, CompressionLevel.NoCompression)))
+            using (ZipArchive zip = OpenZip(BuildZip(payload, CompressionLevel.NoCompression)))
             {
-                ZipEntry entry = zip.GetEntry(EntryName);
+                ZipArchiveEntry entry = zip.GetEntry(EntryName);
                 InvalidDataException ex = Assert.Throws<InvalidDataException>(
                     () => ProductApi.ReadEntryBounded(zip, entry, cap, What));
 
@@ -59,10 +55,11 @@ namespace ApkShellext2.Tests
             // a Stored entry cannot expand, so the compression-ratio allowance must not
             // widen the cap: 2 MiB of STORED data against a 64 KiB cap has to fail
             byte[] payload = Payload(2 * 1024 * 1024);
-            using (ZipFile zip = OpenZip(BuildStoredZip(payload)))
+            using (ZipArchive zip = OpenZip(BuildStoredZip(payload)))
             {
-                ZipEntry entry = zip.GetEntry(EntryName);
-                Assert.That(entry.CompressionMethod, Is.EqualTo(CompressionMethod.Stored), "the zip must store this entry uncompressed");
+                ZipArchiveEntry entry = zip.GetEntry(EntryName);
+                Assert.That(entry.CompressedLength, Is.EqualTo((long)payload.Length),
+                    "the zip must store this entry uncompressed");
 
                 Assert.Throws<InvalidDataException>(() => ProductApi.ReadEntryBounded(zip, entry, 64 * 1024, What));
             }
@@ -78,9 +75,9 @@ namespace ApkShellext2.Tests
             long cap = 64 * 1024;
             CountingStream source = new CountingStream(new MemoryStream(BuildStoredZip(payload)));
 
-            using (ZipFile zip = new ZipFile(source, leaveOpen: true))
+            using (ZipArchive zip = OpenZip(source))
             {
-                ZipEntry entry = zip.GetEntry(EntryName);
+                ZipArchiveEntry entry = zip.GetEntry(EntryName);
                 Assert.That(entry, Is.Not.Null);
 
                 long before = source.BytesRead;
@@ -101,7 +98,7 @@ namespace ApkShellext2.Tests
         [Test]
         public void RejectsAMissingEntry_InsteadOfReturningNull()
         {
-            using (ZipFile zip = OpenZip(BuildZip(Payload(16), CompressionLevel.NoCompression)))
+            using (ZipArchive zip = OpenZip(BuildZip(Payload(16), CompressionLevel.NoCompression)))
             {
                 InvalidDataException ex = Assert.Throws<InvalidDataException>(
                     () => ProductApi.ReadEntryBounded(zip, null, 1024, What));
@@ -122,27 +119,13 @@ namespace ApkShellext2.Tests
         }
 
         /// <summary>
-        /// A genuinely Stored entry. System.IO.Compression on .NET Framework emits
+        /// A genuinely Stored entry: System.IO.Compression on .NET Framework emits
         /// Deflated even for CompressionLevel.NoCompression (this suite checks that),
-        /// and the Stored semantics - no compression-ratio allowance - are exactly
-        /// what these two tests pin, so the archive is written with the vendored
-        /// SharpZipLib copy that the product itself reads with.
+        /// so the archive is assembled by TestSupport/ZipBuilder.
         /// </summary>
         private static byte[] BuildStoredZip(byte[] payload)
         {
-            using (MemoryStream buffer = new MemoryStream())
-            {
-                using (ZipOutputStream output = new ZipOutputStream(buffer))
-                {
-                    ZipEntry entry = new ZipEntry(EntryName);
-                    entry.CompressionMethod = CompressionMethod.Stored;
-                    entry.Size = payload.Length;
-                    output.PutNextEntry(entry);
-                    output.Write(payload, 0, payload.Length);
-                    output.CloseEntry();
-                }
-                return buffer.ToArray();
-            }
+            return ZipBuilder.Build(new ZipBuilder.EntrySpec { Name = EntryName, Data = payload });
         }
 
         private static byte[] BuildZip(byte[] payload, CompressionLevel level)
@@ -161,9 +144,13 @@ namespace ApkShellext2.Tests
             }
         }
 
-        private static ZipFile OpenZip(byte[] bytes)
+        private static ZipArchive OpenZip(byte[] bytes)
         {
-            return new ZipFile(new MemoryStream(bytes));
+            return ProductApi.OpenZip(new MemoryStream(bytes));
         }
-    }
+
+        private static ZipArchive OpenZip(Stream stream)
+        {
+            return ProductApi.OpenZip(stream);
+        }    }
 }

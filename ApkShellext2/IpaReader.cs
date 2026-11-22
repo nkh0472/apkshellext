@@ -14,7 +14,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using ICSharpCode.SharpZipLib.Zip;
+using System.IO.Compression;
 using Microsoft.Win32;
 using System.Text.RegularExpressions;
 using ApkQuickReader;
@@ -26,7 +26,7 @@ namespace ApkShellext2
         private string strAppRoot;
         private Dictionary<string, object> infoPlistDic;
         private Dictionary<string, object> itunesMetadataDic;
-        private ZipFile zip;
+        private ZipArchive zip;
 
         private const string iTunesMetadataPath = @"iTunesMetadata.plist";
         private const string infoPlistPath = @"(Payload/.*\.app/)Info\.plist";
@@ -55,10 +55,10 @@ namespace ApkShellext2
         }
 
         private void openStream(Stream stream) {
-            zip = new ZipFile(stream);
-            ZipEntry infoPlist = null;
-            foreach (ZipEntry en in zip) {
-                Match m = Regex.Match(en.Name, infoPlistPath);
+            zip = ZipSafety.OpenZip(stream);
+            ZipArchiveEntry infoPlist = null;
+            foreach (ZipArchiveEntry en in zip.Entries) {
+                Match m = Regex.Match(en.FullName, infoPlistPath);
                 if (m.Success) {
                     strAppRoot = m.Groups[1].Value;
                     infoPlist = en;
@@ -110,20 +110,20 @@ namespace ApkShellext2
 
         public Bitmap getImage(string name) {
             string fullname = name;
-            ZipEntry image;
+            ZipArchiveEntry image;
             if (!name.EndsWith(".png")) {                
                 fullname = name + @"@3x" + ".png";
-                image = zip.GetEntry(strAppRoot + fullname);                
+                image = ZipSafety.GetEntry(zip, strAppRoot + fullname);
                 if (image == null) {
                     fullname = name + @"@2x" + ".png";
-                    image = zip.GetEntry(strAppRoot + fullname);
+                    image = ZipSafety.GetEntry(zip, strAppRoot + fullname);
                 }
                 if (image == null) {
                     fullname = name + ".png";
-                    image = zip.GetEntry(strAppRoot + fullname);
+                    image = ZipSafety.GetEntry(zip, strAppRoot + fullname);
                 }
             } else {
-                image = zip.GetEntry(strAppRoot + name);
+                image = ZipSafety.GetEntry(zip, strAppRoot + name);
             }
 
             if (image == null) {
@@ -230,7 +230,7 @@ namespace ApkShellext2
         public override string Publisher {
             get {
                 try {
-                    ZipEntry itunesMetadata = zip.GetEntry(iTunesMetadataPath);
+                    ZipArchiveEntry itunesMetadata = ZipSafety.GetEntry(zip, iTunesMetadataPath);
                     if (itunesMetadata == null)
                         return "";
                     byte[] itunesMetadataBytes = ZipSafety.ReadEntryBounded(zip, itunesMetadata, ZipSafety.MAX_METADATA, "iTunesMetadata.plist");
@@ -245,7 +245,7 @@ namespace ApkShellext2
         public override string AppID {
             get {
                 try {
-                    ZipEntry itunesMetadata = zip.GetEntry(iTunesMetadataPath);
+                    ZipArchiveEntry itunesMetadata = ZipSafety.GetEntry(zip, iTunesMetadataPath);
                     if (itunesMetadata == null)
                         return "";
                     byte[] itunesMetadataBytes = ZipSafety.ReadEntryBounded(zip, itunesMetadata, ZipSafety.MAX_METADATA, "iTunesMetadata.plist");
@@ -263,7 +263,7 @@ namespace ApkShellext2
             if (disposed) return;
             if (disposing) {
                 if (zip != null)
-                    zip.Close();
+                    zip.Dispose();
             }
             disposed = true;
             base.Dispose(disposing);

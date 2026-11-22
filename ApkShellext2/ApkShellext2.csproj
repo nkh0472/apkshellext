@@ -217,6 +217,9 @@
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
+    <!-- zip containers are read with the BCL reader (System.IO.Compression.ZipArchive,
+         see ZipSafety.cs) instead of a source-embedded third-party zip library -->
+    <Reference Include="System.IO.Compression" />
     <Reference Include="System.EnterpriseServices" />
     <Reference Include="System.Security" />
     <Reference Include="System.Windows.Forms" />

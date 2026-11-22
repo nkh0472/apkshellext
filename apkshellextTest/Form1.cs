@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using ApkShellext2;
 using ApkQuickReader;
-using ICSharpCode.SharpZipLib.Zip;
+using System.IO.Compression;
 using ApkShellext2.ApkChunk;
 using System.Drawing.Drawing2D;
 using System.Text.RegularExpressions;
@@ -79,16 +79,41 @@ namespace apkshellextTest
 
         private void parseapk() {
             if (File.Exists(textBox1.Text.Trim())) {
-                ZipFile zip = new ZipFile(textBox1.Text);
-                ZipEntry en = zip.GetEntry("androidmanifest.xml");
-                BinaryReader s = new BinaryReader(zip.GetInputStream(en));
-                byte[] bytes = s.ReadBytes((int)en.Size);
-                ApkXMLChunk ck = new ApkXMLChunk(bytes);
-                textBox2.Text = ck.OutputXML();
-
-                //AppPackageReader reader  = AppPackageReader.Read(textBox1.Text);
-                s.Close();
-                zip.Close();
+                // dev sample: the same BCL zip reader the product uses; the manifest
+                // name is matched case-insensitively because package tooling is not
+                // consistent about the spelling
+                using (ZipArchive zip = new ZipArchive(
+                    new FileStream(textBox1.Text.Trim(), FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete),
+                    ZipArchiveMode.Read)) {
+                    ZipArchiveEntry en = null;
+                    foreach (ZipArchiveEntry candidate in zip.Entries) {
+                        if (string.Equals(candidate.FullName, "AndroidManifest.xml", StringComparison.OrdinalIgnoreCase)) {
+                            en = candidate;
+                            break;
+                        }
+                    }
+                    if (en == null) {
+                        textBox2.Text = "AndroidManifest.xml not found";
+                        return;
+                    }
+                    // bounded: the binary manifest is a few KB in every real apk
+                    const long maxManifest = 64L * 1024 * 1024;
+                    byte[] bytes;
+                    using (MemoryStream ms = new MemoryStream())
+                    using (Stream s = en.Open()) {
+                        byte[] buf = new byte[64 * 1024];
+                        long total = 0; int n;
+                        while ((n = s.Read(buf, 0, buf.Length)) > 0) {
+                            total += n;
+                            if (total > maxManifest)
+                                throw new InvalidDataException("AndroidManifest.xml exceeds " + maxManifest + " bytes");
+                            ms.Write(buf, 0, n);
+                        }
+                        bytes = ms.ToArray();
+                    }
+                    ApkXMLChunk ck = new ApkXMLChunk(bytes);
+                    textBox2.Text = ck.OutputXML();
+                }
             }
         }
 

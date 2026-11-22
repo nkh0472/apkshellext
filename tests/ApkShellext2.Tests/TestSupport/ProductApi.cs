@@ -1,7 +1,8 @@
 using System;
+using System.IO;
+using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
-using ICSharpCode.SharpZipLib.Zip;
 using NUnit.Framework;
 using WebPWrapper;
 
@@ -77,10 +78,30 @@ namespace ApkShellext2.Tests
         }
 
         /// <summary>
+        /// Opens a zip with ApkQuickReader.ZipSafety.OpenZip, the entry point every
+        /// reader uses: it applies the entry-count gate and the legacy entry-name
+        /// encoding, so guards tested through it are the ones that actually ship.
+        /// </summary>
+        public static ZipArchive OpenZip(Stream stream)
+        {
+            Type zipSafety = RequireType("ApkQuickReader.ZipSafety");
+            MethodInfo method = RequireMethod(zipSafety, "OpenZip");
+            try
+            {
+                return (ZipArchive)method.Invoke(null, new object[] { stream });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw; // unreachable
+            }
+        }
+
+        /// <summary>
         /// Calls ApkQuickReader.ZipSafety.ReadEntryBounded, the single sanctioned way the
         /// readers materialise an attacker-controlled zip entry.
         /// </summary>
-        public static byte[] ReadEntryBounded(ZipFile zip, ZipEntry entry, long hardCap, string what)
+        public static byte[] ReadEntryBounded(ZipArchive zip, ZipArchiveEntry entry, long hardCap, string what)
         {
             Type zipSafety = RequireType("ApkQuickReader.ZipSafety");
             MethodInfo method = RequireMethod(zipSafety, "ReadEntryBounded");
