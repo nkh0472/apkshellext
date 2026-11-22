@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -41,6 +41,23 @@ namespace SharpShell.SharpContextMenu
         /// <param name="uFlags">The flags.</param>
         /// <returns>An HRESULT indicating success.</returns>
         int IContextMenu.QueryContextMenu(IntPtr hMenu, uint indexMenu, int idCmdFirst, int idCmdLast, CMF uFlags)
+        {
+            //  Outer guard: a managed exception must never cross the COM boundary into
+            //  explorer.exe (that is how a shell extension takes the desktop down). The
+            //  inner try/catch blocks still give the specific failures their own message;
+            //  this one covers the rest of the method (logging, the final HRESULT
+            //  computation and anything a derived Log() override may throw).
+            try
+            {
+                return QueryContextMenuCore(hMenu, indexMenu, idCmdFirst, idCmdLast, uFlags);
+            }
+            catch (Exception exception)
+            {
+                LogError("An exception ocurred querying the context menu.", exception);
+                return WinError.E_FAIL;
+            }
+        }
+        private int QueryContextMenuCore(IntPtr hMenu, uint indexMenu, int idCmdFirst, int idCmdLast, CMF uFlags)
         {
             //  Log this key event.
             Log(string.Format("Query Context Menu for items: {0}{1}", Environment.NewLine, string.Join(Environment.NewLine, SelectedItemPaths)));
@@ -102,6 +119,27 @@ namespace SharpShell.SharpContextMenu
         /// </summary>
         /// <param name="pici">The command info pointer.</param>
         int IContextMenu.InvokeCommand(IntPtr pici)
+        {
+            //  This is the method behind every menu click (rename, dump, preferences, the
+            //  store links). It used to have no guard at all, so a handler exception went
+            //  straight through the COM vtable into explorer.exe.
+            //
+            //  Failure is returned as E_FAIL, matching what this method already does when
+            //  TryInvokeCommand() reports "not handled": the shell then treats the command
+            //  as failed instead of assuming it ran. S_OK is deliberately not used here -
+            //  it would tell explorer the click succeeded while nothing happened, which is
+            //  exactly the silent "the menu does nothing" behaviour users reported.
+            try
+            {
+                return InvokeCommandCore(pici);
+            }
+            catch (Exception exception)
+            {
+                LogError("An exception ocurred invoking the command.", exception);
+                return WinError.E_FAIL;
+            }
+        }
+        private int InvokeCommandCore(IntPtr pici)
         {
             //  We'll work out whether the commandis unicode or not...
             var isUnicode = false;
@@ -225,6 +263,21 @@ namespace SharpShell.SharpContextMenu
         /// <param name="cch">The CCH.</param>
         int IContextMenu.GetCommandString(int idcmd, GCS uflags, int reserved, StringBuilder commandstring, int cch)
         {
+            //  MSDN documents E_FAIL for "the requested verb is not available"; using it
+            //  when the body throws also covers the insufficient-buffer path below, which
+            //  used to raise STRSAFE_E_INSUFFICIENT_BUFFER through the COM boundary.
+            try
+            {
+                return GetCommandStringCore(idcmd, uflags, reserved, commandstring, cch);
+            }
+            catch (Exception exception)
+            {
+                LogError("An exception ocurred getting the command string.", exception);
+                return WinError.E_FAIL;
+            }
+        }
+        private int GetCommandStringCore(int idcmd, GCS uflags, int reserved, StringBuilder commandstring, int cch)
+        {
             //  Get the item.
             if (idcmd >= contextMenuStrip.Value.Items.Count)
                 return WinError.E_FAIL;
@@ -310,6 +363,24 @@ namespace SharpShell.SharpContextMenu
         /// </returns>
         /// <exception cref="System.NotImplementedException"></exception>
         int IContextMenu3.HandleMenuMsg2(uint uMsg, IntPtr wParam, IntPtr lParam, ref IntPtr plResult)
+        {
+            //  Both IContextMenu2.HandleMenuMsg and IContextMenu3.HandleMenuMsg delegate
+            //  here, so this guard covers all three entry points. On failure E_NOTIMPL is
+            //  returned rather than E_FAIL: it is the documented "this message was not
+            //  handled by the extender" answer, which lets the shell run its own default
+            //  handling instead of aborting the menu, while still not pretending we
+            //  processed the message (that would be S_OK).
+            try
+            {
+                return HandleMenuMsg2Core(uMsg, wParam, lParam, ref plResult);
+            }
+            catch (Exception exception)
+            {
+                LogError("An exception ocurred handling a menu message.", exception);
+                return WinError.E_NOTIMPL;
+            }
+        }
+        private int HandleMenuMsg2Core(uint uMsg, IntPtr wParam, IntPtr lParam, ref IntPtr plResult)
         {
             if (uMsg == (uint)WM.INITMENUPOPUP)
             {

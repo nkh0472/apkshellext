@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -23,31 +23,44 @@ namespace SharpShell
         /// <param name="hKeyProgID">The handle to the key prog id.</param>
         void IShellExtInit.Initialize(IntPtr pidlFolder, IntPtr pDataObj, IntPtr hKeyProgID)
         {
-            Log("Initializing shell extension...");
-
-            //  If we have the folder PIDL, we can get the parent folder.
-            if (pidlFolder != IntPtr.Zero)
+            //  First call into the extension, and the shell calls it before anything else.
+            //  The interop signature is void (no PreserveSig), so an escaping exception is
+            //  the only way to signal failure - and it would unwind through explorer's
+            //  frames. Guard it, log it, and leave the selection empty: every downstream
+            //  entry point is written to survive "nothing selected" and returns a proper
+            //  HRESULT, so the worst case is a menu that does not appear.
+            try
             {
-                var stringBuilder = new StringBuilder(260);
-                if (User32.SHGetPathFromIDListW(pidlFolder, stringBuilder))
+                Log("Initializing shell extension...");
+
+                //  If we have the folder PIDL, we can get the parent folder.
+                if (pidlFolder != IntPtr.Zero)
                 {
-                    //  Set parent folder path.
-                    FolderPath = stringBuilder.ToString();
+                    var stringBuilder = new StringBuilder(260);
+                    if (User32.SHGetPathFromIDListW(pidlFolder, stringBuilder))
+                    {
+                        //  Set parent folder path.
+                        FolderPath = stringBuilder.ToString();
+                    }
                 }
-            }
 
-            //  If we have the data object, we can use it to get the selected item paths.
-            if (pDataObj != IntPtr.Zero)
+                //  If we have the data object, we can use it to get the selected item paths.
+                if (pDataObj != IntPtr.Zero)
+                {
+                    //  Create the IDataObject from the provided pDataObj.
+                    var dataObject = (System.Runtime.InteropServices.ComTypes.IDataObject) Marshal.GetObjectForIUnknown(pDataObj);
+
+                    //  Add the set of files to the selected file paths.
+                    selectedItemPaths = dataObject.GetFileList();
+                }
+
+                Log(string.Format("Shell extension initialised.{0}Parent folder: {1}{0}Items: {0}{2}",
+                    Environment.NewLine, FolderPath ?? "<none>", string.Join(System.Environment.NewLine, selectedItemPaths)));
+            }
+            catch (Exception exception)
             {
-                //  Create the IDataObject from the provided pDataObj.
-                var dataObject = (System.Runtime.InteropServices.ComTypes.IDataObject) Marshal.GetObjectForIUnknown(pDataObj);
-
-                //  Add the set of files to the selected file paths.
-                selectedItemPaths = dataObject.GetFileList();
+                LogError("An exception ocurred initializing the shell extension.", exception);
             }
-
-            Log(string.Format("Shell extension initialised.{0}Parent folder: {1}{0}Items: {0}{2}",
-                Environment.NewLine, FolderPath ?? "<none>", string.Join(System.Environment.NewLine, selectedItemPaths)));
         }
 
         #endregion

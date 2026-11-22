@@ -11,6 +11,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using ApkShellext2.Diagnostics;
 using ApkShellext2.Properties;
 using System.Threading;
 using System.Text.RegularExpressions;
@@ -95,7 +96,7 @@ namespace ApkShellext2 {
                         }
                         StoreIcon(key, m_icon);
                     } catch (Exception ex) {
-                        Log("Error in reading icon for " + Path.GetFileName(SelectedItemPath) + ", draw default : " + ex.Message);
+                        ErrorLog.Warn(this.GetType().Name, "Error in reading icon for " + Path.GetFileName(SelectedItemPath) + ", draw default", ex);
                         DbgLog.W("ICON default for " + Path.GetFileName(SelectedItemPath) + " : " + ex.Message.Split('\n')[0]);
                         // read error, draw the default icon
                         m_icon = Utility.AppTypeIcon(AppPackageReader.getAppType(SelectedItemPath));
@@ -109,7 +110,7 @@ namespace ApkShellext2 {
                            new Rectangle(0, (int)m_icon.Height / 2, (int)m_icon.Width / 2, (int)m_icon.Height / 2),
                            new Size((int)m_icon.Width, (int)m_icon.Height));
                     } catch (Exception ex) {
-                        Log("Overlay failed for " + Path.GetFileName(SelectedItemPath) + ", keeping base icon: " + ex.Message);
+                        ErrorLog.Warn(this.GetType().Name, "Overlay failed for " + Path.GetFileName(SelectedItemPath) + ", keeping base icon", ex);
                     }
                 }
             }
@@ -214,6 +215,13 @@ namespace ApkShellext2 {
 
         protected override void Log(string message) {
             Utility.Log(this, Path.GetFileName(SelectedItemPath), message);
+        }
+
+        /// <summary>
+        /// Routes failures to the default-on error log; see ApkContextMenu.LogError.
+        /// </summary>
+        protected override void LogError(string message, Exception exception) {
+            ErrorLog.Error(this.GetType().Name, message, exception);
         }
     }
 }

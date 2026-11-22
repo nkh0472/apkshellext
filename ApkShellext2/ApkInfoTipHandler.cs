@@ -9,6 +9,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using ApkShellext2.Diagnostics;
 using ApkShellext2.Properties;
 
 namespace ApkShellext2 {
@@ -43,7 +44,7 @@ namespace ApkShellext2 {
                     return ApkContextMenu.ReplaceVariables(TipPattern, reader);
                 }
             } catch (Exception ex) {
-                Log("Error happened during GetInfo : " + ex.Message);
+                ErrorLog.Warn(this.GetType().Name, "Error happened during GetInfo", ex);
                 return Properties.Resources.strReadFileFailed;
             }
         }
@@ -75,6 +76,13 @@ namespace ApkShellext2 {
 
         protected override void Log(string message){
             Utility.Log(this, Path.GetFileName(SelectedItemPath), message);
+        }
+
+        /// <summary>
+        /// Routes failures to the default-on error log; see ApkContextMenu.LogError.
+        /// </summary>
+        protected override void LogError(string message, Exception exception) {
+            ErrorLog.Error(this.GetType().Name, message, exception);
         }
     }
 }

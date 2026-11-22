@@ -1,4 +1,5 @@
 using ApkQuickReader;
+using ApkShellext2.Diagnostics;
 using ApkShellext2.Properties;
 using Microsoft.Win32;
 using SharpShell.Attributes;
@@ -237,7 +238,7 @@ namespace ApkShellext2 {
                     mainMenu.Image = b;
                 } catch (Exception ex) {
                     mainMenu.Image = Utility.ResizeBitmap(Properties.NonLocalizeResources.logo, size);
-                    Log("Error happens during extracting icon " + ex.Message);
+                    ErrorLog.Warn(this.GetType().Name, "Error happens during extracting icon", ex);
                 }
             } else {
                 mainMenu.Image = Utility.ResizeBitmap(Properties.NonLocalizeResources.logo, size);
@@ -319,7 +320,7 @@ namespace ApkShellext2 {
                     doc.WriteTo(writer);
                     writer.Close();
                 } catch (Exception ex) {
-                    Log(ex.Message + "\nError happens during extracting " + xml + " in " + apk);
+                    ErrorLog.Warn(this.GetType().Name, "Error happens during extracting " + xml + " in " + apk, ex);
                 }
             }
         }
@@ -391,7 +392,7 @@ namespace ApkShellext2 {
                     string newFilename = getNewFileName(path);
                     File.Move(path, newFilename);
                 } catch (Exception e) {
-                    Log("Exception happens during rename: " + e.Message);
+                    ErrorLog.Warn(this.GetType().Name, "Exception happens during rename: " + path, e);
                 }
             }
         }
@@ -468,7 +469,7 @@ namespace ApkShellext2 {
                     settingFormInstance.BringToFront();
                 }
             } catch (Exception ex) {
-                Log("showSettings " + ex.Message);
+                ErrorLog.Warn(this.GetType().Name, "Error happens during showSettings", ex);
             }
         }
 
@@ -500,6 +501,16 @@ namespace ApkShellext2 {
         protected override void Log(string message) {
             string s = (SelectedItemPaths.Count() >0) ?Path.GetFileName(SelectedItemPaths.ElementAt(0)): "";
             Utility.Log(this, s, message);
+        }
+
+        /// <summary>
+        /// Routes failures to the default-on error log. The SharpShell base classes already
+        /// catch the exceptions around their COM entry points, but they report them through
+        /// LogError, which only wrote to a Trace listener that no release build has. This
+        /// override is what makes those existing catch blocks visible in the field log.
+        /// </summary>
+        protected override void LogError(string message, Exception exception) {
+            ErrorLog.Error(this.GetType().Name, message, exception);
         }
     }
 }

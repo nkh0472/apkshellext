@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using SharpShell.Extensions;
 using SharpShell.ServerRegistration;
 using System.IO;
+using ApkShellext2.Diagnostics;
 using ApkShellext2.Properties;
 using ApkQuickReader;
 using System.Configuration;
@@ -77,8 +78,7 @@ namespace ApkShellext2 {
 #endif
                 return m_icon;
             } catch (Exception ex){
-                Log("Error in reading icon from stream, draw default");
-                Log(ex.Message);
+                ErrorLog.Warn(this.GetType().Name, "Error in reading icon from stream, draw default", ex);
                 DbgLog.W("THUMB FAIL " + ex.GetType().Name + ": " + ex.Message.Split('\n')[0]);
                 // read error, draw the default icon
                 //m_icon = Utility.AppTypeIcon(AppPackageReader.AppType.AndroidApp);
@@ -120,6 +120,13 @@ namespace ApkShellext2 {
 
         protected override void Log(string message) {
             Utility.Log(this, "", message);
+        }
+
+        /// <summary>
+        /// Routes failures to the default-on error log; see ApkContextMenu.LogError.
+        /// </summary>
+        protected override void LogError(string message, Exception exception) {
+            ErrorLog.Error(this.GetType().Name, message, exception);
         }
     }
 }

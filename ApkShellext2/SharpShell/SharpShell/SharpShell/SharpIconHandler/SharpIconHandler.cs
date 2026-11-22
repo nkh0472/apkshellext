@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices.ComTypes;
@@ -45,20 +45,37 @@ namespace SharpShell.SharpIconHandler
         }
         private int GetIconLocation(GILInFlags uFlags, out int piIndex, out GILOutFlags pwFlags)
         {
-            //  DebugLog this key event.
-            Log(string.Format("Getting icon location icon for {0}", SelectedItemPath));
+            //  Both IExtractIconA and IExtractIconW land here, so this one guard covers the
+            //  two COM entry points. Nothing in the happy path allocates or touches the
+            //  file system, but Log() is virtual and the derived handler formats a file
+            //  name from the selection, so it can throw.
+            try
+            {
+                //  DebugLog this key event.
+                Log(string.Format("Getting icon location icon for {0}", SelectedItemPath));
 
-            //  We're always going to return by handle.
-            //  This will cause the 'Extract' function to be called.
-            pwFlags = GILOutFlags.GIL_NOTFILENAME;
-            if (DontCacheIcons)
-                pwFlags |= GILOutFlags.GIL_DONTCACHE;
+                //  We're always going to return by handle.
+                //  This will cause the 'Extract' function to be called.
+                pwFlags = GILOutFlags.GIL_NOTFILENAME;
+                if (DontCacheIcons)
+                    pwFlags |= GILOutFlags.GIL_DONTCACHE;
 
-            //  No need for an index.
-            piIndex = 0;
+                //  No need for an index.
+                piIndex = 0;
 
-            //  Return success.
-            return WinError.S_OK;
+                //  Return success.
+                return WinError.S_OK;
+            }
+            catch (Exception exception)
+            {
+                //  MSDN: S_FALSE means "I have no icon location, use the default icon".
+                //  That is the correct graceful answer here and keeps the shell from
+                //  showing an error for a file we merely failed to inspect.
+                LogError("An exception ocurred getting the icon location.", exception);
+                piIndex = 0;
+                pwFlags = 0;
+                return WinError.S_FALSE;
+            }
         }
         /// <summary>
         /// Extracts an icon image from the specified location.
