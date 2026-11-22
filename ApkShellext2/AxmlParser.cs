@@ -60,13 +60,47 @@ namespace ApkQuickReader
         /// </summary>
         internal string QuickSearchCompressedXml(byte[] xml, string xpath, string attribute, bool preferLocale)
         {
+            DATA_TYPE dataType;
+            uint data;
+            if (!FindAttributeValue(xml, xpath, attribute, out dataType, out data))
+                return "";
+            return convertData(xml, dataType, data, preferLocale);
+        }
+
+        /// <summary>
+        /// Same walk as QuickSearchCompressedXml, but it also hands back the raw typed
+        /// value. The icon chain needs to know whether the manifest attribute is a
+        /// TYPE_REFERENCE and which id it points at (B4 rule 1), and reading it from the
+        /// same walk keeps getIcon from walking the manifest twice.
+        /// </summary>
+        internal string QuickSearchCompressedXmlTyped(byte[] xml, string xpath, string attribute,
+            bool preferLocale, out DATA_TYPE dataType, out uint data)
+        {
+            if (!FindAttributeValue(xml, xpath, attribute, out dataType, out data))
+                return "";
+            return convertData(xml, dataType, data, preferLocale);
+        }
+
+        /// <summary>
+        /// B4 icon chain: see ArscParser.ResolveIconValue. The AXML side only forwards,
+        /// because the rules are about the resource table, not about the binary xml.
+        /// </summary>
+        internal string ResolveIconValue(string value, uint referenceId)
+        {
+            return arsc.ResolveIconValue(value, referenceId, densityRequested, ignoreXmlDensity);
+        }
+
+        private bool FindAttributeValue(byte[] xml, string xpath, string attribute,
+            out DATA_TYPE dataType, out uint data)
+        {
+            dataType = DATA_TYPE.TYPE_NULL;
+            data = 0;
             using (MemoryStream ms = new MemoryStream(xml))
             using (BinaryReader br = new BinaryReader(ms))
             {
                 log("Search xml for " + xpath + " " + attribute);
                 string[] pathl = xpath.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
                 ms.Seek(8, SeekOrigin.Begin); // skip header, no doubt it's an xml chunk
-                ApkResource result = new ApkResource(0);
                 int tagDepth = 0;
                 int matchDepth = 0;
 
@@ -105,9 +139,9 @@ namespace ApkQuickReader
                                     if (name.ToUpper() == attribute.ToUpper())
                                     {
                                         ms.Seek(4 + 2 + 1, SeekOrigin.Current); // skip rawValue/size/0/
-                                        DATA_TYPE dataType = (DATA_TYPE)br.ReadByte();
-                                        uint data = br.ReadUInt32();
-                                        return convertData(xml, dataType, data, preferLocale);
+                                        dataType = (DATA_TYPE)br.ReadByte();
+                                        data = br.ReadUInt32();
+                                        return true;
                                     }
                                 }
                             }
@@ -123,7 +157,7 @@ namespace ApkQuickReader
                     }
                     SeekNextChunk(ms, chunkPos, chunkSize);
                 }
-                return "";
+                return false;
             }
         }
 

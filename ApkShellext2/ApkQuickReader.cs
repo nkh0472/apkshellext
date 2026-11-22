@@ -1241,8 +1241,21 @@ namespace ApkQuickReader
             if (getFlag("Density") == null) {
                 setFlag("Density", 1);
             }
-            string path = QuickSearchManifestXml(tag, attr);
-            ApkShellext2.DbgLog.W("GETIMG tag " + tag + "." + attr + " size=" + size.Width + " -> " + path);
+            // B4 icon chain: QuickSearchManifestXml already resolves a TYPE_REFERENCE by its
+            // exact id (that is what convertData does), so the value we get here is the
+            // exact-id answer when there is one. Take the raw typed value from the same walk
+            // and let the shared parser apply the rest of the rules: name fallback when the
+            // id resolves to nothing, "android:" refusal, "res/" path shortcut and the
+            // smallest-id choice for duplicated names. A value it cannot improve comes back
+            // unchanged, so the failure path below stays exactly what it was.
+            AxmlParser iconParser = NewAxmlParser();
+            DATA_TYPE iconType;
+            uint iconData;
+            string path = iconParser.QuickSearchCompressedXmlTyped(manifest, tag, attr, false, out iconType, out iconData);
+            uint iconReference = (iconType == DATA_TYPE.TYPE_REFERENCE) ? iconData : 0;
+            path = iconParser.ResolveIconValue(path, iconReference);
+            ApkShellext2.DbgLog.W("GETIMG tag " + tag + "." + attr + " size=" + size.Width + " type=" + iconType +
+                " id=0x" + iconData.ToString("X8") + " -> " + path);
             if (path == "") {
                 Log("Cannot find image for <" + tag + ">.<" + attr + ">");
                 throw new Exception("Cannot find image for <" + tag + ">.<" + attr + ">");

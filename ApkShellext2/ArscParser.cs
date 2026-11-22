@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text;
 using ApkShellext2;
 
 namespace ApkQuickReader
@@ -166,9 +167,15 @@ namespace ApkQuickReader
                                         if (dataType == (byte)DATA_TYPE.TYPE_STRING) {
                                             res.Add(conf, readStringPool(table, data));
                                         } else if (dataType == (byte)DATA_TYPE.TYPE_REFERENCE) {
-                                            // the entry is null, or it's referencing in loop, skip it
-                                            if (data != 0x00000000 && !searchstack.Contains(data))
+                                            // B4 规则 2：自引用守卫。这一项指向它自己时，资源表在这条链上
+                                            // 绕圈；searchstack 本来就能挡住死循环，这里额外留一条 debug 痕迹，
+                                            // 否则"图标没出来"会变成没有线索的悬案。
+                                            if (data == id) {
+                                                ApkShellext2.DbgLog.W("ARSC self reference 0x" + id.ToString("X8") + " ignored");
+                                            } else if (data != 0x00000000 && !searchstack.Contains(data)) {
+                                                // the entry is null, or it's referencing in loop, skip it
                                                 res.Add(QuickSearchResource((UInt32)data));
+                                            }
                                         } else { // I would like to expect we only will receive TYPE_STRING/TYPE_REFERENCE/any integer type, complex is not considering here,yet
                                             res.Add(conf, data.ToString());
                                         }
@@ -187,6 +194,143 @@ namespace ApkQuickReader
             } finally {
                 searchstack.Pop();
             }
+        }
+
+        /// <summary>
+        /// Look a resource up by name (B4 rule 1 fallback, B4 rule 4).
+        ///
+        /// <paramref name="entryName"/> is the key inside the type (for example
+        /// "ic_launcher"); <paramref name="typeName"/> is the parent type ("mipmap").
+        /// The same name can appear in several packages, and in several config chunks of
+        /// one type: B4 takes the smallest id of all candidates, which is also what makes
+        /// the choice stable when a table ships duplicated names. Returns 0 when the name
+        /// is not in this table.
+        /// </summary>
+        public uint FindResourceId(string typeName, string entryName)
+        {
+            if (table == null || table.Length < 12 ||
+                string.IsNullOrEmpty(typeName) || string.IsNullOrEmpty(entryName))
+                return 0;
+            try {
+                using (MemoryStream ms = new MemoryStream(table))
+                using (BinaryReader br = new BinaryReader(ms)) {
+                    ms.Seek(8, SeekOrigin.Begin);
+                    int packageCount = br.ReadInt32();
+                    if (packageCount < 0 || packageCount > MaxResourcePackages)
+                        return 0;
+
+                    long stringPoolPos = ms.Position;
+                    ms.Seek(4, SeekOrigin.Current);
+                    int stringPoolSize = br.ReadInt32();
+                    if (stringPoolSize < 8 || stringPoolPos + stringPoolSize > ms.Length)
+                        return 0;
+                    ms.Seek(stringPoolPos + stringPoolSize, SeekOrigin.Begin);
+
+                    uint best = 0;
+                    for (int pack = 0; pack < packageCount; pack++) {
+                        long packPos = ms.Position;
+                        if (packPos + 12 > ms.Length) break;
+                        ms.Seek(2, SeekOrigin.Current);
+                        int headerSize = br.ReadInt16();
+                        int packChunkSize = br.ReadInt32();
+                        uint packID = br.ReadUInt32();
+                        if (headerSize < 12 || packChunkSize < headerSize ||
+                            packPos + packChunkSize > ms.Length)
+                            break;
+                        long packEnd = packPos + packChunkSize;
+
+                        // ResTable_package hides the two pool offsets behind the 256-byte
+                        // name field: typeStrings at +268 and keyStrings at +276, both
+                        // relative to the package start and only present in a full header
+                        if (headerSize < 284 || packEnd - packPos < 284) {
+                            ms.Seek(packEnd, SeekOrigin.Begin);
+                            continue;
+                        }
+                        ms.Seek(packPos + 268, SeekOrigin.Begin);
+                        long typePoolPos = packPos + br.ReadUInt32();
+                        ms.Seek(packPos + 276, SeekOrigin.Begin);
+                        long keyPoolPos = packPos + br.ReadUInt32();
+                        if (typePoolPos <= packPos || keyPoolPos <= packPos ||
+                            typePoolPos + 8 > packEnd || keyPoolPos + 8 > packEnd) {
+                            ms.Seek(packEnd, SeekOrigin.Begin);
+                            continue;
+                        }
+
+                        long chunkPos = packPos + headerSize;
+                        while (chunkPos + 8 <= packEnd) {
+                            ms.Seek(chunkPos, SeekOrigin.Begin);
+                            short chunkType = br.ReadInt16();
+                            short chunkHeaderSize = br.ReadInt16();
+                            int chunkSize = br.ReadInt32();
+                            if (chunkHeaderSize < 8 || chunkSize < 8 ||
+                                chunkPos + chunkSize > packEnd)
+                                break;
+                            long chunkEnd = chunkPos + chunkSize;
+
+                            if (chunkType == (short)RES_TYPE.RES_TABLE_TYPE_TYPE &&
+                                chunkHeaderSize >= 24) {
+                                FindEntryIdInTypeChunk(ms, br, packID, typePoolPos, keyPoolPos,
+                                    chunkPos, chunkEnd, chunkHeaderSize, typeName, entryName, ref best);
+                            }
+                            chunkPos = chunkEnd;
+                        }
+                        ms.Seek(packEnd, SeekOrigin.Begin);
+                    }
+                    return best;
+                }
+            } catch (Exception ex) when (!(ex is OutOfMemoryException)) {
+                // a malformed table must not surface as an exception from an icon lookup
+                ApkShellext2.DbgLog.W("ARSC name lookup failed: " + ex.Message.Split('\n')[0]);
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// B4 icon reference chain. <paramref name="value"/> is what the manifest attribute
+        /// already rendered to, <paramref name="referenceId"/> is its original
+        /// TYPE_REFERENCE payload (0 when the attribute is not a reference).
+        ///
+        /// Rule 5: a value that starts with "res/" is a file path inside the apk - take the
+        ///   file, never consult the table (a table lookup could hand back a different,
+        ///   "nicer" name and change the icon of apps whose resources are simply renamed).
+        /// Rule 1: try the exact id first, fall back to the name.
+        /// Rule 3: "android:" is the framework package, not an app resource - refuse it.
+        /// Rule 2: self references are stopped inside QuickSearchResource().
+        ///
+        /// Returns <paramref name="value"/> unchanged when nothing resolves, so the caller
+        /// keeps its original failure path.
+        /// </summary>
+        public string ResolveIconValue(string value, UInt32 referenceId,
+            bool densityRequested, bool ignoreXmlDensity)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+
+            // rule 5: package file path, do not touch the table
+            if (value.StartsWith("res/", StringComparison.OrdinalIgnoreCase)) return value;
+            // packers rename the res/ prefix away (r/w/x6.png): anything that looks like a
+            // file is a path as well, and looking it up by name would only break it
+            if (LooksLikeFilePath(value)) return value;
+
+            // rule 1 (first half): the exact reference id wins over any name
+            if (referenceId != 0) {
+                string byId = ResolveIdToValue(referenceId, densityRequested, ignoreXmlDensity);
+                if (!string.IsNullOrEmpty(byId)) return byId;
+            }
+
+            // rule 1 (second half) + rule 3: name fallback, refusing foreign packages
+            string name = NormalizeResourceName(value);
+            if (name == null) return value; // not a "type/name" value: keep the old behaviour
+
+            int slash = name.IndexOf('/');
+            uint id = FindResourceId(name.Substring(0, slash), name.Substring(slash + 1));
+            if (id == 0) {
+                ApkShellext2.DbgLog.W("ICON name lookup missed: " + value);
+                return value;
+            }
+            string resolved = ResolveIdToValue(id, densityRequested, ignoreXmlDensity);
+            if (string.IsNullOrEmpty(resolved)) return value;
+            ApkShellext2.DbgLog.W("ICON name lookup " + value + " -> 0x" + id.ToString("X8") + " -> " + resolved);
+            return resolved;
         }
 
         /// <summary>
@@ -263,6 +407,212 @@ namespace ApkQuickReader
             if (sameLang >= 0) return sameLang;
             if (defaultCfg >= 0) return defaultCfg;
             return 0;
+        }
+
+        // Walks one ResTable_type chunk and records the smallest resource id whose key
+        // equals entryName. Every count and offset below comes from the file, so each is
+        // checked against the chunk before it is used to seek.
+        private void FindEntryIdInTypeChunk(MemoryStream ms, BinaryReader br, uint packID,
+            long typePoolPos, long keyPoolPos, long chunkPos, long chunkEnd,
+            short chunkHeaderSize, string typeName, string entryName, ref uint best)
+        {
+            ms.Seek(chunkPos + 8, SeekOrigin.Begin);
+            uint typeId = br.ReadByte(); // type ids are 1-based
+            int flags = br.ReadByte();
+            if (typeId == 0) return;
+            // the type name lives in the package type pool at index typeId - 1
+            if (ReadPoolString(typePoolPos, typeId - 1) != typeName) return;
+
+            ms.Seek(chunkPos + 12, SeekOrigin.Begin);
+            int entryCount = br.ReadInt32();
+            int entryStart = br.ReadInt32();
+            int configSize = br.ReadInt32();
+            if (entryCount < 0 || entryCount > MaxResourceEntries ||
+                entryStart < 0 || entryStart > chunkEnd - chunkPos ||
+                configSize < 4 || configSize > MaxResourceConfigSize ||
+                configSize > chunkEnd - (chunkPos + 20))
+                return;
+
+            bool sparse = (flags & 0x01) != 0;          // ResTable_type FLAG_SPARSE
+            bool offset16 = !sparse && (flags & 0x02) != 0; // FLAG_OFFSET16
+            int indexUnit = offset16 ? 2 : 4;
+            long indexPos = chunkPos + chunkHeaderSize;
+            if (indexPos + (long)entryCount * indexUnit > chunkEnd) return;
+
+            for (int i = 0; i < entryCount; i++) {
+                uint entryId;
+                long offset;
+                if (sparse) {
+                    // a sparse chunk stores the real entry id next to the offset: the
+                    // position in the vector is *not* the entry id (B4 sparse note)
+                    ms.Seek(indexPos + (long)i * 4, SeekOrigin.Begin);
+                    entryId = br.ReadUInt16();
+                    offset = (long)br.ReadUInt16() * 4; // offsets are in 4-byte units
+                } else if (offset16) {
+                    ms.Seek(indexPos + (long)i * 2, SeekOrigin.Begin);
+                    ushort raw = br.ReadUInt16();
+                    if (raw == 0xffff) continue;
+                    entryId = (uint)i;
+                    offset = (long)raw * 4;
+                } else {
+                    ms.Seek(indexPos + (long)i * 4, SeekOrigin.Begin);
+                    uint raw = br.ReadUInt32();
+                    if (raw == 0xffffffff) continue;
+                    entryId = (uint)i;
+                    offset = raw;
+                }
+
+                long entryPos = chunkPos + entryStart + offset;
+                if (entryPos + 16 > chunkEnd) continue; // entry header + Res_value
+                ms.Seek(entryPos + 4, SeekOrigin.Begin); // ResTable_entry.key
+                uint key = br.ReadUInt32();
+                if (ReadPoolString(keyPoolPos, key) != entryName) continue;
+
+                uint id = (packID << 24) | (typeId << 16) | entryId;
+                // rule 4: the same id may show up in several config chunks, and a name
+                // may exist in several packages - the smallest id is the stable answer
+                if (best == 0 || id < best) best = id;
+            }
+        }
+
+        // Reads one string out of a string pool that lives *inside* a package chunk.
+        // AxmlParser.QuickSearchStringPool can only start at a file/pool boundary, and
+        // these pools sit at an arbitrary offset, so the same checks are repeated here.
+        private string ReadPoolString(long poolPos, uint index)
+        {
+            if (table == null || poolPos < 0 || poolPos + 28 > table.Length) return "";
+            using (MemoryStream ms = new MemoryStream(table, 0, table.Length, false))
+            using (BinaryReader br = new BinaryReader(ms)) {
+                ms.Seek(poolPos, SeekOrigin.Begin);
+                short chunkType = br.ReadInt16();
+                short headerSize = br.ReadInt16();
+                int chunkSize = br.ReadInt32();
+                if (chunkType != (short)RES_TYPE.RES_STRING_POOL_TYPE ||
+                    headerSize < 28 || chunkSize < headerSize ||
+                    poolPos + chunkSize > table.Length)
+                    return "";
+                long chunkEnd = poolPos + chunkSize;
+
+                int stringCount = br.ReadInt32();
+                br.ReadInt32(); // styleCount
+                int flags = br.ReadInt32();
+                bool isUTF8 = (flags & (1 << 8)) != 0;
+                int stringStart = br.ReadInt32();
+                if (stringCount < 0 || index >= (uint)stringCount ||
+                    stringStart < 0 || stringStart > chunkSize)
+                    return "";
+
+                long offsetPos = poolPos + headerSize + (long)index * 4;
+                if (offsetPos + 4 > chunkEnd) return "";
+                ms.Seek(offsetPos, SeekOrigin.Begin);
+                int stringPos = br.ReadInt32();
+                if (stringPos < 0 || poolPos + stringStart + stringPos > chunkEnd) return "";
+                ms.Seek(poolPos + stringStart + stringPos, SeekOrigin.Begin);
+
+                if (isUTF8) {
+                    int u16len = br.ReadByte();
+                    if ((u16len & 0x80) != 0) u16len = ((u16len & 0x7F) << 8) + br.ReadByte();
+                    int u8len = br.ReadByte();
+                    if ((u8len & 0x80) != 0) u8len = ((u8len & 0x7F) << 8) + br.ReadByte();
+                    if (u8len > chunkEnd - ms.Position) return "";
+                    return Encoding.UTF8.GetString(br.ReadBytes(u8len));
+                } else {
+                    int u16len = br.ReadUInt16();
+                    if ((u16len & 0x8000) != 0) u16len = ((u16len & 0x7FFF) << 16) + br.ReadUInt16();
+                    if (u16len < 0 || u16len > (chunkEnd - ms.Position) / 2) return "";
+                    return Encoding.Unicode.GetString(br.ReadBytes(u16len * 2));
+                }
+            }
+        }
+
+        // Resolves an id and applies the density/locale preference the same way
+        // convertData() does for a TYPE_REFERENCE attribute.
+        private string ResolveIdToValue(uint id, bool densityRequested, bool ignoreXmlDensity)
+        {
+            ApkResource r = QuickSearchResource(id);
+            if (r == null || r.Count == 0) return null;
+            int ind = 0;
+            if (r.Count > 1) ind = ApplyFilter(r, densityRequested, ignoreXmlDensity);
+            if (ind < 0 || ind >= r.values.Count) return null;
+            object v = r.values[ind];
+            return v == null ? null : v.ToString();
+        }
+
+        // Accepts "@type/name", "?type/name", "type/name" and "pkg:type/name".
+        // Returns null when the value is not a resource name this table may answer for.
+        private string NormalizeResourceName(string value)
+        {
+            string v = value.Trim();
+            if (v.Length == 0) return null;
+            if (v[0] == '@' || v[0] == '?') v = v.Substring(1);
+            int colon = v.IndexOf(':');
+            if (colon >= 0) {
+                string prefix = v.Substring(0, colon);
+                v = v.Substring(colon + 1);
+                // rule 3: "android:" is the framework, never an app resource
+                if (string.Equals(prefix, "android", StringComparison.OrdinalIgnoreCase)) {
+                    ApkShellext2.DbgLog.W("ICON android: reference refused: " + value);
+                    return null;
+                }
+                string ownPackage = PackageName();
+                if (ownPackage != null &&
+                    !string.Equals(prefix, ownPackage, StringComparison.OrdinalIgnoreCase)) {
+                    ApkShellext2.DbgLog.W("ICON foreign package reference refused: " + value);
+                    return null;
+                }
+            }
+            int slash = v.IndexOf('/');
+            if (slash <= 0 || slash == v.Length - 1) return null; // not "type/name"
+            return v;
+        }
+
+        private static readonly string[] FileExtensions = {
+            ".png", ".jpg", ".jpeg", ".gif", ".webp", ".xml", ".svg", ".tif", ".tiff", ".bmp"
+        };
+
+        private static bool LooksLikeFilePath(string value)
+        {
+            if (value.IndexOf('/') < 0) return false; // "type/name" has a slash too
+            foreach (string ext in FileExtensions)
+                if (value.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
+        // The package name from the package header (128 UTF-16 characters). Used to tell
+        // "ownpkg:type/name" from a foreign one.
+        private string PackageName()
+        {
+            if (table == null || table.Length < 12) return null;
+            try {
+                using (MemoryStream ms = new MemoryStream(table))
+                using (BinaryReader br = new BinaryReader(ms)) {
+                    ms.Seek(8, SeekOrigin.Begin);
+                    int packageCount = br.ReadInt32();
+                    if (packageCount < 0 || packageCount > MaxResourcePackages) return null;
+                    long stringPoolPos = ms.Position;
+                    ms.Seek(4, SeekOrigin.Current);
+                    int stringPoolSize = br.ReadInt32();
+                    if (stringPoolSize < 8 || stringPoolPos + stringPoolSize > ms.Length) return null;
+                    ms.Seek(stringPoolPos + stringPoolSize, SeekOrigin.Begin);
+
+                    long packPos = ms.Position;
+                    if (packPos + 12 > ms.Length) return null;
+                    ms.Seek(2, SeekOrigin.Current);
+                    int headerSize = br.ReadInt16();
+                    int packChunkSize = br.ReadInt32();
+                    if (headerSize < 272 || packChunkSize < headerSize ||
+                        packPos + packChunkSize > ms.Length)
+                        return null;
+                    ms.Seek(packPos + 12, SeekOrigin.Begin);
+                    string name = Encoding.Unicode.GetString(br.ReadBytes(256));
+                    int nul = name.IndexOf('\0');
+                    if (nul >= 0) name = name.Substring(0, nul);
+                    name = name.Trim();
+                    return name.Length == 0 ? null : name;
+                }
+            } catch (Exception ex) when (!(ex is OutOfMemoryException)) {
+                return null;
+            }
         }
 
         /// <summary>
