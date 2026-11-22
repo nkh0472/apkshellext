@@ -128,12 +128,19 @@ namespace ApkQuickReader {
                 if (leaf.IndexOf("config", StringComparison.OrdinalIgnoreCase) >= 0 ||
                     leaf.StartsWith("split", StringComparison.OrdinalIgnoreCase)) continue;
                 int depth = n.Count(c => c == '/');
-                int score = (depth == 0 ? 1 << 30 : 0) + (int)(e.Length >> 20);
+                int score = (depth == 0 ? 1 << 30 : 0) + (int)(SizeOf(e) >> 20);
                 int bestScore = best == null ? -1
-                    : (best.FullName.Count(c => c == '/') == 0 ? 1 << 30 : 0) + (int)(best.Length >> 20);
+                    : (best.FullName.Count(c => c == '/') == 0 ? 1 << 30 : 0) + (int)(SizeOf(best) >> 20);
                 if (score > bestScore) best = e;
             }
             return best == null ? null : best.FullName;
+        }
+
+        // an entry that declares no usable size (the 0xFFFFFFFF sentinel without a zip64
+        // record) scores 0 instead of four gigabytes
+        private static long SizeOf(ZipArchiveEntry entry) {
+            long declared = ZipSafety.DeclaredLength(entry);
+            return declared < 0 ? 0 : declared;
         }
 
         // names come from an attacker-controlled manifest.json; we only ever use
@@ -194,7 +201,7 @@ namespace ApkQuickReader {
                 if (slash >= 0) continue; // root only
                 if (!leaf.StartsWith("icon", StringComparison.OrdinalIgnoreCase)) continue;
                 if (!leaf.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) continue;
-                if (best == null || e.Length > best.Length) best = e; // prefer largest variant
+                if (best == null || SizeOf(e) > SizeOf(best)) best = e; // prefer largest variant
             }
             if (best == null) return null;
             try {

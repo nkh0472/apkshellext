@@ -55,8 +55,11 @@ namespace ApkShellext2 {
                 throw new EntryPointNotFoundException("cannot find " + AppxBundleManifestXml);
 
             // the central directory declares the uncompressed size, so an oversized
-            // manifest is rejected before it is inflated at all
-            if (en.Length > MaxAppxBundleManifestBytes)
+            // manifest is rejected before it is inflated at all. A manifest that only
+            // carries the 0xFFFFFFFF sentinel has no usable declared size
+            // (ZipSafety.DeclaredLength returns -1); the bounded read below still
+            // enforces the cap byte by byte.
+            if (ZipSafety.DeclaredLength(en) > MaxAppxBundleManifestBytes)
                 throw new InvalidDataException(AppxBundleManifestXml + " declares " + en.Length + " bytes, over the "
                     + MaxAppxBundleManifestBytes + "-byte limit");
 

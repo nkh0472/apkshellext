@@ -84,17 +84,7 @@ namespace ApkShellext2.Tests
         /// </summary>
         public static ZipArchive OpenZip(Stream stream)
         {
-            Type zipSafety = RequireType("ApkQuickReader.ZipSafety");
-            MethodInfo method = RequireMethod(zipSafety, "OpenZip");
-            try
-            {
-                return (ZipArchive)method.Invoke(null, new object[] { stream });
-            }
-            catch (TargetInvocationException ex) when (ex.InnerException != null)
-            {
-                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-                throw; // unreachable
-            }
+            return (ZipArchive)InvokeZipSafety("OpenZip", stream);
         }
 
         /// <summary>
@@ -103,16 +93,71 @@ namespace ApkShellext2.Tests
         /// </summary>
         public static byte[] ReadEntryBounded(ZipArchive zip, ZipArchiveEntry entry, long hardCap, string what)
         {
-            Type zipSafety = RequireType("ApkQuickReader.ZipSafety");
-            MethodInfo method = RequireMethod(zipSafety, "ReadEntryBounded");
+            return (byte[])InvokeZipSafety("ReadEntryBounded", zip, entry, hardCap, what);
+        }
+
+        /// <summary>The legacy fuzzy (case-insensitive, first hit) entry lookup.</summary>
+        public static ZipArchiveEntry GetEntry(ZipArchive zip, string name)
+        {
+            return (ZipArchiveEntry)InvokeZipSafety("GetEntry", zip, name);
+        }
+
+        /// <summary>The ordinal-exact lookup with the legacy fuzzy fallback.</summary>
+        public static ZipArchiveEntry GetEntryExact(ZipArchive zip, string name)
+        {
+            return (ZipArchiveEntry)InvokeZipSafety("GetEntryExact", zip, name);
+        }
+
+        public static bool Contains(ZipArchive zip, string name)
+        {
+            return (bool)InvokeZipSafety("Contains", zip, name);
+        }
+
+        /// <summary>True for file entries, false for directory entries (and null).</summary>
+        public static bool IsFile(ZipArchiveEntry entry)
+        {
+            return (bool)InvokeZipSafety("IsFile", entry);
+        }
+
+        /// <summary>The declared uncompressed size, or -1 when the archive carries none.</summary>
+        public static long DeclaredLength(ZipArchiveEntry entry)
+        {
+            return (long)InvokeZipSafety("DeclaredLength", entry);
+        }
+
+        /// <summary>The byte cap an entry is actually read under (hard cap vs ratio allowance).</summary>
+        public static long EntryByteLimit(long compressedLength, long hardCap)
+        {
+            return (long)InvokeZipSafety("EntryByteLimit", compressedLength, hardCap);
+        }
+
+        /// <summary>
+        /// Reads a ZipSafety const (MAX_ENTRIES, RATIO_LIMIT, …) so tests pin the limit
+        /// that ships rather than restating the number.
+        /// </summary>
+        public static long ZipSafetyConstant(string name)
+        {
+            FieldInfo field = ZipSafetyType.GetField(name, StaticAnyVisibility);
+            Assert.That(field, Is.Not.Null, "ApkQuickReader.ZipSafety." + name + " was not found; update TestSupport/ProductApi.cs.");
+            return Convert.ToInt64(field.GetRawConstantValue());
+        }
+
+        private static Type ZipSafetyType
+        {
+            get { return RequireType("ApkQuickReader.ZipSafety"); }
+        }
+
+        private static object InvokeZipSafety(string name, params object[] arguments)
+        {
+            MethodInfo method = RequireMethod(ZipSafetyType, name);
             try
             {
-                return (byte[])method.Invoke(null, new object[] { zip, entry, hardCap, what });
+                return method.Invoke(null, arguments);
             }
             catch (TargetInvocationException ex) when (ex.InnerException != null)
             {
                 ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-                throw; // unreachable
+                throw; // unreachable: Throw() always rethrows
             }
         }
     }

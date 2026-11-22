@@ -47,6 +47,10 @@ namespace ApkQuickReader {
         /// legitimate packages.</summary>
         public const int MAX_ENTRIES = 65535;
 
+        /// <summary>The 32-bit "look in the zip64 record" sentinel the format uses for
+        /// a size or offset that does not fit 32 bits.</summary>
+        private const long Zip64SizeSentinel = 0xFFFFFFFFL;
+
         /// <summary>
         /// Encoding for entry names that do NOT carry the UTF-8 flag (0x800).
         ///
@@ -142,6 +146,47 @@ namespace ApkQuickReader {
         }
 
         /// <summary>
+        /// The uncompressed size an entry declares, or -1 when the container carries no
+        /// usable number.
+        ///
+        /// A well-formed zip64 entry resolves normally on .NET Framework (verified
+        /// against a zip64 fixture), but a container that writes the 0xFFFFFFFF size
+        /// sentinel and no zip64 record has no size at all. Read that as unknown rather
+        /// than as exactly four gigabytes: callers that compare it against a cap would
+        /// reject the entry with a misleading message, and callers that score entries by
+        /// size would all score the same. The byte caps are what bound the read.
+        /// </summary>
+        public static long DeclaredLength(ZipArchiveEntry entry) {
+            if (entry == null) return -1;
+            long declared = entry.Length;
+            return declared < 0 || declared >= Zip64SizeSentinel ? -1 : declared;
+        }
+
+        /// <summary>
+        /// The byte cap actually applied to one entry: the hard cap, tightened by the
+        /// compression-ratio allowance (RATIO_LIMIT × compressed bytes + 1 MiB of
+        /// slack). A Stored entry has CompressedLength == Length, so the allowance can
+        /// never widen its cap; the previous reader special-cased Stored only because
+        /// its zip library exposed the method. Same accept/reject outcome.
+        ///
+        /// The multiply saturates instead of wrapping, so a container that lies about
+        /// its compressed size cannot produce a negative (i.e. unbounded) limit. A
+        /// container that declares only the 0xFFFFFFFF sentinel gives no ratio basis, so
+        /// the hard cap is the only honest bound for it. Kept separate from
+        /// ReadEntryBounded so the arithmetic is unit-testable: 1032:1 is above the
+        /// physical ceiling of deflate (a 258-byte match coded as two Huffman symbols), so
+        /// no valid stream can reach this gate — it is the belt to the hard cap's braces,
+        /// and is exercised arithmetically.
+        /// </summary>
+        public static long EntryByteLimit(long compressedLength, long hardCap) {
+            if (compressedLength < 0 || compressedLength >= Zip64SizeSentinel) return hardCap;
+            long ratioCap = compressedLength > (long.MaxValue - (1L << 20)) / RATIO_LIMIT
+                ? long.MaxValue
+                : compressedLength * RATIO_LIMIT + (1L << 20);
+            return Math.Min(hardCap, ratioCap);
+        }
+
+        /// <summary>
         /// Reads an entry with a hard byte cap and a compression-ratio cap.
         /// The declared Length/CompressedLength are never trusted and never used
         /// for preallocation; the buffer grows only as real bytes arrive.
@@ -151,17 +196,10 @@ namespace ApkQuickReader {
         public static byte[] ReadEntryBounded(ZipArchive z, ZipArchiveEntry entry, long hardCap, string what) {
             if (entry == null)
                 throw new InvalidDataException(what + ": entry missing");
-            // A Stored entry has CompressedLength == Length, so the ratio allowance
-            // cannot widen its cap; the previous reader special-cased Stored only
-            // because its zip library exposed the method. Same accept/reject outcome.
-            long compressed = entry.CompressedLength;
-            long ratioCap = compressed > (long.MaxValue - (1L << 20)) / RATIO_LIMIT
-                ? long.MaxValue
-                : compressed * RATIO_LIMIT + (1L << 20);
-            long limit = Math.Min(hardCap, ratioCap);
+            long limit = EntryByteLimit(entry.CompressedLength, hardCap);
             // start small, grow with real data — never preallocate declared size
             int pre = 64 * 1024;
-            long declared = entry.Length;
+            long declared = DeclaredLength(entry);
             if (declared > 0 && declared < pre) pre = (int)declared;
             MemoryStream ms = new MemoryStream(pre);
             byte[] buf = new byte[64 * 1024];
