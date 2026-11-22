@@ -87,7 +87,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload build output
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apkshellext2-dotnet
           path: ApkShellext2\bin\Release
@@ -175,14 +175,14 @@ jobs:
           & .\eng\check-size.ps1
 
       - name: Upload build output
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apkshellext2-vs
           path: ApkShellext2\bin\Release
           if-no-files-found: error
 
       - name: Upload 7z package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apkshellext2-vs-7z
           path: ApkShellext2\bin\Release\ApkShellext2-*.7z
