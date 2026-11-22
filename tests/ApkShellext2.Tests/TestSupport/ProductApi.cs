@@ -142,6 +142,91 @@ namespace ApkShellext2.Tests
             return Convert.ToInt64(field.GetRawConstantValue());
         }
 
+        /// <summary>
+        /// Calls an SVG parser's public Parse(string) entry point (number list, unit,
+        /// unit list, transform list, path data). The converters also carry an internal
+        /// Parse(TextSlice) overload that the public one forwards to, so the method is
+        /// selected by its exact string parameter rather than by name alone
+        /// (GetMethod(name) would report an ambiguous match).
+        /// </summary>
+        public static object ParseSvg(string typeName, string value)
+        {
+            Type type = RequireType(typeName);
+            MethodInfo method = null;
+            foreach (MethodInfo candidate in type.GetMethods(StaticAnyVisibility))
+            {
+                if (candidate.Name != "Parse")
+                {
+                    continue;
+                }
+
+                ParameterInfo[] parameters = candidate.GetParameters();
+                if (parameters.Length == 1 && parameters[0].ParameterType == typeof(string))
+                {
+                    method = candidate;
+                    break;
+                }
+            }
+
+            Assert.That(
+                method,
+                Is.Not.Null,
+                typeName + ".Parse(string) was not found. The parser was renamed or moved; " +
+                "update TestSupport/ProductApi.cs together with the parser so the regression stays pinned.");
+
+            try
+            {
+                return method.Invoke(null, new object[] { value });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw; // unreachable: Throw() always rethrows
+            }
+        }
+
+        /// <summary>Reads a public instance property of a parsed SVG object (SvgUnit.Value, a segment's End, ...).</summary>
+        public static object ReadSvgProperty(object instance, string name)
+        {
+            PropertyInfo property = instance.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(
+                property,
+                Is.Not.Null,
+                instance.GetType().Name + "." + name + " was not found; update TestSupport/ProductApi.cs.");
+            return property.GetValue(instance, null);
+        }
+
+        /// <summary>Calls a public parameterless string-returning method on a parsed SVG object (SvgTransform.WriteToString).</summary>
+        public static string CallSvgMethod(object instance, string name)
+        {
+            MethodInfo method = instance.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(
+                method,
+                Is.Not.Null,
+                instance.GetType().Name + "." + name + " was not found; update TestSupport/ProductApi.cs.");
+            return (string)method.Invoke(instance, null);
+        }
+
+        /// <summary>
+        /// Element count of a parsed SVG collection. SvgPathSegmentList implements only
+        /// IList&lt;SvgPathSegment&gt;, not the non-generic IList, so the tests cannot cast.
+        /// </summary>
+        public static int SvgCount(object list)
+        {
+            return (int)ReadSvgProperty(list, "Count");
+        }
+
+        /// <summary>Indexer access to a parsed SVG collection (see <see cref="SvgCount"/>).</summary>
+        public static object SvgItem(object list, int index)
+        {
+            PropertyInfo item = list.GetType().GetProperty("Item", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(
+                item,
+                Is.Not.Null,
+                list.GetType().Name + ".Item was not found; update TestSupport/ProductApi.cs.");
+            return item.GetValue(list, new object[] { index });
+        }
+
         private static Type ZipSafetyType
         {
             get { return RequireType("ApkQuickReader.ZipSafety"); }
