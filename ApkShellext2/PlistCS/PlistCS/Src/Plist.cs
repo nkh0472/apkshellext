@@ -62,12 +62,12 @@ namespace PlistCS
         // well below ten levels.
         private const int MaxBinaryPlistDepth = 32;
 
-        private static List<int> offsetTable = new List<int>();
-        private static List<byte> objectTable = new List<byte>();
-        private static int refCount;
-        private static int objRefSize;
-        private static int offsetByteSize;
-        private static long offsetTableOffset;
+        private static List<int> writeOffsetTable = new List<int>();
+        private static List<byte> writeObjectTable = new List<byte>();
+        private static int writeRefCount;
+        private static int writeObjRefSize;
+        private static int writeOffsetByteSize;
+        private static long writeOffsetTableOffset;
 
         #region Public Functions
 
@@ -189,58 +189,58 @@ namespace PlistCS
 
         public static byte[] writeBinary(object value)
         {
-            offsetTable.Clear();
-            objectTable.Clear();
-            refCount = 0;
-            objRefSize = 0;
-            offsetByteSize = 0;
-            offsetTableOffset = 0;
+            writeOffsetTable.Clear();
+            writeObjectTable.Clear();
+            writeRefCount = 0;
+            writeObjRefSize = 0;
+            writeOffsetByteSize = 0;
+            writeOffsetTableOffset = 0;
 
             //Do not count the root node, subtract by 1
             int totalRefs = countObject(value) - 1;
 
-            refCount = totalRefs;
+            writeRefCount = totalRefs;
 
-            objRefSize = RegulateNullBytes(BitConverter.GetBytes(refCount)).Length;
+            writeObjRefSize = RegulateNullBytes(BitConverter.GetBytes(writeRefCount)).Length;
 
             composeBinary(value);
 
             writeBinaryString("bplist00", false);
 
-            offsetTableOffset = (long)objectTable.Count;
+            writeOffsetTableOffset = (long)writeObjectTable.Count;
 
-            offsetTable.Add(objectTable.Count - 8);
+            writeOffsetTable.Add(writeObjectTable.Count - 8);
 
-            offsetByteSize = RegulateNullBytes(BitConverter.GetBytes(offsetTable[offsetTable.Count-1])).Length;
+            writeOffsetByteSize = RegulateNullBytes(BitConverter.GetBytes(writeOffsetTable[writeOffsetTable.Count-1])).Length;
 
             List<byte> offsetBytes = new List<byte>();
 
-            offsetTable.Reverse();
+            writeOffsetTable.Reverse();
 
-            for (int i = 0; i < offsetTable.Count; i++)
+            for (int i = 0; i < writeOffsetTable.Count; i++)
             {
-                offsetTable[i] = objectTable.Count - offsetTable[i];
-                byte[] buffer = RegulateNullBytes(BitConverter.GetBytes(offsetTable[i]), offsetByteSize);
+                writeOffsetTable[i] = writeObjectTable.Count - writeOffsetTable[i];
+                byte[] buffer = RegulateNullBytes(BitConverter.GetBytes(writeOffsetTable[i]), writeOffsetByteSize);
                 Array.Reverse(buffer);
                 offsetBytes.AddRange(buffer);
             }
 
-            objectTable.AddRange(offsetBytes);
+            writeObjectTable.AddRange(offsetBytes);
 
-            objectTable.AddRange(new byte[6]);
-            objectTable.Add(Convert.ToByte(offsetByteSize));
-            objectTable.Add(Convert.ToByte(objRefSize));
+            writeObjectTable.AddRange(new byte[6]);
+            writeObjectTable.Add(Convert.ToByte(writeOffsetByteSize));
+            writeObjectTable.Add(Convert.ToByte(writeObjRefSize));
 
             var a = BitConverter.GetBytes((long) totalRefs + 1);
             Array.Reverse(a);
-            objectTable.AddRange(a);
+            writeObjectTable.AddRange(a);
 
-            objectTable.AddRange(BitConverter.GetBytes((long)0));
-            a = BitConverter.GetBytes(offsetTableOffset);
+            writeObjectTable.AddRange(BitConverter.GetBytes((long)0));
+            a = BitConverter.GetBytes(writeOffsetTableOffset);
             Array.Reverse(a);
-            objectTable.AddRange(a);
+            writeObjectTable.AddRange(a);
 
-            return objectTable.ToArray();
+            return writeObjectTable.ToArray();
         }
 
         #endregion
@@ -255,44 +255,7 @@ namespace PlistCS
 
         private static object readBinary(byte[] data)
         {
-            offsetTable.Clear();
-            List<byte> offsetTableBytes = new List<byte>();
-            objectTable.Clear();
-            refCount = 0;
-            objRefSize = 0;
-            offsetByteSize = 0;
-            offsetTableOffset = 0;
-
-            // "bplist00" header plus the 32-byte trailer
-            if (data.Length < 40)
-                throw new PlistFormatException("binary plist is " + data.Length + " bytes, shorter than its header and trailer");
-
-            List<byte> bList = new List<byte>(data);
-
-            List<byte> trailer = bList.GetRange(bList.Count - 32, 32);
-
-            parseTrailer(trailer);
-
-            // every value just parsed came from the file; check it against the
-            // bytes that actually exist before slicing anything out of them
-            if (offsetTableOffset < 8 || offsetTableOffset > data.Length - 32)
-                throw new PlistFormatException("offset table offset " + offsetTableOffset + " is outside the " + data.Length + "-byte file");
-            if (refCount < 1 || refCount > offsetTableOffset)
-                throw new PlistFormatException("object count " + refCount + " is outside the " + offsetTableOffset + "-byte object table");
-
-            objectTable = bList.GetRange(0, (int)offsetTableOffset);
-
-            offsetTableBytes = bList.GetRange((int)offsetTableOffset, bList.Count - (int)offsetTableOffset - 32);
-
-            if (offsetTableBytes.Count % offsetByteSize != 0)
-                throw new PlistFormatException("offset table is " + offsetTableBytes.Count + " bytes, not a multiple of the " + offsetByteSize + "-byte offset size");
-
-            parseOffsetTable(offsetTableBytes);
-
-            if (offsetTable.Count < refCount)
-                throw new PlistFormatException("offset table holds " + offsetTable.Count + " entries for " + refCount + " declared objects");
-
-            return parseBinary(0, 0);
+            return new BinaryPlistReader(data).Parse();
         }
 
         private static Dictionary<string, object> parseDictionary(XmlNode node)
@@ -489,18 +452,18 @@ namespace PlistCS
                 var o = new object[dictionary.Count];
                 dictionary.Values.CopyTo(o, 0);
                 composeBinary(o[i]);
-                offsetTable.Add(objectTable.Count);
-                refs.Add(refCount);
-                refCount--;
+                writeOffsetTable.Add(writeObjectTable.Count);
+                refs.Add(writeRefCount);
+                writeRefCount--;
             }
             for (int i = dictionary.Count - 1; i >= 0; i--)
             {
                 var o = new string[dictionary.Count];
                 dictionary.Keys.CopyTo(o, 0);
                 composeBinary(o[i]);//);
-                offsetTable.Add(objectTable.Count);
-                refs.Add(refCount);
-                refCount--;
+                writeOffsetTable.Add(writeObjectTable.Count);
+                refs.Add(writeRefCount);
+                writeRefCount--;
             }
 
             if (dictionary.Count < 15)
@@ -516,7 +479,7 @@ namespace PlistCS
 
             foreach (int val in refs)
             {
-                byte[] refBuffer = RegulateNullBytes(BitConverter.GetBytes(val), objRefSize);
+                byte[] refBuffer = RegulateNullBytes(BitConverter.GetBytes(val), writeObjRefSize);
                 Array.Reverse(refBuffer);
                 buffer.InsertRange(0, refBuffer);
             }
@@ -524,7 +487,7 @@ namespace PlistCS
             buffer.InsertRange(0, header);
 
 
-            objectTable.InsertRange(0, buffer);
+            writeObjectTable.InsertRange(0, buffer);
 
             return buffer.ToArray();
         }
@@ -538,9 +501,9 @@ namespace PlistCS
             for (int i = objects.Count - 1; i >= 0; i--)
             {
                 composeBinary(objects[i]);
-                offsetTable.Add(objectTable.Count);
-                refs.Add(refCount);
-                refCount--;
+                writeOffsetTable.Add(writeObjectTable.Count);
+                refs.Add(writeRefCount);
+                writeRefCount--;
             }
 
             if (objects.Count < 15)
@@ -555,14 +518,14 @@ namespace PlistCS
 
             foreach (int val in refs)
             {
-                byte[] refBuffer = RegulateNullBytes(BitConverter.GetBytes(val), objRefSize);
+                byte[] refBuffer = RegulateNullBytes(BitConverter.GetBytes(val), writeObjRefSize);
                 Array.Reverse(refBuffer);
                 buffer.InsertRange(0, refBuffer);
             }
 
             buffer.InsertRange(0, header);
 
-            objectTable.InsertRange(0, buffer);
+            writeObjectTable.InsertRange(0, buffer);
 
             return buffer.ToArray();
         }
@@ -614,14 +577,14 @@ namespace PlistCS
             List<byte> buffer =new List<byte>(RegulateNullBytes(BitConverter.GetBytes(PlistDateConverter.ConvertToAppleTimeStamp(obj)), 8));
             buffer.Reverse();
             buffer.Insert(0, 0x33);
-            objectTable.InsertRange(0, buffer);
+            writeObjectTable.InsertRange(0, buffer);
             return buffer.ToArray();
         }
 
         public static byte[] writeBinaryBool(bool obj)
         {
             List<byte> buffer = new List<byte>(new byte[1] { (bool)obj ? (byte)9 : (byte)8 });
-            objectTable.InsertRange(0, buffer);
+            writeObjectTable.InsertRange(0, buffer);
             return buffer.ToArray();
         }
 
@@ -638,7 +601,7 @@ namespace PlistCS
             buffer.Insert(0, Convert.ToByte(header));
 
             if (write)
-                objectTable.InsertRange(0, buffer);
+                writeObjectTable.InsertRange(0, buffer);
 
             return buffer.ToArray();
         }
@@ -654,7 +617,7 @@ namespace PlistCS
 
             buffer.Insert(0, Convert.ToByte(header));
 
-            objectTable.InsertRange(0, buffer);
+            writeObjectTable.InsertRange(0, buffer);
 
             return buffer.ToArray();
         }
@@ -675,7 +638,7 @@ namespace PlistCS
 
             buffer.InsertRange(0, header);
 
-            objectTable.InsertRange(0, buffer);
+            writeObjectTable.InsertRange(0, buffer);
 
             return buffer.ToArray();
         }
@@ -702,7 +665,7 @@ namespace PlistCS
 
             buffer.InsertRange(0, header);
 
-            objectTable.InsertRange(0, buffer);
+            writeObjectTable.InsertRange(0, buffer);
 
             return buffer.ToArray();
         }
@@ -739,288 +702,346 @@ namespace PlistCS
             return value;
         }
 
-        private static void parseTrailer(List<byte> trailer)
-        {
-            // the trailer is 32 bytes of file data: 6 unused, the offset size,
-            // the object reference size, then three big-endian 64-bit values
-            offsetByteSize = trailer.GetRange(6, 1)[0];
-            objRefSize = trailer.GetRange(7, 1)[0];
-            if (offsetByteSize < 1 || offsetByteSize > 8)
-                throw new PlistFormatException("offset size " + offsetByteSize + " is not between 1 and 8");
-            if (objRefSize < 1 || objRefSize > 8)
-                throw new PlistFormatException("object reference size " + objRefSize + " is not between 1 and 8");
-
-            byte[] refCountBytes = trailer.GetRange(8, 8).ToArray();
-            Array.Reverse(refCountBytes);
-            long declaredObjects = BitConverter.ToInt64(refCountBytes, 0);
-            if (declaredObjects < 1 || declaredObjects > int.MaxValue)
-                throw new PlistFormatException("object count " + declaredObjects + " is not a valid count");
-            refCount = (int)declaredObjects;
-
-            byte[] offsetTableOffsetBytes = trailer.GetRange(24, 8).ToArray();
-            Array.Reverse(offsetTableOffsetBytes);
-            offsetTableOffset = BitConverter.ToInt64(offsetTableOffsetBytes, 0);
-        }
-
-        private static void parseOffsetTable(List<byte> offsetTableBytes)
-        {
-            for (int i = 0; i < offsetTableBytes.Count; i += offsetByteSize)
-            {
-                byte[] buffer = offsetTableBytes.GetRange(i, offsetByteSize).ToArray();
-                Array.Reverse(buffer);
-                offsetTable.Add(BitConverter.ToInt32(RegulateNullBytes(buffer, 4), 0));
-            }
-        }
-
         /// <summary>
-        /// Resolves an object reference to the position of its header byte,
-        /// rejecting references and offsets the file cannot back with bytes.
+        /// Parses one binary plist. Every piece of mutable state the binary
+        /// format needs lives in an instance of this class, so concurrent readers
+        /// cannot corrupt each other's offset tables.
         /// </summary>
-        private static int getObjectPosition(int objRef)
+        private sealed class BinaryPlistReader
         {
-            if (objRef < 0 || objRef >= offsetTable.Count)
-                throw new PlistFormatException("object reference " + objRef + " is outside the " + offsetTable.Count + "-entry offset table");
-            int position = offsetTable[objRef];
-            if (position < 0 || position >= objectTable.Count)
-                throw new PlistFormatException("object offset " + position + " is outside the " + objectTable.Count + "-byte object table");
-            return position;
-        }
+            private readonly byte[] data;
+            private readonly List<int> offsetTable = new List<int>();
+            private List<byte> objectTable = new List<byte>();
+            private int refCount;
+            private int objRefSize;
+            private int offsetByteSize;
+            private long offsetTableOffset;
 
-        private static void requireObjectBytes(int start, long count, string what)
-        {
-            if (start < 0 || count < 0 || count > (long)objectTable.Count - start)
-                throw new PlistFormatException(what + " (" + count + " bytes at " + start + ") is outside the " + objectTable.Count + "-byte object table");
-        }
-
-        private static object parseBinaryDictionary(int objRef, int depth)
-        {
-            Dictionary<string, object> buffer = new Dictionary<string, object>();
-            List<int> refs = new List<int>();
-            int refCount = 0;
-
-            int refStartPosition;
-            refCount = getCount(getObjectPosition(objRef), out refStartPosition);
-
-            if (refCount < 15)
-                refStartPosition = getObjectPosition(objRef) + 1;
-            else
-                refStartPosition = getObjectPosition(objRef) + 2 + RegulateNullBytes(BitConverter.GetBytes(refCount), 1).Length;
-
-            requireObjectBytes(refStartPosition, (long)refCount * 2 * objRefSize, "dictionary reference list");
-
-            for (int i = refStartPosition; i < refStartPosition + refCount * 2 * objRefSize; i += objRefSize)
+            internal BinaryPlistReader(byte[] data)
             {
-                byte[] refBuffer = objectTable.GetRange(i, objRefSize).ToArray();
-                Array.Reverse(refBuffer);
-                refs.Add(BitConverter.ToInt32(RegulateNullBytes(refBuffer, 4), 0));
+                this.data = data;
             }
 
-            for (int i = 0; i < refCount; i++)
+            internal object Parse()
             {
-                string key = parseBinary(refs[i], depth) as string;
-                if (key == null)
-                    throw new PlistFormatException("dictionary key at object " + refs[i] + " is not a string");
-                buffer.Add(key, parseBinary(refs[i + refCount], depth));
+                List<byte> offsetTableBytes = new List<byte>();
+
+                // "bplist00" header plus the 32-byte trailer
+                if (data.Length < 40)
+                    throw new PlistFormatException("binary plist is " + data.Length + " bytes, shorter than its header and trailer");
+
+                List<byte> bList = new List<byte>(data);
+
+                List<byte> trailer = bList.GetRange(bList.Count - 32, 32);
+
+                parseTrailer(trailer);
+
+                // every value just parsed came from the file; check it against the
+                // bytes that actually exist before slicing anything out of them
+                if (offsetTableOffset < 8 || offsetTableOffset > data.Length - 32)
+                    throw new PlistFormatException("offset table offset " + offsetTableOffset + " is outside the " + data.Length + "-byte file");
+                if (refCount < 1 || refCount > offsetTableOffset)
+                    throw new PlistFormatException("object count " + refCount + " is outside the " + offsetTableOffset + "-byte object table");
+
+                objectTable = bList.GetRange(0, (int)offsetTableOffset);
+
+                offsetTableBytes = bList.GetRange((int)offsetTableOffset, bList.Count - (int)offsetTableOffset - 32);
+
+                if (offsetTableBytes.Count % offsetByteSize != 0)
+                    throw new PlistFormatException("offset table is " + offsetTableBytes.Count + " bytes, not a multiple of the " + offsetByteSize + "-byte offset size");
+
+                parseOffsetTable(offsetTableBytes);
+
+                if (offsetTable.Count < refCount)
+                    throw new PlistFormatException("offset table holds " + offsetTable.Count + " entries for " + refCount + " declared objects");
+
+                return parseBinary(0, 0);
             }
 
-            return buffer;
-        }
-
-        private static object parseBinaryArray(int objRef, int depth)
-        {
-            List<object> buffer = new List<object>();
-            List<int> refs = new List<int>();
-            int refCount = 0;
-
-            int refStartPosition;
-            refCount = getCount(getObjectPosition(objRef), out refStartPosition);
-
-
-            if (refCount < 15)
-                refStartPosition = getObjectPosition(objRef) + 1;
-            else
-                //The following integer has a header aswell so we increase the refStartPosition by two to account for that.
-                refStartPosition = getObjectPosition(objRef) + 2 + RegulateNullBytes(BitConverter.GetBytes(refCount), 1).Length;
-
-            requireObjectBytes(refStartPosition, (long)refCount * objRefSize, "array reference list");
-
-            for (int i = refStartPosition; i < refStartPosition + refCount * objRefSize; i += objRefSize)
+            private void parseTrailer(List<byte> trailer)
             {
-                byte[] refBuffer = objectTable.GetRange(i, objRefSize).ToArray();
-                Array.Reverse(refBuffer);
-                refs.Add(BitConverter.ToInt32(RegulateNullBytes(refBuffer, 4), 0));
+                // the trailer is 32 bytes of file data: 6 unused, the offset size,
+                // the object reference size, then three big-endian 64-bit values
+                offsetByteSize = trailer.GetRange(6, 1)[0];
+                objRefSize = trailer.GetRange(7, 1)[0];
+                if (offsetByteSize < 1 || offsetByteSize > 8)
+                    throw new PlistFormatException("offset size " + offsetByteSize + " is not between 1 and 8");
+                if (objRefSize < 1 || objRefSize > 8)
+                    throw new PlistFormatException("object reference size " + objRefSize + " is not between 1 and 8");
+
+                byte[] refCountBytes = trailer.GetRange(8, 8).ToArray();
+                Array.Reverse(refCountBytes);
+                long declaredObjects = BitConverter.ToInt64(refCountBytes, 0);
+                if (declaredObjects < 1 || declaredObjects > int.MaxValue)
+                    throw new PlistFormatException("object count " + declaredObjects + " is not a valid count");
+                refCount = (int)declaredObjects;
+
+                byte[] offsetTableOffsetBytes = trailer.GetRange(24, 8).ToArray();
+                Array.Reverse(offsetTableOffsetBytes);
+                offsetTableOffset = BitConverter.ToInt64(offsetTableOffsetBytes, 0);
             }
 
-            for (int i = 0; i < refCount; i++)
+            private void parseOffsetTable(List<byte> offsetTableBytes)
             {
-                buffer.Add(parseBinary(refs[i], depth));
-            }
-
-            return buffer;
-        }
-
-        private static int getCount(int bytePosition, out int newBytePosition)
-        {
-            if (bytePosition < 0 || bytePosition >= objectTable.Count)
-                throw new PlistFormatException("object header position " + bytePosition + " is outside the " + objectTable.Count + "-byte object table");
-            byte headerByte = objectTable[bytePosition];
-            byte headerByteTrail = Convert.ToByte(headerByte & 0xf);
-            int count;
-            if (headerByteTrail < 15)
-            {
-                count = headerByteTrail;
-                newBytePosition = bytePosition + 1;
-            }
-            else
-                count = (int)parseBinaryInt(bytePosition + 1, out newBytePosition);
-            return count;
-        }
-
-        private static object parseBinary(int objRef, int depth)
-        {
-            // containers recurse through parseBinary; stop before file data can
-            // overflow the stack (depth 32 is far above any real plist)
-            if (depth > MaxBinaryPlistDepth)
-                throw new PlistFormatException("binary plist nesting exceeds " + MaxBinaryPlistDepth + " levels");
-
-            int objPosition = getObjectPosition(objRef);
-            byte header = objectTable[objPosition];
-            switch (header & 0xF0)
-            {
-                case 0:
-                    {
-                        //If the byte is
-                        //0 return null
-                        //9 return true
-                        //8 return false
-                        return (objectTable[objPosition] == 0) ? (object)null : ((objectTable[objPosition] == 9) ? true : false);
-                    }
-                case 0x10:
-                    {
-                        return parseBinaryInt(objPosition);
-                    }
-                case 0x20:
-                    {
-                        return parseBinaryReal(objPosition);
-                    }
-                case 0x30:
-                    {
-                        return parseBinaryDate(objPosition);
-                    }
-                case 0x40:
-                    {
-                        return parseBinaryByteArray(objPosition);
-                    }
-                case 0x50://String ASCII
-                    {
-                        return parseBinaryAsciiString(objPosition);
-                    }
-                case 0x60://String Unicode
-                    {
-                        return parseBinaryUnicodeString(objPosition);
-                    }
-                case 0xD0:
-                    {
-                        return parseBinaryDictionary(objRef, depth + 1);
-                    }
-                case 0xA0:
-                    {
-                        return parseBinaryArray(objRef, depth + 1);
-                    }
-            }
-            throw new Exception("This type is not supported");
-        }
-
-        public static object parseBinaryDate(int headerPosition)
-        {
-            requireObjectBytes(headerPosition + 1, 8, "date payload");
-            byte[] buffer = objectTable.GetRange(headerPosition + 1, 8).ToArray();
-            Array.Reverse(buffer);
-            double appleTime = BitConverter.ToDouble(buffer, 0);
-            DateTime result = PlistDateConverter.ConvertFromAppleTimeStamp(appleTime);
-            return result;
-        }
-        
-        private static object parseBinaryInt(int headerPosition)
-        {
-            int output;
-            return parseBinaryInt(headerPosition, out output);
-        }
-
-        private static object parseBinaryInt(int headerPosition, out int newHeaderPosition)
-        {
-            if (headerPosition < 0 || headerPosition >= objectTable.Count)
-                throw new PlistFormatException("integer header position " + headerPosition + " is outside the " + objectTable.Count + "-byte object table");
-            byte header = objectTable[headerPosition];
-            int byteCount = 1 << (header & 0xf);
-            requireObjectBytes(headerPosition + 1, byteCount, "integer payload");
-            byte[] buffer = objectTable.GetRange(headerPosition + 1, byteCount).ToArray();
-            Array.Reverse(buffer);
-            //Add one to account for the header byte
-            newHeaderPosition = headerPosition + byteCount + 1;
-            return BitConverter.ToInt32(RegulateNullBytes(buffer, 4), 0);
-        }
-
-        private static object parseBinaryReal(int headerPosition)
-        {
-            if (headerPosition < 0 || headerPosition >= objectTable.Count)
-                throw new PlistFormatException("real header position " + headerPosition + " is outside the " + objectTable.Count + "-byte object table");
-            byte header = objectTable[headerPosition];
-            int byteCount = 1 << (header & 0xf);
-            requireObjectBytes(headerPosition + 1, byteCount, "real payload");
-            byte[] buffer = objectTable.GetRange(headerPosition + 1, byteCount).ToArray();
-            Array.Reverse(buffer);
-
-            return BitConverter.ToDouble(RegulateNullBytes(buffer, 8), 0);
-        }
-
-        private static object parseBinaryAsciiString(int headerPosition)
-        {
-            int charStartPosition;
-            int charCount = getCount(headerPosition, out charStartPosition);
-
-            requireObjectBytes(charStartPosition, charCount, "ASCII string payload");
-            var buffer = objectTable.GetRange(charStartPosition, charCount);
-            return buffer.Count > 0 ? Encoding.ASCII.GetString(buffer.ToArray()) : string.Empty;
-        }
-
-        private static object parseBinaryUnicodeString(int headerPosition)
-        {
-            int charStartPosition;
-            int charCount = getCount(headerPosition, out charStartPosition);
-            requireObjectBytes(charStartPosition, (long)charCount * 2, "unicode string payload");
-            charCount = charCount * 2;
-
-            byte[] buffer = new byte[charCount];
-            byte one, two;
-
-            for (int i = 0; i < charCount; i+=2)
-            {
-                one = objectTable.GetRange(charStartPosition+i,1)[0];
-                two = objectTable.GetRange(charStartPosition + i+1, 1)[0];
-
-                if (BitConverter.IsLittleEndian)
+                for (int i = 0; i < offsetTableBytes.Count; i += offsetByteSize)
                 {
-                    buffer[i] = two;
-                    buffer[i + 1] = one;
+                    byte[] buffer = offsetTableBytes.GetRange(i, offsetByteSize).ToArray();
+                    Array.Reverse(buffer);
+                    offsetTable.Add(BitConverter.ToInt32(RegulateNullBytes(buffer, 4), 0));
+                }
+            }
+
+            /// <summary>
+            /// Resolves an object reference to the position of its header byte,
+            /// rejecting references and offsets the file cannot back with bytes.
+            /// </summary>
+            private int getObjectPosition(int objRef)
+            {
+                if (objRef < 0 || objRef >= offsetTable.Count)
+                    throw new PlistFormatException("object reference " + objRef + " is outside the " + offsetTable.Count + "-entry offset table");
+                int position = offsetTable[objRef];
+                if (position < 0 || position >= objectTable.Count)
+                    throw new PlistFormatException("object offset " + position + " is outside the " + objectTable.Count + "-byte object table");
+                return position;
+            }
+
+            private void requireObjectBytes(int start, long count, string what)
+            {
+                if (start < 0 || count < 0 || count > (long)objectTable.Count - start)
+                    throw new PlistFormatException(what + " (" + count + " bytes at " + start + ") is outside the " + objectTable.Count + "-byte object table");
+            }
+
+            private object parseBinaryDictionary(int objRef, int depth)
+            {
+                Dictionary<string, object> buffer = new Dictionary<string, object>();
+                List<int> refs = new List<int>();
+                int refCount = 0;
+
+                int refStartPosition;
+                refCount = getCount(getObjectPosition(objRef), out refStartPosition);
+
+                if (refCount < 15)
+                    refStartPosition = getObjectPosition(objRef) + 1;
+                else
+                    refStartPosition = getObjectPosition(objRef) + 2 + RegulateNullBytes(BitConverter.GetBytes(refCount), 1).Length;
+
+                requireObjectBytes(refStartPosition, (long)refCount * 2 * objRefSize, "dictionary reference list");
+
+                for (int i = refStartPosition; i < refStartPosition + refCount * 2 * objRefSize; i += objRefSize)
+                {
+                    byte[] refBuffer = objectTable.GetRange(i, objRefSize).ToArray();
+                    Array.Reverse(refBuffer);
+                    refs.Add(BitConverter.ToInt32(RegulateNullBytes(refBuffer, 4), 0));
+                }
+
+                for (int i = 0; i < refCount; i++)
+                {
+                    string key = parseBinary(refs[i], depth) as string;
+                    if (key == null)
+                        throw new PlistFormatException("dictionary key at object " + refs[i] + " is not a string");
+                    buffer.Add(key, parseBinary(refs[i + refCount], depth));
+                }
+
+                return buffer;
+            }
+
+            private object parseBinaryArray(int objRef, int depth)
+            {
+                List<object> buffer = new List<object>();
+                List<int> refs = new List<int>();
+                int refCount = 0;
+
+                int refStartPosition;
+                refCount = getCount(getObjectPosition(objRef), out refStartPosition);
+
+
+                if (refCount < 15)
+                    refStartPosition = getObjectPosition(objRef) + 1;
+                else
+                    //The following integer has a header aswell so we increase the refStartPosition by two to account for that.
+                    refStartPosition = getObjectPosition(objRef) + 2 + RegulateNullBytes(BitConverter.GetBytes(refCount), 1).Length;
+
+                requireObjectBytes(refStartPosition, (long)refCount * objRefSize, "array reference list");
+
+                for (int i = refStartPosition; i < refStartPosition + refCount * objRefSize; i += objRefSize)
+                {
+                    byte[] refBuffer = objectTable.GetRange(i, objRefSize).ToArray();
+                    Array.Reverse(refBuffer);
+                    refs.Add(BitConverter.ToInt32(RegulateNullBytes(refBuffer, 4), 0));
+                }
+
+                for (int i = 0; i < refCount; i++)
+                {
+                    buffer.Add(parseBinary(refs[i], depth));
+                }
+
+                return buffer;
+            }
+
+            private int getCount(int bytePosition, out int newBytePosition)
+            {
+                if (bytePosition < 0 || bytePosition >= objectTable.Count)
+                    throw new PlistFormatException("object header position " + bytePosition + " is outside the " + objectTable.Count + "-byte object table");
+                byte headerByte = objectTable[bytePosition];
+                byte headerByteTrail = Convert.ToByte(headerByte & 0xf);
+                int count;
+                if (headerByteTrail < 15)
+                {
+                    count = headerByteTrail;
+                    newBytePosition = bytePosition + 1;
                 }
                 else
-                {
-                    buffer[i] = one;
-                    buffer[i + 1] = two;
-                }
+                    count = (int)parseBinaryInt(bytePosition + 1, out newBytePosition);
+                return count;
             }
 
-            return Encoding.Unicode.GetString(buffer);
+            private object parseBinary(int objRef, int depth)
+            {
+                // containers recurse through parseBinary; stop before file data can
+                // overflow the stack (depth 32 is far above any real plist)
+                if (depth > MaxBinaryPlistDepth)
+                    throw new PlistFormatException("binary plist nesting exceeds " + MaxBinaryPlistDepth + " levels");
+
+                int objPosition = getObjectPosition(objRef);
+                byte header = objectTable[objPosition];
+                switch (header & 0xF0)
+                {
+                    case 0:
+                        {
+                            //If the byte is
+                            //0 return null
+                            //9 return true
+                            //8 return false
+                            return (objectTable[objPosition] == 0) ? (object)null : ((objectTable[objPosition] == 9) ? true : false);
+                        }
+                    case 0x10:
+                        {
+                            return parseBinaryInt(objPosition);
+                        }
+                    case 0x20:
+                        {
+                            return parseBinaryReal(objPosition);
+                        }
+                    case 0x30:
+                        {
+                            return parseBinaryDate(objPosition);
+                        }
+                    case 0x40:
+                        {
+                            return parseBinaryByteArray(objPosition);
+                        }
+                    case 0x50://String ASCII
+                        {
+                            return parseBinaryAsciiString(objPosition);
+                        }
+                    case 0x60://String Unicode
+                        {
+                            return parseBinaryUnicodeString(objPosition);
+                        }
+                    case 0xD0:
+                        {
+                            return parseBinaryDictionary(objRef, depth + 1);
+                        }
+                    case 0xA0:
+                        {
+                            return parseBinaryArray(objRef, depth + 1);
+                        }
+                }
+                throw new Exception("This type is not supported");
+            }
+
+            private object parseBinaryDate(int headerPosition)
+            {
+                requireObjectBytes(headerPosition + 1, 8, "date payload");
+                byte[] buffer = objectTable.GetRange(headerPosition + 1, 8).ToArray();
+                Array.Reverse(buffer);
+                double appleTime = BitConverter.ToDouble(buffer, 0);
+                DateTime result = PlistDateConverter.ConvertFromAppleTimeStamp(appleTime);
+                return result;
+            }
+        
+            private object parseBinaryInt(int headerPosition)
+            {
+                int output;
+                return parseBinaryInt(headerPosition, out output);
+            }
+
+            private object parseBinaryInt(int headerPosition, out int newHeaderPosition)
+            {
+                if (headerPosition < 0 || headerPosition >= objectTable.Count)
+                    throw new PlistFormatException("integer header position " + headerPosition + " is outside the " + objectTable.Count + "-byte object table");
+                byte header = objectTable[headerPosition];
+                int byteCount = 1 << (header & 0xf);
+                requireObjectBytes(headerPosition + 1, byteCount, "integer payload");
+                byte[] buffer = objectTable.GetRange(headerPosition + 1, byteCount).ToArray();
+                Array.Reverse(buffer);
+                //Add one to account for the header byte
+                newHeaderPosition = headerPosition + byteCount + 1;
+                return BitConverter.ToInt32(RegulateNullBytes(buffer, 4), 0);
+            }
+
+            private object parseBinaryReal(int headerPosition)
+            {
+                if (headerPosition < 0 || headerPosition >= objectTable.Count)
+                    throw new PlistFormatException("real header position " + headerPosition + " is outside the " + objectTable.Count + "-byte object table");
+                byte header = objectTable[headerPosition];
+                int byteCount = 1 << (header & 0xf);
+                requireObjectBytes(headerPosition + 1, byteCount, "real payload");
+                byte[] buffer = objectTable.GetRange(headerPosition + 1, byteCount).ToArray();
+                Array.Reverse(buffer);
+
+                return BitConverter.ToDouble(RegulateNullBytes(buffer, 8), 0);
+            }
+
+            private object parseBinaryAsciiString(int headerPosition)
+            {
+                int charStartPosition;
+                int charCount = getCount(headerPosition, out charStartPosition);
+
+                requireObjectBytes(charStartPosition, charCount, "ASCII string payload");
+                var buffer = objectTable.GetRange(charStartPosition, charCount);
+                return buffer.Count > 0 ? Encoding.ASCII.GetString(buffer.ToArray()) : string.Empty;
+            }
+
+            private object parseBinaryUnicodeString(int headerPosition)
+            {
+                int charStartPosition;
+                int charCount = getCount(headerPosition, out charStartPosition);
+                requireObjectBytes(charStartPosition, (long)charCount * 2, "unicode string payload");
+                charCount = charCount * 2;
+
+                byte[] buffer = new byte[charCount];
+                byte one, two;
+
+                for (int i = 0; i < charCount; i+=2)
+                {
+                    one = objectTable.GetRange(charStartPosition+i,1)[0];
+                    two = objectTable.GetRange(charStartPosition + i+1, 1)[0];
+
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        buffer[i] = two;
+                        buffer[i + 1] = one;
+                    }
+                    else
+                    {
+                        buffer[i] = one;
+                        buffer[i + 1] = two;
+                    }
+                }
+
+                return Encoding.Unicode.GetString(buffer);
+            }
+
+            private object parseBinaryByteArray(int headerPosition)
+            {
+                int byteStartPosition;
+                int byteCount = getCount(headerPosition, out byteStartPosition);
+                requireObjectBytes(byteStartPosition, byteCount, "byte array payload");
+                return objectTable.GetRange(byteStartPosition, byteCount).ToArray();
+            }
         }
 
-        private static object parseBinaryByteArray(int headerPosition)
-        {
-            int byteStartPosition;
-            int byteCount = getCount(headerPosition, out byteStartPosition);
-            requireObjectBytes(byteStartPosition, byteCount, "byte array payload");
-            return objectTable.GetRange(byteStartPosition, byteCount).ToArray();
-        }
 
         #endregion
     }
