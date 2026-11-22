@@ -1,6 +1,6 @@
 # ApkShellext2
 
-[![release](https://img.shields.io/badge/release_3.5.1-blue)](https://github.com/nkh0472/apkshellext/releases)
+[![release](https://img.shields.io/badge/release_3.6.0-blue)](https://github.com/nkh0472/apkshellext/releases)
 [![.NET](https://img.shields.io/badge/.NET_Framework-4.8-512BD4)](#build-from-source)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -65,6 +65,7 @@ Full bilingual release notes are on the [Releases page](https://github.com/nkh04
 
 | Version | Summary |
 |---------|---------|
+| 3.6.0 | Dependency modernization: the source-embedded SharpZipLib is replaced by the BCL `ZipArchive` behind one capped `ZipSafety` reader (new 65,535-entry guard), ExCSS is removed, the unused SVG text/filter/extensibility/raster-image subtrees are trimmed, and the Span-based parsers are rewritten on plain strings to drop the System.Memory facade family — deployment 3.24 MiB → 2.24 MiB, 7z 1.00 MB → 0.73 MB, no behavior change (87 sample icons byte-identical) |
 | 3.5.1 | Stage 0 hardening: malformed packages no longer crash Explorer, failures are logged for diagnosis, 32-bit-view registration and per-store Preferences fixed |
 | 3.5.0 | Adaptive icons out of beta: Android-exact 1.5x zoom, framework color references, case-exact zip entries, DPI-independent vector rendering; `<bitmap>` support |
 | 3.4.5 | Fixed the scripts' NGEN steps (`/quiet` is not an ngen.exe flag — native images were never being generated) |
