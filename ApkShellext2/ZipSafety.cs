@@ -68,16 +68,5 @@ namespace ApkQuickReader {
             }
             return ms.ToArray();
         }
-
-        /// <summary>
-        /// Bounds a declared sub-allocation (e.g. a PNG chunk length field read
-        /// from a ≤ MAX_ICON entry) against the remaining bytes in its source
-        /// buffer — declared length must fit inside what we actually read.
-        /// </summary>
-        public static long ClampDeclared(long declared, long remaining, long hardCap, string what) {
-            if (declared < 0 || declared > hardCap || declared > remaining)
-                throw new InvalidDataException(what + ": declared length " + declared + " out of bounds");
-            return declared;
-        }
     }
 }
