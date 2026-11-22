@@ -26,16 +26,7 @@ using System.Runtime.InteropServices;
 // 如果此项目向 COM 公开，则下列 GUID 用于类型库的 ID
 [assembly: Guid("1F869CEE-4FDA-35D9-896F-43975A87D1F5")]
 
-// 程序集的版本信息由下面四个值组成: 
-//
-//      主版本
-//      次版本 
-//      生成号
-//      修订号
-//
-// 可以指定所有这些值，也可以使用“生成号”和“修订号”的默认值，
-// 方法是按如下所示使用“*”: 
-[assembly: AssemblyVersion("3.5.1.0")]
+// 程序集的版本号不在本文件里写死：AssemblyVersion/AssemblyFileVersion 由
+// ApkShellext2.csproj 从仓库根的 version.txt 读取后生成（WriteCodeFragment），
+// 保证版本只有一处来源。
 [assembly: NeutralResourcesLanguage("en-US")]
-//[assembly: AssemblyVersion("0.1.2.*")]
-[assembly: AssemblyFileVersion("3.5.1.0")]

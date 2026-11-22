@@ -25,6 +25,14 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <!-- single version source: version.txt at the repository root. Read at evaluation
+         time so restore/build/IDE all agree, and so both toolchains see the same value
+         without a custom build step before restore. -->
+    <VersionFile>$(MSBuildThisFileDirectory)..\version.txt</VersionFile>
+    <_VersionFromFile>$([System.IO.File]::ReadAllText('$(VersionFile)').Trim())</_VersionFromFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <!-- Svg 3.5.0 is source-embedded and needs modern language features on net48 -->
     <LangVersion>10.0</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -32,6 +40,10 @@
     <DebugType Condition="'$(Configuration)' != 'Release'">full</DebugType>
     <DebugType Condition="'$(Configuration)' == 'Release'">pdbonly</DebugType>
     <Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
+    <!-- reproducible rebuilds: the SDK default is already true for SDK-style projects,
+         stated here so a future property override cannot silently change dll bytes
+         behind the size gate -->
+    <Deterministic>true</Deterministic>
     <!-- Debug2 is the legacy signed-local-debug config: behaves like Debug -->
     <DefineConstants Condition="'$(Configuration)' == 'Debug2'">$(DefineConstants);DEBUG</DefineConstants>
     <!-- NETFULL drives the net-framework code paths in Svg 3.5.0 sources.
@@ -140,6 +152,23 @@
     <Compile Remove="SharpZipLib\src\ICSharpCode.SharpZipLib\Lzw\**\*.cs" />
     <Compile Remove="SharpZipLib\src\ICSharpCode.SharpZipLib\Tar\**\*.cs" />
     <Compile Remove="SharpZipLib\src\ICSharpCode.SharpZipLib\Core\ExactMemoryPool.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- GenerateAssemblyInfo stays off (Title/ComVisible/Guid/NeutralResourcesLanguage are
+         hand-written in Properties\AssemblyInfo.cs), so the two version attributes are
+         generated from version.txt by the target further down instead of by the SDK:
+         turning the generator on would re-emit those other attributes and fail with
+         CS0579 duplicates. -->
+    <_VersionAssemblyAttribute Include="System.Reflection.AssemblyVersionAttribute">
+      <_Parameter1>$(_VersionFromFile)</_Parameter1>
+    </_VersionAssemblyAttribute>
+    <_VersionAssemblyAttribute Include="System.Reflection.AssemblyFileVersionAttribute">
+      <_Parameter1>$(_VersionFromFile)</_Parameter1>
+    </_VersionAssemblyAttribute>
+    <!-- listed here (not only as the target's output) because a skipped incremental
+         target produces no items; the file itself is written before CoreCompile -->
+    <Compile Include="$(IntermediateOutputPath)Version.g.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -293,6 +322,20 @@
        copies (the publish layout above is already in $(TargetDir) by then). -->
   <Target Name="PackageWith7z" AfterTargets="PostBuildEvent">
     <Exec Command="call &quot;$(MSBuildProjectDirectory)\Resources\postbuild.cmd&quot; &quot;$(TargetDir)&quot; &quot;$(MSBuildProjectDirectory)\&quot; $(Configuration)" />
+  </Target>
+
+  <!-- Writes the two version attributes for the compiler. Incremental on version.txt so a
+       plain rebuild does not recompile just because the fragment was regenerated. -->
+  <Target Name="GenerateVersionAssemblyInfo"
+          BeforeTargets="CoreCompile"
+          DependsOnTargets="PrepareForBuild"
+          Inputs="$(VersionFile)"
+          Outputs="$(IntermediateOutputPath)Version.g.cs">
+    <WriteCodeFragment AssemblyAttributes="@(_VersionAssemblyAttribute)"
+                       Language="C#"
+                       OutputFile="$(IntermediateOutputPath)Version.g.cs">
+      <Output TaskParameter="OutputFile" ItemName="FileWrites" />
+    </WriteCodeFragment>
   </Target>
 
 </Project>
