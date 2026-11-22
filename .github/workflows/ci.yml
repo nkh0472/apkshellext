@@ -74,6 +74,18 @@ jobs:
         run: |
           & .\eng\check-layout.ps1 -Route dotnet
 
+      # The unit tests build the product again through a ProjectReference that sets
+      # Skip7zPackage=true, so this step neither repackages nor needs 7-Zip, and it
+      # must forward the signing switch exactly like the build step above.
+      # -warnaserror is deliberately not passed here: it guards the shipped
+      # assembly, not the test project's analyzers.
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          $signAssembly = if ($env:SIGNING -eq 'on') { 'true' } else { 'false' }
+          dotnet test tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj -c Release --nologo "-p:SignAssembly=$signAssembly"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Upload build output
         uses: actions/upload-artifact@v4
         with:

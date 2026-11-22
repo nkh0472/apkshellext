@@ -377,6 +377,46 @@ identically (`-c Debug` / `-p:Configuration=Debug`); the Debug output additional
 `debug.bat` (a dev helper copied only in Debug, §8). Never look for
 `apkShellextService` — its dead .sln entry was deleted here and never existed on disk.
 
+### 7.1 Automated unit tests (NUnit)
+
+`tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj` holds the unattended tests that pin the
+stage-0 safety guards: the version single source, the WebP decode-size limit, the ZipSafety
+entry caps, the binary-plist depth guard and the plist parser's per-call state. It is a net48
+NUnit 3 project (NUnit3TestAdapter + Microsoft.NET.Test.Sdk). Its only link to the product is
+a ProjectReference that passes `Skip7zPackage=true`, so running the tests rebuilds the product
+but never invokes the postbuild 7-Zip packaging — the tests work on a machine without 7-Zip.
+
+```powershell
+# whole suite (the test project targets net48, so this needs Windows):
+E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe test tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj -c Release --nologo
+
+# one fixture, or one test:
+#   ... --filter "FullyQualifiedName~ZipSafetyTests"
+#   ... --filter "Name~Rejects33NestedArrays"
+```
+
+`dotnet test` exits non-zero when any test fails, which is all the CI step needs. If this
+machine has no snk (§4.2), add `-p:SignAssembly=false` — the same switch the build step takes,
+because the ProjectReference rebuilds the product.
+
+The tests reach the internal guards by reflection instead of `InternalsVisibleTo`. The product
+is strong-named with a per-machine key that the repository does not carry, and an
+`InternalsVisibleTo` without the matching public key is a compile error (CS1726); reflection
+keeps the product sources untouched and the suite portable to a machine that signs and to one
+that does not. Test output lands under `tests\ApkShellext2.Tests\bin\<Configuration>\net48`, so
+it never becomes part of the `bin\Release` publish layout that §8 and `eng\check-layout.ps1`
+describe.
+
+Every fixture is built inside the test (zip archives with `System.IO.Compression`, binary
+plists with a small writer in `TestSupport\BinaryPlistBuilder.cs`), so the suite is hermetic:
+it does not read the sample library under `F:\Backups\apks\` and it never touches the network.
+
+CI: `.github\workflows\ci.yml`, job `dotnet-build`, step **Run unit tests** — after
+**Build Release (warnings as errors)** and **Check publish layout**, before the artifact
+upload. The `vs-build` job does not run the tests. `-warnaserror` is passed to the product
+build only; the test project compiles with `TreatWarningsAsErrors=false` so a test-side
+analyzer suggestion can never turn into a red build.
+
 ## 8. Publish layout, postbuild and deployment notes
 
 **The layout is assembled by MSBuild — postbuild only packages.**

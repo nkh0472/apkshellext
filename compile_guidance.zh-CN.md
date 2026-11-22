@@ -339,6 +339,40 @@ E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe build apkshellextTest\apkshellex
 输出会额外多一个 `debug.bat`(仅 Debug 复制的开发辅助脚本,§8)。别再找
 `apkShellextService` —— 它的 .sln 死条目已在本检出删除,磁盘上从来就没有过。
 
+### 7.1 自动化单元测试(NUnit)
+
+`tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj` 存放无人值守的测试,把阶段 0 的几道
+安全闸钉住:版本单一来源、WebP 解码尺寸上限、ZipSafety 条目字节上限、binary plist 深度限制、
+以及 plist 解析器的每次调用独立状态。net48 + NUnit 3(NUnit3TestAdapter + Microsoft.NET.Test.Sdk)。
+它和产品唯一的联系是一条 ProjectReference,并传了 `Skip7zPackage=true`,因此跑测试会重新编译
+产品,但绝不触发 postbuild 的 7-Zip 打包 —— 没装 7-Zip 的机器也能跑。
+
+```powershell
+# 全量(测试工程目标框架是 net48,所以必须在 Windows 上跑):
+E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe test tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj -c Release --nologo
+
+# 只跑一个测试类,或一个用例:
+#   ... --filter "FullyQualifiedName~ZipSafetyTests"
+#   ... --filter "Name~Rejects33NestedArrays"
+```
+
+任何一个用例失败,`dotnet test` 就返回非零 —— CI 那一步要的就是这个。本机没有 snk(§4.2)
+时加 `-p:SignAssembly=false`,和编译那一步用的是同一个开关(ProjectReference 会重编产品)。
+
+测试用反射而不是 `InternalsVisibleTo` 触达内部守卫:产品用本机私钥强签名,仓库里并不带这把
+钥匙,而缺公钥的 `InternalsVisibleTo` 是编译错误(CS1726);反射既不动产品源码,也让测试在
+签名机和未签名机上都能跑。测试产物落在 `tests\ApkShellext2.Tests\bin\<Configuration>\net48`,
+不会混进 §8 和 `eng\check-layout.ps1` 所描述的 `bin\Release` 发布布局。
+
+所有夹具都在测试内部现造(zip 用 `System.IO.Compression`,binary plist 用
+`TestSupport\BinaryPlistBuilder.cs` 里的小写入器),因此测试是自足的:不读 `F:\Backups\apks\`
+样本库,也不联网。
+
+CI:`.github\workflows\ci.yml` 的 `dotnet-build` job,**Run unit tests** 一步 —— 位于
+**Build Release (warnings as errors)** 和 **Check publish layout** 之后、上传产物之前。
+`vs-build` job 不跑测试。`-warnaserror` 只作用于产品编译;测试工程是
+`TreatWarningsAsErrors=false`,测试侧的 analyzer 建议不会把构建搞红。
+
 ## 8. 发布布局、postbuild 与部署说明
 
 **布局由 MSBuild 组装 —— postbuild 只负责打包。**
