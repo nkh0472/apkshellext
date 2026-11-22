@@ -94,10 +94,10 @@ REM === NGEN precompile: native images remove the JIT cost from every
 REM Explorer start (shell extensions load in-process, first-icon latency is
 REM the user-visible effect). Failures are non-fatal: machines with the
 REM Trusted Platform module service disabled cannot queue images.
-REM /NoDependencies is REQUIRED: compiling the dependency chain fails inside
-REM the NGEN service (no host binding policy for the Unsafe 4.0.4.1->6.0.0.0
-REM redirect; FacadeResolver is runtime-only), which aborts the whole install.
-REM Precompiling this assembly alone succeeds cleanly. ===
+REM /NoDependencies is kept from the facade era: compiling the dependency chain used to
+REM fail inside the NGEN service (no host binding policy for the
+REM System.Runtime.CompilerServices.Unsafe 4.0.4.1->6.0.0.0 redirect), which aborted the
+REM whole install. Precompiling this assembly alone succeeds cleanly. ===
 set "NGEN64=%windir%\Microsoft.NET\Framework64\v4.0.30319\ngen.exe"
 set "NGEN32=%windir%\Microsoft.NET\Framework\v4.0.30319\ngen.exe"
 ECHO.

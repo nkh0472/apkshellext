@@ -12,12 +12,11 @@ namespace ApkShellext2.Diagnostics {
     /// extension code runs.
     ///
     /// The [ModuleInitializer] attribute itself is the polyfill declared in
-    /// FacadeResolver.cs:8-12 (net48 has no System.Runtime.CompilerServices.ModuleInitializerAttribute
-    /// in mscorlib, and Roslyn honours a user-declared one with that exact name). Using that
-    /// attribute means a second declaration here would be CS0101 - this file only adds the entry
-    /// point. Several module initializers per module are allowed; this one is kept separate from
-    /// FacadeResolver.Init() so the assembly-resolve hook and the diagnostics hooks stay
-    /// independent.
+    /// ModuleInitializerAttribute.cs (net48 has no System.Runtime.CompilerServices.
+    /// ModuleInitializerAttribute in mscorlib, and Roslyn honours a user-declared one with that
+    /// exact name). Using that attribute means a second declaration here would be CS0101 - this
+    /// file only adds the entry point. Several module initializers per module are allowed; this
+    /// is the assembly's only one now that the facade-closure resolver is gone.
     ///
     /// Keep this trivial: the CLR runs it while holding the module lock, so it must not block and
     /// must not throw. EnsureHooks() only subscribes two handlers behind an Interlocked guard.

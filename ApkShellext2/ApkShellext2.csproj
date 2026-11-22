@@ -229,19 +229,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- NuGet via restore: System.Memory drags System.Buffers + System.Numerics.Vectors;
-         the direct Unsafe 6.0.0 overrides its transitive 4.5.3 (nearest-wins), which is
-         exactly what the old HintPath set resolved to. No more manual package fetching. -->
-    <PackageReference Include="System.Memory" Version="4.5.5" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
-    <!-- Pinned to 4.5.0 (was 4.4.0): System.Memory 4.5.5 requires >= 4.5.0, so the old
-         direct pin failed restore with NU1605 on both toolchains.
-         Direct (not just transitive) so BOTH toolchains copy it app-local: inside COM hosts
-         (explorer/dllhost) binding only probes app base + GAC, and the facade version the
-         compile references is newer than the GAC's 4.0.0.0 -> missing file = vector gradient
-         fills silently dropped (the "shield disappears" bug of 3.4.6). -->
-    <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
-    <!-- only the coreclr resource path needs it at compile time (see the property above) -->
+    <!-- No facade packages: System.Memory / System.Buffers /
+         System.Runtime.CompilerServices.Unsafe / System.Numerics.Vectors are gone.
+         The SVG parser used to need System.Memory for its buffer slices on net48, and
+         because COM hosts (explorer/dllhost) only probe the app base and the GAC, those
+         facades had to be deployed app-local next to the dll - where a version mismatch
+         with the host's binding redirect silently killed vector-icon rendering (3.4.6).
+         T-K rewrote that parsing against plain strings (Svg\Source\Helpers\TextSlice.cs),
+         so the dll now binds to framework assemblies only. Re-adding any of them also
+         means re-adding the AssemblyResolve redirect that used to live in FacadeResolver.cs
+         AND the dll names to the deployment manifest in Resources\postbuild.cmd. -->
+    <!-- Only the dotnet-CLI resource path needs this (see
+         GenerateResourceUsePreserializedResources above); the VS route / the shipped assembly
+         never loads it from a COM host. It drags System.Memory 4.5.4 ->
+         System.Buffers / Unsafe / Numerics.Vectors for net48, so a dotnet-CLI build still
+         copies that closure into bin\Release (its preserialized resource decoding needs
+         System.Resources.Extensions at runtime, so the assets cannot be excluded here).
+         Those copies are NOT part of the deployment: the VS route - the only publishable one -
+         references nothing, and Resources\postbuild.cmd only packs the 8-file manifest. -->
     <PackageReference Include="System.Resources.Extensions" Version="6.0.0"
                       Condition="'$(GenerateResourceUsePreserializedResources)' == 'true'" />
   </ItemGroup>
