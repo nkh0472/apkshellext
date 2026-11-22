@@ -22,7 +22,7 @@ namespace ApkShellext2
     /// </summary>
     public class AabReader: AppPackageReader
     {
-        private ZipArchive zip;
+        private IArchive zip;
         private byte[] manifest;
 
         private const string AndroidManifestXML = @"base/manifest/androidmanifest.xml";
@@ -48,12 +48,12 @@ namespace ApkShellext2
 
         private void openStream(Stream stream)
         {
-            zip = ZipSafety.OpenZip(stream);
-            ZipArchiveEntry en = ZipSafety.GetEntry(zip, AndroidManifestXML);
+            zip = SafeArchive.Open(stream);
+            IArchiveEntry en = zip.GetEntry(AndroidManifestXML);
             Log("find manifest: " + (en == null).ToString());
             // bounded read: attacker-declared entry sizes must never drive
             // (int) casts or buffer allocation in explorer's process
-            manifest = ZipSafety.ReadEntryBounded(zip, en, ZipSafety.MAX_MANIFEST, "AndroidManifest.xml");
+            manifest = zip.ReadEntryBounded(en, SafeArchive.MAX_MANIFEST, "AndroidManifest.xml");
         }
 
         public override AppPackageReader.AppType Type
@@ -141,10 +141,10 @@ namespace ApkShellext2
         /// <returns>Bitmap or </returns>
         public Bitmap getImage(string path, Size size)
         {
-            ZipArchiveEntry iconz;
-            if (ZipSafety.Contains(zip, path))
+            IArchiveEntry iconz;
+            if (zip.Contains(path))
             {
-                iconz = ZipSafety.GetEntryExact(zip, path);
+                iconz = zip.GetEntryExact(path);
                 // case-insensitive extension dispatch, see kkguo/apkshellext#99
                 string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
                 if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
@@ -152,14 +152,14 @@ namespace ApkShellext2
                 {
                     // fully buffer before decoding: GDI+ decodes PNG lazily and renders BLANK pixels when
                     // scaled from a non-seekable zip entry stream after it is closed
-                    byte[] imgBytes = ZipSafety.ReadEntryBounded(zip, iconz, ZipSafety.MAX_ICON, "image " + path);
+                    byte[] imgBytes = zip.ReadEntryBounded(iconz, SafeArchive.MAX_ICON, "image " + path);
                     using (MemoryStream ms = new MemoryStream(imgBytes, 0, imgBytes.Length, false, false))
                         return Utility.ResizeBitmap((Bitmap)Image.FromStream(ms), size);
                 }
                 else if (ext == ".webp")
                 {
                     WebP webp = new WebP();
-                    byte[] bytes = ZipSafety.ReadEntryBounded(zip, iconz, ZipSafety.MAX_ICON, "webp " + path);
+                    byte[] bytes = zip.ReadEntryBounded(iconz, SafeArchive.MAX_ICON, "webp " + path);
                     //webp.Decode(bytes).Save(FileName+".webp");
                     return Utility.ResizeBitmap(webp.Decode(bytes), size);
                 }
@@ -628,8 +628,8 @@ namespace ApkShellext2
         {
             try
             {
-                ZipArchiveEntry en = ZipSafety.GetEntryExact(zip, path);
-                byte[] bytes = ZipSafety.ReadEntryBounded(zip, en, ZipSafety.MAX_XML, "xml " + path);
+                IArchiveEntry en = zip.GetEntryExact(path);
+                byte[] bytes = zip.ReadEntryBounded(en, SafeArchive.MAX_XML, "xml " + path);
                 return NewAxmlParser().ExtractCompressedXml(bytes);
             }
             catch (Exception ex)

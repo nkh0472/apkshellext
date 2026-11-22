@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using NUnit.Framework;
+using Archive = ApkShellext2.Tests.ProductApi.ArchiveHandle;
 
 namespace ApkShellext2.Tests
 {
@@ -21,13 +22,18 @@ namespace ApkShellext2.Tests
         [Test]
         public void RejectsAnArchiveWithMoreEntriesThanTheCap()
         {
-            int limit = (int)ProductApi.ZipSafetyConstant("MAX_ENTRIES");
+            int limit = (int)ProductApi.SafeArchiveConstant("MAX_ENTRIES");
             // Above 65535 entries the legacy end-of-central-directory cannot express the
             // count, so the archive has to be zip64 - exactly how a hostile archive would
             // hide a huge central directory.
             byte[] archive = ZipBuilder.BuildWithEntryCount(limit + 1, zip64: true);
 
-            InvalidDataException error = Assert.Throws<InvalidDataException>(() => Close(Opened(archive)));
+            InvalidDataException error = Assert.Throws<InvalidDataException>(() =>
+            {
+                using (ProductApi.OpenArchive(archive))
+                {
+                }
+            });
 
             Assert.That(
                 error.Message,
@@ -37,12 +43,12 @@ namespace ApkShellext2.Tests
         [Test]
         public void AcceptsAnArchiveAtTheEntryCountLimit()
         {
-            int limit = (int)ProductApi.ZipSafetyConstant("MAX_ENTRIES");
+            int limit = (int)ProductApi.SafeArchiveConstant("MAX_ENTRIES");
             byte[] archive = ZipBuilder.BuildWithEntryCount(limit, zip64: false);
 
-            using (ZipArchive zip = Opened(archive))
+            using (Archive opened = Opened(archive))
             {
-                Assert.That(zip.Entries.Count, Is.EqualTo(limit));
+                Assert.That(opened.DeclaredEntryCount, Is.EqualTo(limit));
             }
         }
 
@@ -56,11 +62,11 @@ namespace ApkShellext2.Tests
                 Flags = 0x0800, // the zip general-purpose "name is UTF-8" bit
             });
 
-            using (ZipArchive zip = Opened(archive))
+            using (Archive opened = Opened(archive))
             {
-                ZipArchiveEntry entry = ProductApi.GetEntryExact(zip, name);
+                object entry = opened.GetEntryExact(name);
                 Assert.That(entry, Is.Not.Null, "a UTF-8 flagged name must decode to the same string");
-                Assert.That(entry.FullName, Is.EqualTo(name));
+                Assert.That(opened.EntryFullName(entry), Is.EqualTo(name));
             }
         }
 
@@ -83,11 +89,11 @@ namespace ApkShellext2.Tests
 
             byte[] archive = ZipBuilder.Build(new ZipBuilder.EntrySpec { NameBytes = nameBytes });
 
-            using (ZipArchive zip = Opened(archive))
+            using (Archive opened = Opened(archive))
             {
-                ZipArchiveEntry entry = ProductApi.GetEntryExact(zip, name);
+                object entry = opened.GetEntryExact(name);
                 Assert.That(entry, Is.Not.Null, "an unflagged name must decode with the legacy code page");
-                Assert.That(entry.FullName, Is.EqualTo(name));
+                Assert.That(opened.EntryFullName(entry), Is.EqualTo(name));
             }
         }
 
@@ -103,30 +109,29 @@ namespace ApkShellext2.Tests
                 new ZipBuilder.EntrySpec { Name = "res/Fd.xml", Data = new byte[] { 1 } },
                 new ZipBuilder.EntrySpec { Name = "res/fd.xml", Data = new byte[] { 2 } });
 
-            using (ZipArchive zip = Opened(archive))
+            using (Archive opened = Opened(archive))
             {
-                Assert.That(ProductApi.GetEntryExact(zip, "res/fd.xml").FullName, Is.EqualTo("res/fd.xml"));
+                Assert.That(opened.EntryFullName(opened.GetEntryExact("res/fd.xml")), Is.EqualTo("res/fd.xml"));
                 // The legacy lookup ignores case and therefore keeps the first hit.
-                Assert.That(ProductApi.GetEntry(zip, "RES/FD.XML").FullName, Is.EqualTo("res/Fd.xml"));
-                Assert.That(ProductApi.Contains(zip, "Res/FD.xml"), Is.True);
+                Assert.That(opened.EntryFullName(opened.GetEntry("RES/FD.XML")), Is.EqualTo("res/Fd.xml"));
+                Assert.That(opened.Contains("Res/FD.xml"), Is.True);
             }
         }
 
         /// <summary>
-        /// Lookups match the whole path: ZipArchiveEntry.Name is only the leaf, so a
-        /// bare "icon.png" query must not resolve "META-INF/icon.png".
+        /// Lookups match the whole path, not just the leaf: a bare "icon.png" query must
+        /// not resolve "META-INF/icon.png", and the entry spells out the full path.
         /// </summary>
         [Test]
         public void GetEntryExactMatchesTheFullPathNotTheLeafName()
         {
             byte[] archive = ZipBuilder.Build(new ZipBuilder.EntrySpec { Name = "META-INF/icon.png" });
 
-            using (ZipArchive zip = Opened(archive))
+            using (Archive opened = Opened(archive))
             {
-                Assert.That(ProductApi.GetEntryExact(zip, "icon.png"), Is.Null);
-                Assert.That(ProductApi.GetEntryExact(zip, "META-INF/icon.png"), Is.Not.Null);
-                Assert.That(zip.Entries[0].Name, Is.EqualTo("icon.png"));
-                Assert.That(zip.Entries[0].FullName, Is.EqualTo("META-INF/icon.png"));
+                Assert.That(opened.GetEntryExact("icon.png"), Is.Null);
+                Assert.That(opened.GetEntryExact("META-INF/icon.png"), Is.Not.Null);
+                Assert.That(opened.EntryNames, Is.EqualTo(new[] { "META-INF/icon.png" }));
             }
         }
 
@@ -139,10 +144,10 @@ namespace ApkShellext2.Tests
                 new ZipBuilder.EntrySpec { Name = "dup.bin", Data = first },
                 new ZipBuilder.EntrySpec { Name = "dup.bin", Data = second });
 
-            using (ZipArchive zip = Opened(archive))
+            using (Archive opened = Opened(archive))
             {
-                ZipArchiveEntry entry = ProductApi.GetEntry(zip, "dup.bin");
-                Assert.That(ProductApi.ReadEntryBounded(zip, entry, 1024, "duplicate"), Is.EqualTo(first));
+                object entry = opened.GetEntry("dup.bin");
+                Assert.That(opened.ReadEntryBounded(entry, 1024, "duplicate"), Is.EqualTo(first));
             }
         }
 
@@ -153,13 +158,13 @@ namespace ApkShellext2.Tests
                 new ZipBuilder.EntrySpec { Name = "assets/" },
                 new ZipBuilder.EntrySpec { Name = "assets/icon.png", Data = new byte[] { 7 } });
 
-            using (ZipArchive zip = Opened(archive))
+            using (Archive opened = Opened(archive))
             {
-                ZipArchiveEntry directory = ProductApi.GetEntryExact(zip, "assets/");
+                object directory = opened.GetEntryExact("assets/");
                 Assert.That(directory, Is.Not.Null);
-                Assert.That(ProductApi.IsFile(directory), Is.False);
-                Assert.That(ProductApi.IsFile(ProductApi.GetEntryExact(zip, "assets/icon.png")), Is.True);
-                Assert.That(ProductApi.IsFile(null), Is.False);
+                Assert.That(opened.IsFile(directory), Is.False);
+                Assert.That(opened.IsFile(opened.GetEntryExact("assets/icon.png")), Is.True);
+                Assert.That(opened.IsFile(null), Is.False);
             }
         }
 
@@ -169,7 +174,12 @@ namespace ApkShellext2.Tests
             byte[] archive = ZipBuilder.Build(new ZipBuilder.EntrySpec { Name = "a.bin", Data = new byte[32] });
             byte[] damaged = ZipBuilder.Truncate(archive, 8);
 
-            Assert.Throws<InvalidDataException>(() => Close(Opened(damaged)));
+            Assert.Throws<InvalidDataException>(() =>
+            {
+                using (ProductApi.OpenArchive(damaged))
+                {
+                }
+            });
         }
 
         [Test]
@@ -179,7 +189,12 @@ namespace ApkShellext2.Tests
 
             using (NonSeekableStream stream = new NonSeekableStream(archive))
             {
-                Assert.Throws<NotSupportedException>(() => Close(ProductApi.OpenZip(stream)));
+                Assert.Throws<NotSupportedException>(() =>
+                {
+                    using (ProductApi.OpenArchive(stream))
+                    {
+                    }
+                });
             }
         }
 
@@ -198,13 +213,13 @@ namespace ApkShellext2.Tests
             }
             byte[] archive = ZipBuilder.BuildZip64(new ZipBuilder.EntrySpec { Name = "assets/big.bin", Data = payload });
 
-            using (ZipArchive zip = Opened(archive))
+            using (Archive opened = Opened(archive))
             {
-                ZipArchiveEntry entry = ProductApi.GetEntryExact(zip, "assets/big.bin");
+                object entry = opened.GetEntryExact("assets/big.bin");
                 Assert.That(entry, Is.Not.Null, "a zip64 entry must be visible to the exact lookup");
-                Assert.That(entry.Length, Is.EqualTo(payload.Length));
-                Assert.That(entry.CompressedLength, Is.EqualTo(payload.Length));
-                Assert.That(ProductApi.ReadEntryBounded(zip, entry, 1024 * 1024, "zip64"), Is.EqualTo(payload));
+                Assert.That(opened.EntryLength(entry), Is.EqualTo(payload.Length));
+                Assert.That(opened.EntryCompressedLength(entry), Is.EqualTo(payload.Length));
+                Assert.That(opened.ReadEntryBounded(entry, 1024 * 1024, "zip64"), Is.EqualTo(payload));
             }
         }
 
@@ -224,21 +239,23 @@ namespace ApkShellext2.Tests
                 SentinelSizes = true,
             });
 
-            using (ZipArchive zip = Opened(archive))
+            using (Archive opened = Opened(archive))
             {
-                ZipArchiveEntry entry = ProductApi.GetEntryExact(zip, "payload.bin");
+                object entry = opened.GetEntryExact("payload.bin");
                 Assert.That(entry, Is.Not.Null);
-                Assert.That(entry.Length, Is.EqualTo(0xFFFFFFFFL));
-                Assert.That(ProductApi.DeclaredLength(entry), Is.EqualTo(-1L));
+                Assert.That(opened.EntryLength(entry), Is.EqualTo(0xFFFFFFFFL));
+                Assert.That(opened.DeclaredLength(entry), Is.EqualTo(-1L));
                 // with no compression ratio to apply, the hard cap is the only bound
-                Assert.That(ProductApi.EntryByteLimit(entry.CompressedLength, 1L << 20), Is.EqualTo(1L << 20));
+                Assert.That(
+                    ProductApi.EntryByteLimit(opened.EntryCompressedLength(entry), 1L << 20),
+                    Is.EqualTo(1L << 20));
             }
         }
 
         [Test]
         public void EntryByteLimitAllowsTheRatioSlackForSmallCompressedEntries()
         {
-            long ratioLimit = ProductApi.ZipSafetyConstant("RATIO_LIMIT");
+            long ratioLimit = ProductApi.SafeArchiveConstant("RATIO_LIMIT");
 
             Assert.That(ProductApi.EntryByteLimit(1024, 1L << 40), Is.EqualTo(1024 * ratioLimit + (1L << 20)));
         }
@@ -274,29 +291,22 @@ namespace ApkShellext2.Tests
                 Deflate = true,
             });
 
-            using (ZipArchive zip = Opened(archive))
+            using (Archive opened = Opened(archive))
             {
-                ZipArchiveEntry entry = ProductApi.GetEntryExact(zip, "zeros.bin");
+                object entry = opened.GetEntryExact("zeros.bin");
                 Assert.That(
-                    entry.CompressedLength,
+                    opened.EntryCompressedLength(entry),
                     Is.LessThan(payload.Length / 100),
                     "the fixture must actually exercise the ratio allowance");
                 Assert.That(
-                    ProductApi.ReadEntryBounded(zip, entry, 32L * 1024 * 1024, "zeros").Length,
+                    opened.ReadEntryBounded(entry, 32L * 1024 * 1024, "zeros").Length,
                     Is.EqualTo(payload.Length));
             }
         }
 
-        private static ZipArchive Opened(byte[] archive)
+        private static Archive Opened(byte[] archive)
         {
-            return ProductApi.OpenZip(new MemoryStream(archive, 0, archive.Length, false, false));
-        }
-
-        private static void Close(ZipArchive zip)
-        {
-            using (zip)
-            {
-            }
+            return ProductApi.OpenArchive(archive);
         }
 
         /// <summary>A stream that cannot seek - the shape ZipArchive must refuse.</summary>

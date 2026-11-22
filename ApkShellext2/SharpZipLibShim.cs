@@ -11,7 +11,7 @@
 //
 // Scope is deliberately exactly what PNGDecrusher calls (constructor, Write, Finish,
 // Update, Value) — not a general SharpZipLib reimplementation. The zip container work
-// that used to sit on SharpZipLib now runs on ZipArchive via ZipSafety.
+// that used to sit on SharpZipLib now runs on ZipArchive via SafeArchive.
 //
 // Provenance change: the previous source-embedded copy was icsharpcode/SharpZipLib
 // v1.4.2 (MIT, LICENSE.txt inside the removed submodule). Nothing from it remains

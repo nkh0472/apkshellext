@@ -29,7 +29,7 @@ namespace ApkShellext2 {
         private const string attrPublisher = @"Publisher";
         private const string attrPhoneProductID = @"PhoneProductId";
 
-        private ZipArchive zip;
+        private IArchive zip;
         private string iconPath;
 
         private string version;
@@ -40,24 +40,24 @@ namespace ApkShellext2 {
 
         public AppxReader(Stream stream) {
             FileName = "";
-            zip = ZipSafety.OpenZip(stream);
+            zip = SafeArchive.Open(stream);
             Extract();
         }
 
         public AppxReader(string path) {
             FileName = path;
             // open with FileShare.Delete so Explorer can delete/rename the package while handlers are alive (kkguo/apkshellext#103);
-            // the ZipArchive owns the stream (OpenZip passes leaveOpen:false), Dispose closes it
-            zip = ZipSafety.OpenZip(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete));
+            // the archive owns the stream (SafeArchive.Open passes leaveOpen:false), Dispose closes it
+            zip = SafeArchive.Open(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete));
             Extract();
         }
 
         public void Extract() {
-            ZipArchiveEntry en = ZipSafety.GetEntry(zip, AppxManifestXml);
+            IArchiveEntry en = zip.GetEntry(AppxManifestXml);
             if (en == null)
                 throw new EntryPointNotFoundException("cannot find " + AppxManifestXml);
             // bounded read (also fixes silent partial Stream.Read truncation on big entries)
-            byte[] xmlbytes = ZipSafety.ReadEntryBounded(zip, en, ZipSafety.MAX_MANIFEST, "AppxManifest.xml");
+            byte[] xmlbytes = zip.ReadEntryBounded(en, SafeArchive.MAX_MANIFEST, "AppxManifest.xml");
 
             XmlDocument xml = new XmlDocument();
             xml.XmlResolver = null;
@@ -124,9 +124,9 @@ namespace ApkShellext2 {
                 int dot = iconPath.LastIndexOf(".");
                 string name = iconPath.Substring(0, dot);
                 string extension = iconPath.Substring(dot + 1);
-                ZipArchiveEntry logo = null;
+                IArchiveEntry logo = null;
                 int scale = -1;
-                foreach (ZipArchiveEntry en in zip.Entries) {
+                foreach (IArchiveEntry en in zip.Entries) {
                     Match m = Regex.Match(en.FullName, name + @"(\.scale\-(\d+))?" + @"\." + extension);
                     if (m.Success) {
                         if (m.Groups[1].Value == "") { // exactly matching, no scale
@@ -144,7 +144,7 @@ namespace ApkShellext2 {
                     // buffer fully: a Bitmap over the live zip stream decodes lazily and turns blank once
                     // the reader/stream is disposed (shell draws later); the BCL entry stream is
                     // non-seekable too, so GDI+ cannot recover.
-                    byte[] imageBytes = ZipSafety.ReadEntryBounded(zip, logo, ZipSafety.MAX_ICON, "logo " + iconPath);
+                    byte[] imageBytes = zip.ReadEntryBounded(logo, SafeArchive.MAX_ICON, "logo " + iconPath);
                     return new Bitmap(new MemoryStream(imageBytes, 0, imageBytes.Length, false, false));
                 } else {
                     throw new EntryPointNotFoundException("Cannot find Logo file: " + iconPath);

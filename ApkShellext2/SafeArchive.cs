@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
@@ -17,10 +18,14 @@ namespace ApkQuickReader {
     /// Containers are opened with the BCL reader (System.IO.Compression.ZipArchive).
     /// ZipArchive performs no CRC/size validation and never bounds an entry by
     /// itself, which is exactly why the caps below stand between it and the
-    /// readers; OpenZip additionally rejects archives with an absurd number of
+    /// readers; Open additionally rejects archives with an absurd number of
     /// central-directory entries before any caller can iterate them.
+    ///
+    /// This class is the only implementation of IArchive; the six package readers
+    /// hold an IArchive, so the caps, the lookup semantics and the exception texts
+    /// exist exactly once.
     /// </summary>
-    internal static class ZipSafety {
+    internal sealed class SafeArchive : IArchive {
         // generous per-role caps — real payloads are far below these
         public const long MAX_BASE_APK = 512L * 1024 * 1024;
         public const long MAX_MANIFEST = 128L * 1024 * 1024;
@@ -66,6 +71,8 @@ namespace ApkQuickReader {
         /// </summary>
         private static readonly Encoding EntryNameEncoding = ResolveEntryNameEncoding();
 
+        private readonly ZipArchive zip;
+
         private static Encoding ResolveEntryNameEncoding() {
             Encoding encoding = null;
             try { encoding = Encoding.GetEncoding(0); } catch { }
@@ -83,22 +90,26 @@ namespace ApkQuickReader {
         /// entries — that is a hostile/absurd archive, and it is recorded in the error
         /// log before the InvalidDataException reaches the handlers.
         /// </summary>
-        public static ZipArchive OpenZip(Stream stream) {
+        public static IArchive Open(Stream stream) {
+            return new SafeArchive(stream);
+        }
+
+        private SafeArchive(Stream stream) {
             if (stream == null)
                 throw new ArgumentNullException("stream");
             if (!stream.CanSeek)
                 throw new NotSupportedException("zip containers must be opened from a seekable stream");
 
-            ZipArchive zip = new ZipArchive(stream, ZipArchiveMode.Read, false, EntryNameEncoding);
-            int count = zip.Entries.Count;
+            ZipArchive opened = new ZipArchive(stream, ZipArchiveMode.Read, false, EntryNameEncoding);
+            int count = opened.Entries.Count;
             if (count > MAX_ENTRIES) {
                 string message = "zip declares " + count + " entries, over the " + MAX_ENTRIES + "-entry limit";
                 InvalidDataException error = new InvalidDataException(message);
-                ErrorLog.Error("ZipSafety", message, error);
-                zip.Dispose();
+                ErrorLog.Error("SafeArchive", message, error);
+                opened.Dispose();
                 throw error;
             }
-            return zip;
+            zip = opened;
         }
 
         /// <summary>
@@ -108,11 +119,11 @@ namespace ApkQuickReader {
         /// (manifest.json, AppxBundleManifest FileName, …) rely on it.
         /// ZipArchive.GetEntry is ordinal case-sensitive, so the scan is explicit.
         /// </summary>
-        public static ZipArchiveEntry GetEntry(ZipArchive z, string name) {
-            if (z == null || name == null) return null;
-            foreach (ZipArchiveEntry entry in z.Entries) {
+        public IArchiveEntry GetEntry(string name) {
+            if (name == null) return null;
+            foreach (ZipArchiveEntry entry in zip.Entries) {
                 if (string.Equals(entry.FullName, name, StringComparison.OrdinalIgnoreCase))
-                    return entry;
+                    return new SafeArchiveEntry(entry);
             }
             return null;
         }
@@ -126,23 +137,34 @@ namespace ApkQuickReader {
         /// APKs). ZIP names are case-sensitive; try the ordinal-exact entry first, fall
         /// back to the legacy fuzzy match only when it is missing.
         /// </summary>
-        public static ZipArchiveEntry GetEntryExact(ZipArchive z, string name) {
-            if (z == null || name == null) return null;
-            foreach (ZipArchiveEntry entry in z.Entries) {
+        public IArchiveEntry GetEntryExact(string name) {
+            if (name == null) return null;
+            foreach (ZipArchiveEntry entry in zip.Entries) {
                 if (string.Equals(entry.FullName, name, StringComparison.Ordinal))
-                    return entry;
+                    return new SafeArchiveEntry(entry);
             }
-            return GetEntry(z, name); // legacy fallback: fuzzy match beats giving up
+            return GetEntry(name); // legacy fallback: fuzzy match beats giving up
         }
 
         /// <summary>Case-insensitive existence check (the previous reader's FindEntry).</summary>
-        public static bool Contains(ZipArchive z, string name) {
-            return GetEntry(z, name) != null;
+        public bool Contains(string name) {
+            return GetEntry(name) != null;
         }
 
         /// <summary>A file entry, i.e. not a directory (name ending in '/').</summary>
-        public static bool IsFile(ZipArchiveEntry entry) {
+        public bool IsFile(IArchiveEntry entry) {
             return entry != null && !entry.FullName.EndsWith("/", StringComparison.Ordinal);
+        }
+
+        public int DeclaredEntryCount {
+            get { return zip.Entries.Count; }
+        }
+
+        public IEnumerable<IArchiveEntry> Entries {
+            get {
+                foreach (ZipArchiveEntry entry in zip.Entries)
+                    yield return new SafeArchiveEntry(entry);
+            }
         }
 
         /// <summary>
@@ -156,7 +178,7 @@ namespace ApkQuickReader {
         /// reject the entry with a misleading message, and callers that score entries by
         /// size would all score the same. The byte caps are what bound the read.
         /// </summary>
-        public static long DeclaredLength(ZipArchiveEntry entry) {
+        public long DeclaredLength(IArchiveEntry entry) {
             if (entry == null) return -1;
             long declared = entry.Length;
             return declared < 0 || declared >= Zip64SizeSentinel ? -1 : declared;
@@ -193,7 +215,7 @@ namespace ApkQuickReader {
         /// Throws InvalidDataException when a cap is hit — handlers catch and
         /// fall back to the generic icon.
         /// </summary>
-        public static byte[] ReadEntryBounded(ZipArchive z, ZipArchiveEntry entry, long hardCap, string what) {
+        public byte[] ReadEntryBounded(IArchiveEntry entry, long hardCap, string what) {
             if (entry == null)
                 throw new InvalidDataException(what + ": entry missing");
             long limit = EntryByteLimit(entry.CompressedLength, hardCap);
@@ -213,6 +235,39 @@ namespace ApkQuickReader {
                 }
             }
             return ms.ToArray();
+        }
+
+        public void Dispose() {
+            zip.Dispose();
+        }
+
+        /// <summary>
+        /// A ZipArchiveEntry dressed as IArchiveEntry. Created per lookup/enumeration
+        /// hit and intentionally not cached: the central directory already holds the
+        /// real entries.
+        /// </summary>
+        private sealed class SafeArchiveEntry : IArchiveEntry {
+            private readonly ZipArchiveEntry entry;
+
+            internal SafeArchiveEntry(ZipArchiveEntry entry) {
+                this.entry = entry;
+            }
+
+            public string FullName {
+                get { return entry.FullName; }
+            }
+
+            public long Length {
+                get { return entry.Length; }
+            }
+
+            public long CompressedLength {
+                get { return entry.CompressedLength; }
+            }
+
+            public Stream Open() {
+                return entry.Open();
+            }
         }
     }
 }

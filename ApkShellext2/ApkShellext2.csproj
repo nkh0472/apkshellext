@@ -142,7 +142,7 @@
     </Compile>
 
     <!-- SharpZipLib is gone (T-J): zip containers are read with ZipArchive (see
-         ZipSafety.cs) and the three SharpZipLib types the pinned PNGDecrush source
+         SafeArchive.cs) and the three SharpZipLib types the pinned PNGDecrush source
          still names come from the System.IO.Compression-based shim (SharpZipLibShim.cs). -->
   </ItemGroup>
 
@@ -210,7 +210,7 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <!-- zip containers are read with the BCL reader (System.IO.Compression.ZipArchive,
-         see ZipSafety.cs) instead of a source-embedded third-party zip library -->
+         see SafeArchive.cs) instead of a source-embedded third-party zip library -->
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.EnterpriseServices" />
     <Reference Include="System.Security" />

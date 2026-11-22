@@ -102,7 +102,7 @@ Notes:
 - **SharpZipLib is not a submodule any more** — upstream (icsharpcode/SharpZipLib v1.4.2
   @ `33f64eb`) was never used as a general zip library here: only its read-only container
   reader was, so zip containers are now read with the BCL `System.IO.Compression.ZipArchive`
-  behind `ApkShellext2\ZipSafety.cs` (≤ 65535 entries, per-entry byte/ratio caps, legacy
+  behind `ApkShellext2\SafeArchive.cs` (≤ 65535 entries, per-entry byte/ratio caps, legacy
   name encoding, precise lookup). The pinned PNGDecrush source still names three
   SharpZipLib types by full name, so `ApkShellext2\SharpZipLibShim.cs` provides exactly
   those (zlib/CRC-32 on `System.IO.Compression`); nothing else of SharpZipLib is compiled.
@@ -398,7 +398,7 @@ but never invokes the postbuild 7-Zip packaging — the tests work on a machine 
 E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe test tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj -c Release --nologo
 
 # one fixture, or one test:
-#   ... --filter "FullyQualifiedName~ZipSafetyTests"
+#   ... --filter "FullyQualifiedName~SafeArchiveTests"
 #   ... --filter "Name~Rejects33NestedArrays"
 ```
 

@@ -2,11 +2,12 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using NUnit.Framework;
+using Archive = ApkShellext2.Tests.ProductApi.ArchiveHandle;
 
 namespace ApkShellext2.Tests
 {
     /// <summary>
-    /// ZipSafety.ReadEntryBounded is the one sanctioned way the readers materialise
+    /// SafeArchive.ReadEntryBounded is the one sanctioned way the readers materialise
     /// an entry from an attacker-controlled APK, and the declared sizes in the
     /// central directory are attacker data. These tests build real zips in memory
     /// (hermetic: no sample library, no network) and pin the two properties that
@@ -14,7 +15,7 @@ namespace ApkShellext2.Tests
     /// of buffering the entry first.
     /// </summary>
     [TestFixture]
-    public class ZipSafetyTests
+    public class SafeArchiveTests
     {
         private const string EntryName = "res/raw/payload.bin";
         private const string What = "test entry";
@@ -23,12 +24,12 @@ namespace ApkShellext2.Tests
         public void ReturnsTheEntry_WhenItFitsTheCap()
         {
             byte[] payload = Payload(4096);
-            using (ZipArchive zip = OpenZip(BuildZip(payload, CompressionLevel.NoCompression)))
+            using (Archive archive = ProductApi.OpenArchive(BuildZip(payload, CompressionLevel.NoCompression)))
             {
-                ZipArchiveEntry entry = zip.GetEntry(EntryName);
+                object entry = archive.GetEntry(EntryName);
                 Assert.That(entry, Is.Not.Null, EntryName + " is missing from the zip built by the test");
 
-                byte[] read = ProductApi.ReadEntryBounded(zip, entry, payload.Length, What);
+                byte[] read = archive.ReadEntryBounded(entry, payload.Length, What);
                 Assert.That(read, Is.EqualTo(payload), "an entry of exactly the cap must be returned byte for byte");
             }
         }
@@ -38,11 +39,11 @@ namespace ApkShellext2.Tests
         {
             byte[] payload = Payload(1025);
             long cap = 1024;
-            using (ZipArchive zip = OpenZip(BuildZip(payload, CompressionLevel.NoCompression)))
+            using (Archive archive = ProductApi.OpenArchive(BuildZip(payload, CompressionLevel.NoCompression)))
             {
-                ZipArchiveEntry entry = zip.GetEntry(EntryName);
+                object entry = archive.GetEntry(EntryName);
                 InvalidDataException ex = Assert.Throws<InvalidDataException>(
-                    () => ProductApi.ReadEntryBounded(zip, entry, cap, What));
+                    () => archive.ReadEntryBounded(entry, cap, What));
 
                 Assert.That(ex.Message, Does.Contain(What), "the error has to name the role that hit the cap");
                 Assert.That(ex.Message, Does.Contain(cap.ToString()), "the error has to report the cap that was hit");
@@ -55,13 +56,13 @@ namespace ApkShellext2.Tests
             // a Stored entry cannot expand, so the compression-ratio allowance must not
             // widen the cap: 2 MiB of STORED data against a 64 KiB cap has to fail
             byte[] payload = Payload(2 * 1024 * 1024);
-            using (ZipArchive zip = OpenZip(BuildStoredZip(payload)))
+            using (Archive archive = ProductApi.OpenArchive(BuildStoredZip(payload)))
             {
-                ZipArchiveEntry entry = zip.GetEntry(EntryName);
-                Assert.That(entry.CompressedLength, Is.EqualTo((long)payload.Length),
+                object entry = archive.GetEntry(EntryName);
+                Assert.That(archive.EntryCompressedLength(entry), Is.EqualTo((long)payload.Length),
                     "the zip must store this entry uncompressed");
 
-                Assert.Throws<InvalidDataException>(() => ProductApi.ReadEntryBounded(zip, entry, 64 * 1024, What));
+                Assert.Throws<InvalidDataException>(() => archive.ReadEntryBounded(entry, 64 * 1024, What));
             }
         }
 
@@ -75,14 +76,14 @@ namespace ApkShellext2.Tests
             long cap = 64 * 1024;
             CountingStream source = new CountingStream(new MemoryStream(BuildStoredZip(payload)));
 
-            using (ZipArchive zip = OpenZip(source))
+            using (Archive archive = ProductApi.OpenArchive(source))
             {
-                ZipArchiveEntry entry = zip.GetEntry(EntryName);
+                object entry = archive.GetEntry(EntryName);
                 Assert.That(entry, Is.Not.Null);
 
                 long before = source.BytesRead;
                 InvalidDataException ex = Assert.Throws<InvalidDataException>(
-                    () => ProductApi.ReadEntryBounded(zip, entry, cap, What));
+                    () => archive.ReadEntryBounded(entry, cap, What));
                 long pulled = source.BytesRead - before;
 
                 Assert.That(ex.Message, Does.Contain(cap.ToString()));
@@ -98,10 +99,10 @@ namespace ApkShellext2.Tests
         [Test]
         public void RejectsAMissingEntry_InsteadOfReturningNull()
         {
-            using (ZipArchive zip = OpenZip(BuildZip(Payload(16), CompressionLevel.NoCompression)))
+            using (Archive archive = ProductApi.OpenArchive(BuildZip(Payload(16), CompressionLevel.NoCompression)))
             {
                 InvalidDataException ex = Assert.Throws<InvalidDataException>(
-                    () => ProductApi.ReadEntryBounded(zip, null, 1024, What));
+                    () => archive.ReadEntryBounded(null, 1024, What));
                 Assert.That(ex.Message, Does.Contain(What));
                 Assert.That(ex.Message, Does.Contain("missing"));
             }
@@ -143,14 +144,5 @@ namespace ApkShellext2.Tests
                 return buffer.ToArray();
             }
         }
-
-        private static ZipArchive OpenZip(byte[] bytes)
-        {
-            return ProductApi.OpenZip(new MemoryStream(bytes));
-        }
-
-        private static ZipArchive OpenZip(Stream stream)
-        {
-            return ProductApi.OpenZip(stream);
-        }    }
+    }
 }

@@ -90,7 +90,7 @@ git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://gi
   `LibWebP\libwebp_x86/x64.dll`。
 - **SharpZipLib 已不是子模块** —— 上游(icsharpcode/SharpZipLib v1.4.2 @ `33f64eb`)在本仓库
   从来不是通用 zip 库,只用到了它的只读容器读取,因此 zip 容器现在由 BCL
-  `System.IO.Compression.ZipArchive` 在 `ApkShellext2\ZipSafety.cs` 之后读取(条目 ≤ 65535、
+  `System.IO.Compression.ZipArchive` 在 `ApkShellext2\SafeArchive.cs` 之后读取(条目 ≤ 65535、
   单条目字节/压缩比率上限、旧编码条目名、精确查找)。固定版本的 PNGDecrush 源码仍按全名引用
   三个 SharpZipLib 类型,由 `ApkShellext2\SharpZipLibShim.cs` 只提供这三个
   (基于 `System.IO.Compression` 的 zlib/CRC-32);SharpZipLib 其余部分一律不再编译。
@@ -357,7 +357,7 @@ E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe build apkshellextTest\apkshellex
 E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe test tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj -c Release --nologo
 
 # 只跑一个测试类,或一个用例:
-#   ... --filter "FullyQualifiedName~ZipSafetyTests"
+#   ... --filter "FullyQualifiedName~SafeArchiveTests"
 #   ... --filter "Name~Rejects33NestedArrays"
 ```
 

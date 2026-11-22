@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
@@ -12,13 +14,12 @@ namespace ApkShellext2.Tests
     /// The one place that knows the product's internal/private member names.
     ///
     /// The stage 0 guards are deliberately not public API: WebPWrapper.ValidateDecodeSize is
-    /// private and ZipSafety is internal. A friend-assembly declaration is not an option
+    /// private and SafeArchive is internal. A friend-assembly declaration is not an option
     /// here because the product is strong-named with a key that is not in the repository
     /// (each checkout generates its own, and CI builds unsigned when the key secret is
     /// absent), so [InternalsVisibleTo] can carry no portable public key and would not
-    /// compile (CS1726). Reflection keeps the product sources and therefore the shipped
-    /// dll byte-for-byte unchanged, and a renamed guard fails one test with a clear
-    /// message instead of silently losing coverage.
+    /// compile (CS1726). Reflection keeps the guards non-public, and a renamed guard fails
+    /// one test with a clear message instead of silently losing coverage.
     /// </summary>
     internal static class ProductApi
     {
@@ -78,67 +79,126 @@ namespace ApkShellext2.Tests
         }
 
         /// <summary>
-        /// Opens a zip with ApkQuickReader.ZipSafety.OpenZip, the entry point every
-        /// reader uses: it applies the entry-count gate and the legacy entry-name
+        /// Opens an in-memory archive with ApkQuickReader.SafeArchive.Open, the entry point
+        /// every reader uses: it applies the entry-count gate and the legacy entry-name
         /// encoding, so guards tested through it are the ones that actually ship.
         /// </summary>
-        public static ZipArchive OpenZip(Stream stream)
+        public static ArchiveHandle OpenArchive(byte[] bytes)
         {
-            return (ZipArchive)InvokeZipSafety("OpenZip", stream);
+            return new ArchiveHandle(InvokeSafeArchiveStatic(
+                "Open", new MemoryStream(bytes, 0, bytes.Length, false, false)));
+        }
+
+        public static ArchiveHandle OpenArchive(Stream stream)
+        {
+            return new ArchiveHandle(InvokeSafeArchiveStatic("Open", stream));
         }
 
         /// <summary>
-        /// Calls ApkQuickReader.ZipSafety.ReadEntryBounded, the single sanctioned way the
-        /// readers materialise an attacker-controlled zip entry.
+        /// A disposable handle around one internal SafeArchive instance. Every member goes
+        /// through the reflection helpers above, so a renamed guard fails with a clear
+        /// message instead of a compile error, and the product surface stays internal.
         /// </summary>
-        public static byte[] ReadEntryBounded(ZipArchive zip, ZipArchiveEntry entry, long hardCap, string what)
+        public sealed class ArchiveHandle : IDisposable
         {
-            return (byte[])InvokeZipSafety("ReadEntryBounded", zip, entry, hardCap, what);
-        }
+            private readonly object handle;
 
-        /// <summary>The legacy fuzzy (case-insensitive, first hit) entry lookup.</summary>
-        public static ZipArchiveEntry GetEntry(ZipArchive zip, string name)
-        {
-            return (ZipArchiveEntry)InvokeZipSafety("GetEntry", zip, name);
-        }
+            internal ArchiveHandle(object handle)
+            {
+                this.handle = handle;
+            }
 
-        /// <summary>The ordinal-exact lookup with the legacy fuzzy fallback.</summary>
-        public static ZipArchiveEntry GetEntryExact(ZipArchive zip, string name)
-        {
-            return (ZipArchiveEntry)InvokeZipSafety("GetEntryExact", zip, name);
-        }
+            public int DeclaredEntryCount
+            {
+                get { return (int)GetInstanceProperty(handle, "DeclaredEntryCount"); }
+            }
 
-        public static bool Contains(ZipArchive zip, string name)
-        {
-            return (bool)InvokeZipSafety("Contains", zip, name);
-        }
+            public string[] EntryNames
+            {
+                get
+                {
+                    List<string> names = new List<string>();
+                    foreach (object entry in (IEnumerable)GetInstanceProperty(handle, "Entries"))
+                    {
+                        names.Add(EntryFullName(entry));
+                    }
+                    return names.ToArray();
+                }
+            }
 
-        /// <summary>True for file entries, false for directory entries (and null).</summary>
-        public static bool IsFile(ZipArchiveEntry entry)
-        {
-            return (bool)InvokeZipSafety("IsFile", entry);
-        }
+            /// <summary>The legacy fuzzy (case-insensitive, first hit) entry lookup.</summary>
+            public object GetEntry(string name)
+            {
+                return InvokeArchive(handle, "GetEntry", name);
+            }
 
-        /// <summary>The declared uncompressed size, or -1 when the archive carries none.</summary>
-        public static long DeclaredLength(ZipArchiveEntry entry)
-        {
-            return (long)InvokeZipSafety("DeclaredLength", entry);
+            /// <summary>The ordinal-exact lookup with the legacy fuzzy fallback.</summary>
+            public object GetEntryExact(string name)
+            {
+                return InvokeArchive(handle, "GetEntryExact", name);
+            }
+
+            public bool Contains(string name)
+            {
+                return (bool)InvokeArchive(handle, "Contains", name);
+            }
+
+            /// <summary>True for file entries, false for directory entries (and null).</summary>
+            public bool IsFile(object entry)
+            {
+                return (bool)InvokeArchive(handle, "IsFile", entry);
+            }
+
+            /// <summary>The declared uncompressed size, or -1 when the archive carries none.</summary>
+            public long DeclaredLength(object entry)
+            {
+                return (long)InvokeArchive(handle, "DeclaredLength", entry);
+            }
+
+            /// <summary>
+            /// Calls SafeArchive.ReadEntryBounded, the single sanctioned way the readers
+            /// materialise an attacker-controlled zip entry.
+            /// </summary>
+            public byte[] ReadEntryBounded(object entry, long hardCap, string what)
+            {
+                return (byte[])InvokeArchive(handle, "ReadEntryBounded", entry, hardCap, what);
+            }
+
+            public string EntryFullName(object entry)
+            {
+                return (string)GetInstanceProperty(entry, "FullName");
+            }
+
+            public long EntryLength(object entry)
+            {
+                return (long)GetInstanceProperty(entry, "Length");
+            }
+
+            public long EntryCompressedLength(object entry)
+            {
+                return (long)GetInstanceProperty(entry, "CompressedLength");
+            }
+
+            public void Dispose()
+            {
+                CloseArchive(handle);
+            }
         }
 
         /// <summary>The byte cap an entry is actually read under (hard cap vs ratio allowance).</summary>
         public static long EntryByteLimit(long compressedLength, long hardCap)
         {
-            return (long)InvokeZipSafety("EntryByteLimit", compressedLength, hardCap);
+            return (long)InvokeSafeArchiveStatic("EntryByteLimit", compressedLength, hardCap);
         }
 
         /// <summary>
-        /// Reads a ZipSafety const (MAX_ENTRIES, RATIO_LIMIT, …) so tests pin the limit
+        /// Reads a SafeArchive const (MAX_ENTRIES, RATIO_LIMIT, …) so tests pin the limit
         /// that ships rather than restating the number.
         /// </summary>
-        public static long ZipSafetyConstant(string name)
+        public static long SafeArchiveConstant(string name)
         {
-            FieldInfo field = ZipSafetyType.GetField(name, StaticAnyVisibility);
-            Assert.That(field, Is.Not.Null, "ApkQuickReader.ZipSafety." + name + " was not found; update TestSupport/ProductApi.cs.");
+            FieldInfo field = SafeArchiveType.GetField(name, StaticAnyVisibility);
+            Assert.That(field, Is.Not.Null, "ApkQuickReader.SafeArchive." + name + " was not found; update TestSupport/ProductApi.cs.");
             return Convert.ToInt64(field.GetRawConstantValue());
         }
 
@@ -227,17 +287,48 @@ namespace ApkShellext2.Tests
             return item.GetValue(list, new object[] { index });
         }
 
-        private static Type ZipSafetyType
+        private static Type SafeArchiveType
         {
-            get { return RequireType("ApkQuickReader.ZipSafety"); }
+            get { return RequireType("ApkQuickReader.SafeArchive"); }
         }
 
-        private static object InvokeZipSafety(string name, params object[] arguments)
+        private static object InvokeSafeArchiveStatic(string name, params object[] arguments)
         {
-            MethodInfo method = RequireMethod(ZipSafetyType, name);
+            MethodInfo method = RequireMethod(SafeArchiveType, name);
             try
             {
                 return method.Invoke(null, arguments);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw; // unreachable: Throw() always rethrows
+            }
+        }
+
+        private static void CloseArchive(object archive)
+        {
+            if (archive != null)
+            {
+                ((IDisposable)archive).Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Calls an instance method on a SafeArchive handle and lets the guard's own
+        /// exception escape unwrapped (reflection would hide it in TargetInvocationException).
+        /// </summary>
+        private static object InvokeArchive(object archive, string name, params object[] arguments)
+        {
+            MethodInfo method = archive.GetType().GetMethod(
+                name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(
+                method,
+                Is.Not.Null,
+                archive.GetType().Name + "." + name + " was not found; update TestSupport/ProductApi.cs.");
+            try
+            {
+                return method.Invoke(archive, arguments);
             }
             catch (TargetInvocationException ex) when (ex.InnerException != null)
             {

@@ -14,7 +14,7 @@ namespace ApkShellext2 {
     /// Read AppxBundle
     /// </summary>
     public class AppxBundleReader :AppPackageReader {
-        private ZipArchive zip;
+        private IArchive zip;
         private AppxReader appxReader= null;
 
         private const string AppxBundleManifestXml = @"AppxMetadata/AppxBundleManifest.xml";
@@ -49,21 +49,21 @@ namespace ApkShellext2 {
 
         private void openFile(Stream stream) {
             string appxFileName = "";
-            zip = ZipSafety.OpenZip(stream);
-            ZipArchiveEntry en = ZipSafety.GetEntry(zip, AppxBundleManifestXml);
+            zip = SafeArchive.Open(stream);
+            IArchiveEntry en = zip.GetEntry(AppxBundleManifestXml);
             if (en == null)
                 throw new EntryPointNotFoundException("cannot find " + AppxBundleManifestXml);
 
             // the central directory declares the uncompressed size, so an oversized
             // manifest is rejected before it is inflated at all. A manifest that only
             // carries the 0xFFFFFFFF sentinel has no usable declared size
-            // (ZipSafety.DeclaredLength returns -1); the bounded read below still
+            // (SafeArchive.DeclaredLength returns -1); the bounded read below still
             // enforces the cap byte by byte.
-            if (ZipSafety.DeclaredLength(en) > MaxAppxBundleManifestBytes)
+            if (zip.DeclaredLength(en) > MaxAppxBundleManifestBytes)
                 throw new InvalidDataException(AppxBundleManifestXml + " declares " + en.Length + " bytes, over the "
                     + MaxAppxBundleManifestBytes + "-byte limit");
 
-            byte[] manifestBytes = ZipSafety.ReadEntryBounded(zip, en, MaxAppxBundleManifestBytes, AppxBundleManifestXml);
+            byte[] manifestBytes = zip.ReadEntryBounded(en, MaxAppxBundleManifestBytes, AppxBundleManifestXml);
 
             using (XmlReader reader = XmlReader.Create(new MemoryStream(manifestBytes, false))) {
                 reader.ReadToFollowing(ElemIdentity);
@@ -96,13 +96,13 @@ namespace ApkShellext2 {
                 }
             }
 
-            en = ZipSafety.GetEntry(zip, appxFileName);
+            en = zip.GetEntry(appxFileName);
             if (en == null) {
                 // newer Store bundles are packed with percent-encoded entry names
                 // ("Bluetooth Audio…" → "Bluetooth%20Audio…") while the manifest keeps raw names
                 string encoded = Uri.EscapeDataString(appxFileName);
-                foreach (ZipArchiveEntry cand in zip.Entries) {
-                    if (ZipSafety.IsFile(cand) && (cand.FullName == encoded || cand.FullName == appxFileName.Replace(" ", "%20"))) {
+                foreach (IArchiveEntry cand in zip.Entries) {
+                    if (zip.IsFile(cand) && (cand.FullName == encoded || cand.FullName == appxFileName.Replace(" ", "%20"))) {
                         en = cand;
                         break;
                     }
@@ -113,7 +113,7 @@ namespace ApkShellext2 {
 
             // the nested appx must be a seekable stream for ZipArchive, so it is
             // buffered through the bounded read (declared sizes are not trusted)
-            byte[] appxBytes = ZipSafety.ReadEntryBounded(zip, en, ZipSafety.MAX_NESTED_CONTAINER, "appx " + en.FullName);
+            byte[] appxBytes = zip.ReadEntryBounded(en, SafeArchive.MAX_NESTED_CONTAINER, "appx " + en.FullName);
             appxReader = new AppxReader(new MemoryStream(appxBytes, 0, appxBytes.Length, false, false));
         }
 

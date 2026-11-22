@@ -26,7 +26,7 @@ namespace ApkShellext2
         private string strAppRoot;
         private Dictionary<string, object> infoPlistDic;
         private Dictionary<string, object> itunesMetadataDic;
-        private ZipArchive zip;
+        private IArchive zip;
 
         private const string iTunesMetadataPath = @"iTunesMetadata.plist";
         private const string infoPlistPath = @"(Payload/.*\.app/)Info\.plist";
@@ -55,9 +55,9 @@ namespace ApkShellext2
         }
 
         private void openStream(Stream stream) {
-            zip = ZipSafety.OpenZip(stream);
-            ZipArchiveEntry infoPlist = null;
-            foreach (ZipArchiveEntry en in zip.Entries) {
+            zip = SafeArchive.Open(stream);
+            IArchiveEntry infoPlist = null;
+            foreach (IArchiveEntry en in zip.Entries) {
                 Match m = Regex.Match(en.FullName, infoPlistPath);
                 if (m.Success) {
                     strAppRoot = m.Groups[1].Value;
@@ -71,7 +71,7 @@ namespace ApkShellext2
             }
 
             // bounded read (also fixes silent partial Stream.Read truncation)
-            byte[] infoBytes = ZipSafety.ReadEntryBounded(zip, infoPlist, ZipSafety.MAX_METADATA, "info.plist");
+            byte[] infoBytes = zip.ReadEntryBounded(infoPlist, SafeArchive.MAX_METADATA, "info.plist");
 
             infoPlistDic = (Dictionary<string, object>)Plist.readPlist(infoBytes);
         }
@@ -110,26 +110,26 @@ namespace ApkShellext2
 
         public Bitmap getImage(string name) {
             string fullname = name;
-            ZipArchiveEntry image;
+            IArchiveEntry image;
             if (!name.EndsWith(".png")) {                
                 fullname = name + @"@3x" + ".png";
-                image = ZipSafety.GetEntry(zip, strAppRoot + fullname);
+                image = zip.GetEntry(strAppRoot + fullname);
                 if (image == null) {
                     fullname = name + @"@2x" + ".png";
-                    image = ZipSafety.GetEntry(zip, strAppRoot + fullname);
+                    image = zip.GetEntry(strAppRoot + fullname);
                 }
                 if (image == null) {
                     fullname = name + ".png";
-                    image = ZipSafety.GetEntry(zip, strAppRoot + fullname);
+                    image = zip.GetEntry(strAppRoot + fullname);
                 }
             } else {
-                image = ZipSafety.GetEntry(zip, strAppRoot + name);
+                image = zip.GetEntry(strAppRoot + name);
             }
 
             if (image == null) {
                 return null;
             }
-            byte[] imageBytes = ZipSafety.ReadEntryBounded(zip, image, ZipSafety.MAX_ICON, "icon " + name);
+            byte[] imageBytes = zip.ReadEntryBounded(image, SafeArchive.MAX_ICON, "icon " + name);
             try {
                 MemoryStream imageOut = new MemoryStream();
                 PNGDecrusher.Decrush(new MemoryStream(imageBytes), imageOut);
@@ -230,10 +230,10 @@ namespace ApkShellext2
         public override string Publisher {
             get {
                 try {
-                    ZipArchiveEntry itunesMetadata = ZipSafety.GetEntry(zip, iTunesMetadataPath);
+                    IArchiveEntry itunesMetadata = zip.GetEntry(iTunesMetadataPath);
                     if (itunesMetadata == null)
                         return "";
-                    byte[] itunesMetadataBytes = ZipSafety.ReadEntryBounded(zip, itunesMetadata, ZipSafety.MAX_METADATA, "iTunesMetadata.plist");
+                    byte[] itunesMetadataBytes = zip.ReadEntryBounded(itunesMetadata, SafeArchive.MAX_METADATA, "iTunesMetadata.plist");
                     itunesMetadataDic = (Dictionary<string, object>)Plist.readPlist(itunesMetadataBytes);
                     return getStrings(itunesMetadataDic, new string[] { flagCopyright })[0];
                 } catch {
@@ -245,10 +245,10 @@ namespace ApkShellext2
         public override string AppID {
             get {
                 try {
-                    ZipArchiveEntry itunesMetadata = ZipSafety.GetEntry(zip, iTunesMetadataPath);
+                    IArchiveEntry itunesMetadata = zip.GetEntry(iTunesMetadataPath);
                     if (itunesMetadata == null)
                         return "";
-                    byte[] itunesMetadataBytes = ZipSafety.ReadEntryBounded(zip, itunesMetadata, ZipSafety.MAX_METADATA, "iTunesMetadata.plist");
+                    byte[] itunesMetadataBytes = zip.ReadEntryBounded(itunesMetadata, SafeArchive.MAX_METADATA, "iTunesMetadata.plist");
                     itunesMetadataDic = (Dictionary<string, object>)Plist.readPlist(itunesMetadataBytes);
                     return getStrings(itunesMetadataDic, new string[] { flagAppId })[0];
                 } catch {
