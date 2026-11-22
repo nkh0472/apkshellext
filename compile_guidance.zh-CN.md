@@ -307,6 +307,12 @@ postbuild 的 7-Zip 定位就是专门做成位宽无关的(坑 14)。VS 18 还�
 `dotnet build ApkShellext2.sln -c Release` / `msbuild ApkShellext2.sln -t:restore` +
 `msbuild ApkShellext2.sln -p:Configuration=Release`。
 
+CI(GitHub Actions,`.github/workflows/ci.yml`)对两个 job 故意用不同 SDK:
+`dotnet-build` 固定 10.0.404(`latestPatch`);`vs-build` 固定 9.0.100
+(`latestFeature`),因为 runner 的 Visual Studio 2022 带的是 MSBuild 17.14,
+载不动 SDK 10+(那要求 MSBuild ≥ 18.0.0)。VS 路线要的是 FullFramework 资源管线,
+不是编译器版本。
+
 ### 体积门禁(CI 用)
 
 ```powershell

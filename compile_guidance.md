@@ -342,6 +342,12 @@ The whole solution (main + test) also builds in one go on either route:
 `dotnet build ApkShellext2.sln -c Release` / `msbuild ApkShellext2.sln -t:restore` +
 `msbuild ApkShellext2.sln -p:Configuration=Release`.
 
+CI (`.github/workflows/ci.yml`) splits the SDK on purpose: the `dotnet-build` job
+pins 10.0.404 (`latestPatch`), while the `vs-build` job pins 9.0.100
+(`latestFeature`) because the runner's Visual Studio 2022 carries MSBuild 17.14,
+which cannot load SDK 10+ (that needs MSBuild >= 18.0.0). The VS route exists for
+the FullFramework resource pipeline, not for the compiler version.
+
 ### Size budget (the CI gate)
 
 ```powershell

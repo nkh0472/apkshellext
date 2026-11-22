@@ -90,29 +90,33 @@ jobs:
         with:
           submodules: recursive
 
-      # setup-msbuild supplies the FullFramework MSBuild (the publish route), but
-      # its SDK resolver reads the machine-wide SDK list, so the .NET SDK from
-      # global.json has to be installed here too - setup-msbuild alone installs no SDK.
-      - name: Set up .NET SDK (global.json)
+      # The two routes deliberately use different SDKs. The dotnet job can use the
+      # pinned 10.0.404 because the dotnet CLI carries its own MSBuild; the VS job
+      # drives the runner's Visual Studio 2022 MSBuild 17.14, and an SDK newer than
+      # 9.x (10.0.404 needs MSBuild >= 18.0.0) cannot be loaded by it. The VS route
+      # exists for the FullFramework resource pipeline, not for the compiler
+      # version, so it stays on the newest SDK that 17.14 can load.
+      - name: Set up .NET SDK 9 (MSBuild 17.14 compatible)
         uses: actions/setup-dotnet@v4
         with:
-          global-json-file: global.json
+          dotnet-version: 9.0.x
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      # Same pin as the dotnet job: setup-msbuild's 17.14 cannot load SDK 11, so the
-      # workspace global.json has to name the SDK setup-dotnet installed before both
-      # restore and build run.
+      # 9.0.100 + latestFeature resolves to whichever 9.0.x setup-dotnet installed
+      # (the runner may get a newer feature band), and the assertion fails the job
+      # if the SDK ever falls outside 9.0.x - e.g. when global.json drifts back to
+      # the developer-machine file with its latestMajor roll forward.
       - name: Pin the .NET SDK for CI
         shell: pwsh
         run: |
-          '{ "sdk": { "version": "10.0.404", "rollForward": "latestPatch" } }' |
+          '{ "sdk": { "version": "9.0.100", "rollForward": "latestFeature" } }' |
             Set-Content -Path global.json -Encoding utf8NoBOM
           $version = dotnet --version
           Get-Content global.json
           "resolved SDK: $version"
-          if ($version -notlike '10.0.*') { throw "expected SDK 10.0.x, got $version" }
+          if ($version -notlike '9.0.*') { throw "expected SDK 9.0.x, got $version" }
 
       - name: Restore strong-name key (optional secret)
         shell: pwsh

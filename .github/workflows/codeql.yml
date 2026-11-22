@@ -51,9 +51,11 @@ jobs:
         with:
           global-json-file: global.json
 
-      # Same pin as ci.yml: the committed global.json targets developer machines
-      # (Visual Studio 18 resolves SDK 11), while this runner must extract with the
-      # SDK setup-dotnet installed - the same compiler the acceptance builds used.
+      # Same pin as the dotnet job in ci.yml (CodeQL extracts with the dotnet CLI,
+      # not with the VS-route MSBuild): the committed global.json targets developer
+      # machines (Visual Studio 18 resolves SDK 11), while this runner must extract
+      # with the SDK setup-dotnet installed - the same compiler the acceptance
+      # builds used.
       - name: Pin the .NET SDK for CI
         shell: pwsh
         run: |
