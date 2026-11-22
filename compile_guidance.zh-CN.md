@@ -36,7 +36,7 @@
 
 两条路线编译出的 IL 相同,但资源序列化格式因路线而异,这不是表面差异:只有 VS
 路线的产物才能安全装进 Explorer。出货用路线 B,路线 A 只用于开发 —— 两条路线的
-打包最终收敛为同一个 32 文件的包(§8)。
+打包最终收敛为同一个 31 文件的包(§8)。
 
 下文示例路径的参考环境(按你的机器调整):Windows x64;仓库在
 `E:\src\apkshellext`,工具链在 `E:\src\apkshellext-dep`;7-Zip 装在非标准路径
@@ -58,7 +58,7 @@ git clone https://github.com/nkh0472/apkshellext.git E:\src\apkshellext
 git clone https://githubfast.com/nkh0472/apkshellext.git E:\src\apkshellext
 ```
 
-## 3. 子模块(3 个)
+## 3. 子模块(2 个)
 
 `.gitmodules` 里写的是 github.com,上面的克隆走直连时,直接:
 
@@ -73,13 +73,12 @@ git -C E:\src\apkshellext submodule update --init --recursive --jobs 4
 git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://github.com/" submodule update --init --recursive --jobs 4
 ```
 
-3 个子模块全部真实参与编译:
+2 个子模块全部真实参与编译:
 
 | 子模块 | 上游 | 说明 |
 |---|---|---|
 | `ApkShellext2\SharpZipLib` | icsharpcode/SharpZipLib @ `33f64eb` | glob 编译 `src\ICSharpCode.SharpZipLib\**`(排除 AssemblyInfo/GZip/Lzw/Tar/Core\ExactMemoryPool.cs) |
 | `ApkShellext2\PNGDecrush` | nkh0472/PNGDecrush @ `e926128` | 源码级引用 |
-| `ApkShellext2\SVG` | vvvv-github/SVG **v3.5.0** @ `9d564f4` | 源码级引用;其**源生成器作为编译器 analyzer 自动运行**(§5),无手工步骤 |
 
 注意:
 - **PlistCS 已不是子模块** —— 上游(kkguo/PlistCS @ `0fc69e7`,属 animetrics/PlistCS 的 fork)已无人维护,
@@ -92,10 +91,10 @@ git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://gi
   `LibWebP\libwebp_x86/x64.dll`。
 - **SharpShell 不是子模块** —— 其源码(2.7.1)直接 vendored 在 `ApkShellext2\SharpShell\`,
   由 csproj 编译(死代码除外,§5.1)。
-- 编译会把 SVG 子模块弄"脏"(`bin\`/`obj\`,analyzer 工程编译到此)。在子模块内做
-  **本地**忽略,保持 `git status` 干净:把 `bin/`、`obj/` 追加到
-  `E:\src\apkshellext\.git\modules\ApkShellext2\SVG\info\exclude`(精确路径用
-  `git -C ApkShellext2\SVG rev-parse --absolute-git-dir` 查)。
+- **SVG 已不是子模块** —— 上游(vvvv-github/SVG **v3.5.0** @ `9d564f4`)收编在
+  `ApkShellext2\SVG\Source\`,其 Roslyn 生成器在 `SVG\Generators\`,仍作为编译器
+  analyzer 自动运行(§5)。来源、许可证与本地 ExCSS 裁剪记录在
+  `ApkShellext2\SVG\NOTICE.txt`;其 `bin\`/`obj\` 现在位于仓库树内,由根 `.gitignore` 覆盖。
 
 ## 4. 工具链与一次性准备
 
@@ -120,7 +119,7 @@ PackageReference):
 
 两条路线都会被咬(VS 共用同一份用户配置)。旧式工程布局根本不需要 restore
 (`packages\` 里的 HintPath DLL),所以没配源的机器以前从没暴露过这个问题 —— SDK 式
-工程改为从 nuget.org restore ExCSS/System.Memory 等(§5.2)。
+工程改为从 nuget.org restore System.Memory 等(§5.2)。
 
 ### 4.2 签名密钥 snk(本地生成 —— 生成方式不对会弄坏 VS 路线)
 
@@ -241,7 +240,7 @@ csproj 重写为 **SDK 式**,从根上消掉这三件事 —— 这就是 §6–
 |---|---|
 | SVG v3.5.0 元素元数据要编译前手工生成(`pregen.ps1` → `SVG\Source\Generated\*.g.cs`) | `<ProjectReference Include="SVG\Generators\Svg.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />` —— 同一个上游生成器**在 Roslyn 内**每次编译自动跑,两条工具链都行 |
 | coreclr MSBuild 下卫星程序集崩(`MSB4064` AL/ToolPath)→ 外部 `dotnet-satellites.targets` shim + 2 个命令行参数 | SDK 式工程在 coreclr 下自动 `GenerateSatelliteAssembliesForCore=true`(用 Csc 生成);FullFramework MSBuild 用真 `al.exe`。什么都不用传 |
-| 手工下载 `packages\System.Runtime.CompilerServices.Unsafe.6.0.0`(HintPath 工程,无 restore) | `PackageReference` 全量 restore:ExCSS 4.2.3、System.Memory 4.5.5(带出 Buffers + Numerics.Vectors)、System.Runtime.CompilerServices.Unsafe 6.0.0(直接引用压过传递依赖的 4.5.3,与老 HintPath 解析结果一致),以及**仅在 coreclr 下**启用的 System.Resources.Extensions 6.0.0 |
+| 手工下载 `packages\System.Runtime.CompilerServices.Unsafe.6.0.0`(HintPath 工程,无 restore) | `PackageReference` 全量 restore:System.Memory 4.5.5(带出 Buffers + Numerics.Vectors)、System.Runtime.CompilerServices.Unsafe 6.0.0(直接引用压过传递依赖的 4.5.3,与老 HintPath 解析结果一致),以及**仅在 coreclr 下**启用的 System.Resources.Extensions 6.0.0 |
 | 用户手敲 `-p:GenerateResourceUsePreserializedResources=true` | 写进 csproj:`Condition="'$(MSBuildRuntimeType)' == 'Core'"` —— dotnet CLI 自动用预序列化资源,VS 用经典资源,自动分岔(唯一运行时后果见 §8) |
 | .sln 里 `apkShellextService` 死条目(目录从来不存在) | 已从 .sln 删除 |
 | csproj `Content` 引用上游在 `4f30b7c` 删掉的 `SharpShellNativeBridge32/64.dll`;引用它们的 SharpPropertySheet 属性页机制是死代码 | 相应 `Content` 项已删除;死代码目录 `NativeBridge\`、`SharpPropertySheet\`、`SharpDeskBand\` 已从仓库删除;`Helpers\RegAsm.cs` 与 vendored `Properties\AssemblyInfo.cs` 仍在盘上,但它们从来不是编译输入。没有任何被编译的文件引用这些命名空间 |
@@ -254,7 +253,7 @@ csproj 重写为 **SDK 式**,从根上消掉这三件事 —— 这就是 §6–
 - `GenerateAssemblyInfo=false`:`Properties\AssemblyInfo.cs` 仍是版本/Guid/ComVisible
   特性的唯一来源。
 - `EnableDefaultCompileItems/EmbeddedResourceItems/NoneItems=false` + 显式 glob ——
-  vendored 子模块树里有大量**不该**被编译的文件(它们自己的 AssemblyInfo、示例、
+  vendored 树里有大量**不该**被编译的文件(它们自己的 AssemblyInfo、示例、
   工具、WinUI/WPF 变体)。
 - 保留了老的 `Debug2` 配置(`Configurations=Debug;Debug2;Release`),行为等同 Debug。
   生成器 ProjectReference 通过 `SetConfiguration` 把它映射到生成器自身的 Debug 输出。
@@ -266,7 +265,7 @@ csproj 重写为 **SDK 式**,从根上消掉这三件事 —— 这就是 §6–
 | 警告 | 位置 | 处理 |
 |---|---|---|
 | CS0219 ×4(`height`、`units`) | `AabReader` / `ApkQuickReader` 的 legacy 矢量回退 | 删除死代码:解析 `android:width` 单位后存入从未被读取的局部变量(画布尺寸来自钳制后的 viewport) |
-| CS0618 `SvgDocument.Open` 过时重载 | vendored 的 `SVG\Source\Web\SvgHandler.cs` | ASP.NET 请求处理器从编译面剔除(`Compile Remove`)——它是全树唯一的 `System.Web` 使用者,主 dll 引用列表随之缩短;子模块保持零改动 |
+| CS0618 `SvgDocument.Open` 过时重载 | vendored 的 `SVG\Source\Web\SvgHandler.cs` | ASP.NET 请求处理器从编译面剔除(`Compile Remove`)——它是全树唯一的 `System.Web` 使用者,主 dll 引用列表随之缩短;SVG 树其余部分不动 |
 | CS0618 `SvgPathSegment.Start` | `VectorDrawableRender.Convert2Path` | Svg 3.5.0 标记过时但无替代 API;唯一调用点用 `#pragma warning disable CS0618` 括起并注释说明 |
 | CS0108 `ApkXMLElementChunk.Node` 隐藏基类成员 | `ApkChunk.cs` | 显式加 `new`(隐藏行为不变) |
 | CS0649 `ApkXMLCDATAChunk.dataid` 从未赋值 | `ApkChunk.cs` | 显式 `= 0` 并留 `TODO(upstream)` 注——CDATA 的字符串索引本就从未从流里解析 |
@@ -319,9 +318,9 @@ CI(GitHub Actions,`.github/workflows/ci.yml`)对两个 job 故意用不同 SDK:
 & .\eng\check-size.ps1
 ```
 
-`ApkShellext2.dll`、7z 包或 32 文件的部署树超预算时脚本 exit 1(当前阈值
-1,650,000 / 1,100,000 / 3,600,000 B;v3.5.1 基线 1,573,888 / 1,028,101 / 3,392,793 B)。
-约 5% 的余量让日常改动能过,而新打包进来的依赖会被拦下。部署树只按 13 个清单文件 +
+`ApkShellext2.dll`、7z 包或 31 文件的部署树超预算时脚本 exit 1(当前阈值
+1,650,000 / 1,100,000 / 3,600,000 B;当前 post-T-H 基线 1,551,360 / ~926,000 / 3,027,225 B)。
+约 5% 的余量让日常改动能过,而新打包进来的依赖会被拦下。部署树只按 12 个清单文件 +
 19 个卫星资源集计,不扫目录,所以 `bin\Release` 里多出的 pdb/日志不影响数字。阈值都是参数
 (`-MaxDllBytes` 等)—— 故意调小就是检验门禁本身的办法。阶段 2 目标 ≤2.5 MB,届时只会
 收紧这些数字,不会放宽。
@@ -392,8 +391,8 @@ CI:`.github\workflows\ci.yml` 的 `dotnet-build` job,**Run unit tests** 一步 �
 - **`Resources\postbuild.cmd`**(仅 Release 干活;Debug 直接退出):删残留 `debug.bat`,
   定位 `7z.exe`(§4.3),用 `eng\package-name.ps1` 从 `version.txt` 算包名
   (`3.5.1.0` → `ApkShellext2-3.5.1.7z`;`check-layout.ps1`/`check-size.ps1` dot-source
-  的是同一条规则),删残留 `*.7z`(旧无版本名 + 上一版本留下的包),然后按**显式清单**打新包 —— 13 个
-  根文件(`ApkShellext2.dll`、五个 bat、两个 `libwebp_*` 二进制、`ExCSS.dll`、
+  的是同一条规则),删残留 `*.7z`(旧无版本名 + 上一版本留下的包),然后按**显式清单**打新包 —— 12 个
+  根文件(`ApkShellext2.dll`、五个 bat、两个 `libwebp_*` 二进制、
   `System.Memory.dll`、`System.Buffers.dll`、`System.Runtime.CompilerServices.Unsafe.dll`、
   `System.Numerics.Vectors.dll`)加上磁盘上存在的全部语言目录(`ar-SA` … `zh-TW`)。
   清单条目缺失会**让编译失败**,短包不可能静默出货。
@@ -454,11 +453,11 @@ NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat
    $rm.GetString('btnOK', [cultureinfo]::InvariantCulture)   # → OK     (中性资源,在主 DLL 内)
    ```
 
-4. **`bin\Release` 完整发布布局:** 13 个清单项 —— `ApkShellext2.dll(.pdb)`、五个 bat、
+4. **`bin\Release` 完整发布布局:** 12 个清单项 —— `ApkShellext2.dll(.pdb)`、五个 bat、
    `libwebp_x86/x64.dll`、
-   `ExCSS/System.Memory/System.Buffers/System.Runtime.CompilerServices.Unsafe/System.Numerics.Vectors`,
+   `System.Memory/System.Buffers/System.Runtime.CompilerServices.Unsafe/System.Numerics.Vectors`,
    再加上 19 个语言目录,以及 —— 找到 7-Zip 时 —— `ApkShellext2-3.5.1.7z`(约 1 MB)。
-   `7z l` 必须在**两条路线上都恰好共 32 个文件**:13 个根条目(没有
+   `7z l` 必须在**两条路线上都恰好共 31 个文件**:12 个根条目(没有
    `System.Resources.Extensions.dll` —— 即便 dotnet CLI 编译把它留在了目录里,
    打包也照常排除),外加 19 条
    `xx-XX\ApkShellext2.resources.dll` 卫星条目;且 `bin\Release` 里不得有
@@ -489,8 +488,9 @@ NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat
 7. **snk**:被 gitignore;本地生成(§4.2)。公钥 ≠ 官方构建。
 8. **老残留是有意的**:`packages\` 目录现已不再使用;NativeBridge 原生 DLL 在上游
    `4f30b7c` 里就是有意删除的,引用它们的死代码已从仓库删除(§5.1)。两者都不要"修"。
-9. **编译会把 SVG 子模块弄脏**(`bin\`/`obj\`)→ 加进子模块本地 `info/exclude`
-   (§3 注意),否则 `git status` 会骗人。
+9. **SVG 已收编进仓**(`ApkShellext2\SVG\Source\`,§3)—— 生成器的 `bin\`/`obj\`
+   由根 `.gitignore` 覆盖;剩余两个子模块(SharpZipLib、PNGDecrush)独立编译时仍会
+   在各自目录产生 `bin\`/`obj\`。
 10. **MSBuild node-reuse 工作进程活着时改名/移动 SDK 目录会「Access denied」**
     (`MSBuild.exe … /nodemode:2 /nodereuse:True`,从 SDK 目录启动;
     `dotnet build-server shutdown` 不一定停得掉)。用
@@ -588,11 +588,11 @@ Set-Location $R
 & $msb ApkShellext2.sln -t:restore            -p:Configuration=Release -nologo -v:m; if ($LASTEXITCODE) { throw 'restore 失败' }
 & $msb ApkShellext2.sln -p:Configuration=Release              -nologo -v:m; if ($LASTEXITCODE) { throw '编译失败' }
 
-# 验证 VS 路线特有项:输出里没有 System.Resources.Extensions.dll;包应为 32 文件
-# (13 根文件(含 System.Numerics.Vectors.dll) + 19 条卫星资源),不含
+# 验证 VS 路线特有项:输出里没有 System.Resources.Extensions.dll;包应为 31 文件
+# (12 根文件(含 System.Numerics.Vectors.dll) + 19 条卫星资源),不含
 #  System.Resources.Extensions.dll(§8 打包清单排除)
 Test-Path "$R\ApkShellext2\bin\Release\System.Resources.Extensions.dll"   # 应为 False
-& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # 应为 32 文件(7z 路径按机器调整)
+& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # 应为 31 文件(7z 路径按机器调整)
 ```
 
 ---

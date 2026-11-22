@@ -7,6 +7,9 @@
 #   ApkShellext2.dll            1,573,888 B
 #   ApkShellext2-3.5.1.7z        1,028,101 B
 #   deployment tree             3,392,793 B over 32 files (13 manifest + 19 satellites)
+# T-H dropped the ExCSS dependency (2026-11-23, VS route): dll 1,551,360 B,
+# 7z ~926,000 B (archive timestamps vary by a few hundred bytes), tree 3,027,225 B
+# over 31 files (12 manifest + 19 satellites).
 # The limits below keep ~5% headroom over that: enough for routine edits, tight
 # enough that a newly bundled dependency trips the gate. Phase 2 targets a <=2.5 MB
 # package, so these limits are meant to be tightened then, never relaxed silently.
@@ -27,13 +30,13 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'package-name.ps1')
 $packageName = Get-ApkShellextPackageName -VersionFile (Join-Path $PSScriptRoot '..\version.txt')
 
-# The tree is counted from the same 13 manifest files the postbuild 7z packs plus
+# The tree is counted from the same 12 manifest files the postbuild 7z packs plus
 # the 19 satellite resource assemblies, so the number does not move when the
 # developer leaves extra files (pdb, logs, stale stdout) in bin\Release.
 $manifest = @(
     'ApkShellext2.dll', 'install.bat', 'install_user.bat', 'uninstall.bat',
     'uninstall_user.bat', 'restart_explorer.bat', 'libwebp_x86.dll', 'libwebp_x64.dll',
-    'ExCSS.dll', 'System.Memory.dll', 'System.Buffers.dll',
+    'System.Memory.dll', 'System.Buffers.dll',
     'System.Runtime.CompilerServices.Unsafe.dll', 'System.Numerics.Vectors.dll'
 )
 $langs = @(
