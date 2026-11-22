@@ -24,7 +24,7 @@ jobs:
           submodules: recursive
 
       - name: Set up .NET SDK (global.json)
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -109,7 +109,7 @@ jobs:
       # exists for the FullFramework resource pipeline, not for the compiler
       # version, so it stays on the newest SDK that 17.14 can load.
       - name: Set up .NET SDK 9 (MSBuild 17.14 compatible)
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 9.0.x
 
