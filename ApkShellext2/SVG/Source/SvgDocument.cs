@@ -50,8 +50,6 @@ namespace Svg
 
         private SvgElementIdManager _idManager;
 
-        private Dictionary<string, IEnumerable<SvgFontFace>> _fontDefns = null;
-
         public override SvgUnit X
         {
             get { return 0f; }
@@ -89,16 +87,6 @@ namespace Svg
             }
         }
 
-        internal Dictionary<string, IEnumerable<SvgFontFace>> FontDefns()
-        {
-            if (_fontDefns == null)
-            {
-                _fontDefns = (from f in Descendants().OfType<SvgFontFace>()
-                              group f by f.FontFamily into family
-                              select family).ToDictionary(f => f.Key, f => (IEnumerable<SvgFontFace>)f);
-            }
-            return _fontDefns;
-        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SvgDocument"/> class.

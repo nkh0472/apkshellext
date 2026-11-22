@@ -194,25 +194,6 @@ namespace Svg
             set { Attributes["display"] = value; }
         }
 
-        /// <summary>
-        /// Gets or sets the text anchor.
-        /// </summary>
-        [SvgAttribute("text-anchor")]
-        public virtual SvgTextAnchor TextAnchor
-        {
-            get { return GetAttribute("text-anchor", true, SvgTextAnchor.Start); }
-            set { Attributes["text-anchor"] = value; IsPathDirty = true; }
-        }
-
-        /// <summary>
-        /// Gets or sets the dominant baseline.
-        /// </summary>
-        [SvgAttribute("dominant-baseline")]
-        public virtual SvgDominantBaseline DominantBaseline
-        {
-            get { return GetAttribute("dominant-baseline", true, SvgDominantBaseline.Auto); }
-            set { Attributes["dominant-baseline"] = value; IsPathDirty = true; }
-        }
 
         /// <summary>
         /// Specifies dominant-baseline positioning of text.

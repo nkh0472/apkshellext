@@ -90,12 +90,6 @@ namespace Svg
         public SvgClipRuleConverter() : base(CaseHandling.LowerCase) { }
     }
 
-    public sealed class SvgTextAnchorConverter : EnumBaseConverter<SvgTextAnchor> { }
-
-    public sealed class SvgDominantBaselineConverter : EnumBaseConverter<SvgDominantBaseline>
-    {
-        public SvgDominantBaselineConverter() : base(CaseHandling.KebabCase) { }
-    }
 
     public sealed class SvgStrokeLineCapConverter : EnumBaseConverter<SvgStrokeLineCap> { }
 

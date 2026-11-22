@@ -18,8 +18,6 @@ namespace Svg
         /// </remarks>
         public static bool SkipGdiPlusCapabilityCheck { get; set; }
 
-        internal SvgFontManager FontManager { get; private set; }
-
         /// <summary>
         /// Validate whether the system has GDI+ capabilities (non Windows related).
         /// </summary>
@@ -100,12 +98,8 @@ namespace Svg
 
         private void Draw(ISvgRenderer renderer, ISvgBoundable boundable)
         {
-            using (FontManager = new SvgFontManager())
-            {
-                renderer.SetBoundable(boundable);
-                Render(renderer);
-                FontManager = null;
-            }
+            renderer.SetBoundable(boundable);
+            Render(renderer);
         }
 
         /// <summary>

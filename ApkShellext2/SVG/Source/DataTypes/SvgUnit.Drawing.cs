@@ -39,36 +39,12 @@ namespace Svg
             switch (type)
             {
                 case SvgUnitType.Em:
-                    using (var fontManager = owner?.OwnerDocument?.FontManager == null ? new SvgFontManager() : null)
-                    using (var currFont = GetFont(renderer, owner, fontManager))
-                    {
-                        if (currFont == null)
-                        {
-                            points = (float)(value * 9);
-                            _deviceValue = (points / 72.0f) * ppi;
-                        }
-                        else
-                        {
-                            _deviceValue = value * (currFont.SizeInPoints / 72.0f) * ppi;
-                        }
-                    }
-
+                    points = (float)(value * 9);
+                    _deviceValue = (points / 72.0f) * ppi;
                     break;
                 case SvgUnitType.Ex:
-                    using (var fontManager = owner?.OwnerDocument?.FontManager == null ? new SvgFontManager() : null)
-                    using (var currFont = GetFont(renderer, owner, fontManager))
-                    {
-                        if (currFont == null)
-                        {
-                            points = (float)(value * 9);
-                            _deviceValue = (points * 0.5f / 72.0f) * ppi;
-                        }
-                        else
-                        {
-                            _deviceValue = value * 0.5f * (currFont.SizeInPoints / 72.0f) * ppi;
-                        }
-                    }
-
+                    points = (float)(value * 9);
+                    _deviceValue = (points * 0.5f / 72.0f) * ppi;
                     break;
                 case SvgUnitType.Centimeter:
                     _deviceValue = (float)((value / cmInInch) * ppi);
@@ -154,11 +130,6 @@ namespace Svg
             return value.ToDeviceValue(null, UnitRenderingType.Other, null);
         }
 
-        private IFontDefn GetFont(ISvgRenderer renderer, SvgElement owner, SvgFontManager fontManager)
-        {
-            var visual = owner?.Parents.OfType<SvgVisualElement>().FirstOrDefault();
-            return visual?.GetFont(renderer, fontManager);
-        }
 
         public static System.Drawing.PointF GetDevicePoint(SvgUnit x, SvgUnit y, ISvgRenderer renderer, SvgElement owner)
         {

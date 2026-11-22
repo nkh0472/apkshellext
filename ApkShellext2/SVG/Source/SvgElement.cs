@@ -888,8 +888,6 @@ namespace Svg
                         newObj.MouseScroll += delegate { };
                     else if (property.AttributeName == "Click")
                         newObj.Click += delegate { };
-                    else if (property.AttributeName == "Change") // text element
-                        (newObj as SvgText).Change += delegate { };
                 }
             }
             foreach (var attribute in CustomAttributes)
