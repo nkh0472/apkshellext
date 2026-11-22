@@ -16,7 +16,7 @@ namespace Svg
         ExpValue
     }
 
-    public ref struct CoordinateParserState
+    public struct CoordinateParserState
     {
         public NumState CurrNumState;
         public NumState NewNumState;
@@ -24,7 +24,7 @@ namespace Svg
         public int Position;
         public bool HasMore;
 
-        public CoordinateParserState(ref ReadOnlySpan<char> chars)
+        public CoordinateParserState(string chars)
         {
             CurrNumState = NumState.Separator;
             NewNumState = NumState.Separator;
@@ -32,6 +32,20 @@ namespace Svg
             Position = 0;
             HasMore = chars.Length > 0;
             if (char.IsLetter(chars[0])) ++CharsPosition;
+        }
+
+        /// <summary>
+        /// Same as the string constructor, but over a window of an already parsed string so the
+        /// path builder does not have to materialize a substring per path command.
+        /// </summary>
+        internal CoordinateParserState(TextSlice chars)
+        {
+            CurrNumState = NumState.Separator;
+            NewNumState = NumState.Separator;
+            CharsPosition = 0;
+            Position = 0;
+            HasMore = chars.Length > 0;
+            if (chars.Length > 0 && char.IsLetter(chars[0])) ++CharsPosition;
         }
     }
 
@@ -44,7 +58,12 @@ namespace Svg
             return hasMode;
         }
 
-        public static bool TryGetBool(out bool result, ReadOnlySpan<char> chars, ref CoordinateParserState state)
+        public static bool TryGetBool(out bool result, string chars, ref CoordinateParserState state)
+        {
+            return TryGetBool(out result, (TextSlice)chars, ref state);
+        }
+
+        internal static bool TryGetBool(out bool result, TextSlice chars, ref CoordinateParserState state)
         {
             var charsLength = chars.Length;
 
@@ -88,7 +107,12 @@ namespace Svg
             return MarkState(false, ref state);
         }
 
-        public static bool TryGetFloat(out float result, ReadOnlySpan<char> chars, ref CoordinateParserState state)
+        public static bool TryGetFloat(out float result, string chars, ref CoordinateParserState state)
+        {
+            return TryGetFloat(out result, (TextSlice)chars, ref state);
+        }
+
+        internal static bool TryGetFloat(out float result, TextSlice chars, ref CoordinateParserState state)
         {
             var charsLength = chars.Length;
 
@@ -289,7 +313,7 @@ namespace Svg
                 if (state.CurrNumState != NumState.Separator && state.NewNumState < state.CurrNumState)
                 {
                     var value = chars.Slice(state.Position, state.CharsPosition - state.Position);
-                    result = StringParser.ToFloat(value.ToString());
+                    result = StringParser.ToFloat(value);
                     state.Position = state.CharsPosition;
                     state.CurrNumState = state.NewNumState;
                     return MarkState(true, ref state);
@@ -316,7 +340,7 @@ namespace Svg
             else
             {
                 var value = chars.Slice(state.Position, charsLength - state.Position);
-                result = StringParser.ToFloat(value.ToString());
+                result = StringParser.ToFloat(value);
                 state.Position = charsLength;
                 return MarkState(true, ref state);
             }

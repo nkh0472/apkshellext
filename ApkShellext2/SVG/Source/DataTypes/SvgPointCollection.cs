@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -60,8 +60,8 @@ namespace Svg
         {
             if (value is string s)
             {
-                var coords = s.AsSpan().Trim();
-                var state = new CoordinateParserState(ref coords);
+                var coords = (s ?? string.Empty).Trim();
+                var state = new CoordinateParserState(coords);
                 var result = new SvgPointCollection();
                 while (CoordinateParser.TryGetFloat(out var pointValue, coords, ref state))
                 {

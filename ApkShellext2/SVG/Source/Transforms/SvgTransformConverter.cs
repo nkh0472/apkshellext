@@ -30,43 +30,43 @@ namespace Svg.Transforms
             SkewY
         }
 
-        private static TransformType GetTransformType(ref ReadOnlySpan<char> transformName)
+        private static TransformType GetTransformType(TextSlice transformName)
         {
-            if (transformName.SequenceEqual(TranslateTransform.AsSpan()))
+            if (transformName.SequenceEqual(TranslateTransform))
             {
                 return TransformType.Translate;
             }
-            else if (transformName.SequenceEqual(RotateTransform.AsSpan()))
+            else if (transformName.SequenceEqual(RotateTransform))
             {
                 return TransformType.Rotate;
             }
-            else if (transformName.SequenceEqual(ScaleTransform.AsSpan()))
+            else if (transformName.SequenceEqual(ScaleTransform))
             {
                 return TransformType.Scale;
             }
-            else if (transformName.SequenceEqual(MatrixTransform.AsSpan()))
+            else if (transformName.SequenceEqual(MatrixTransform))
             {
                 return TransformType.Matrix;
             }
-            else if (transformName.SequenceEqual(ShearTransform.AsSpan()))
+            else if (transformName.SequenceEqual(ShearTransform))
             {
                 return TransformType.Shear;
             }
-            else if (transformName.SequenceEqual(SkewXTransform.AsSpan()))
+            else if (transformName.SequenceEqual(SkewXTransform))
             {
                 return TransformType.SkewX;
             }
-            else if (transformName.SequenceEqual(SkewYTransform.AsSpan()))
+            else if (transformName.SequenceEqual(SkewYTransform))
             {
                 return TransformType.SkewY;
             }
             return TransformType.Invalid;
         }
 
-        public static SvgTransformCollection Parse(ReadOnlySpan<char> transform)
+        public static SvgTransformCollection Parse(string transform)
         {
             var transformList = new SvgTransformCollection();
-            var source = transform.TrimStart();
+            TextSlice source = (transform ?? string.Empty).TrimStart();
             var sourceLength = source.Length;
 
             while (true)
@@ -82,8 +82,8 @@ namespace Svg.Transforms
 
                 var transformName = source.Slice(currentIndex, startIndex - currentIndex).Trim().Trim(',').Trim();
                 var contents = source.Slice(startIndex + 1, endIndex - startIndex - 1).Trim();
-                var parts = new StringSplitEnumerator(contents.ToString(), SplitChars);
-                var transformType = GetTransformType(ref transformName);
+                var parts = new StringSplitEnumerator(contents, SplitChars);
+                var transformType = GetTransformType(transformName);
 
                 switch (transformType)
                 {
@@ -342,7 +342,7 @@ namespace Svg.Transforms
                 return base.ConvertFrom(context, culture, value);
             }
 
-            return Parse(transform.AsSpan());
+            return Parse(transform);
         }
 
         public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)

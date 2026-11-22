@@ -25,7 +25,7 @@ namespace ApkShellext2
                 // segment list, which breaks relative commands. Thread the current point through
                 // the new overload exactly like SvgPath.Drawing.cs does, and manage figures
                 // ourselves so GraphicsPath never lineTo's from the implicit (0,0).
-                Svg.Pathing.SvgPathSegmentList l = SvgPathBuilder.Parse(pathdata.ToCharArray());
+                Svg.Pathing.SvgPathSegmentList l = SvgPathBuilder.Parse(pathdata);
                 PointF cur = PointF.Empty;
                 bool figureOpen = false;
                 foreach (Svg.Pathing.SvgPathSegment s in l) {

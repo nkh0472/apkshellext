@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
+using Svg.Helpers;
 using Svg.Pathing;
 
 namespace Svg
@@ -27,13 +28,13 @@ namespace Svg
         /// Parses the specified string into a collection of path segments.
         /// </summary>
         /// <param name="path">A <see cref="string"/> containing path data.</param>
-        public static SvgPathSegmentList Parse(ReadOnlySpan<char> path)
+        public static SvgPathSegmentList Parse(string path)
         {
             var segments = new SvgPathSegmentList();
 
             try
             {
-                var pathTrimmed = path.TrimEnd();
+                TextSlice pathTrimmed = (path ?? string.Empty).TrimEnd();
                 var commandStart = 0;
                 var pathLength = pathTrimmed.Length;
 
@@ -50,14 +51,14 @@ namespace Svg
                         if (command.Length > 0)
                         {
                             var commandSetTrimmed = pathTrimmed.Slice(start, length).Trim();
-                            var state = new CoordinateParserState(ref commandSetTrimmed);
+                            var state = new CoordinateParserState(commandSetTrimmed);
                             CreatePathSegment(commandSetTrimmed[0], segments, ref state, commandSetTrimmed);
                         }
 
                         if (pathLength == i + 1)
                         {
                             var commandSetTrimmed = pathTrimmed.Slice(i, 1).Trim();
-                            var state = new CoordinateParserState(ref commandSetTrimmed);
+                            var state = new CoordinateParserState(commandSetTrimmed);
                             CreatePathSegment(commandSetTrimmed[0], segments, ref state, commandSetTrimmed);
                         }
                     }
@@ -70,7 +71,7 @@ namespace Svg
                         if (command.Length > 0)
                         {
                             var commandSetTrimmed = pathTrimmed.Slice(start, length).Trim();
-                            var state = new CoordinateParserState(ref commandSetTrimmed);
+                            var state = new CoordinateParserState(commandSetTrimmed);
                             CreatePathSegment(commandSetTrimmed[0], segments, ref state, commandSetTrimmed);
                         }
                     }
@@ -78,13 +79,13 @@ namespace Svg
             }
             catch (Exception exc)
             {
-                Trace.TraceError("Error parsing path \"{0}\": {1}", path.ToString(), exc.Message);
+                Trace.TraceError("Error parsing path \"{0}\": {1}", path, exc.Message);
             }
 
             return segments;
         }
 
-        private static void CreatePathSegment(char command, SvgPathSegmentList segments, ref CoordinateParserState state, ReadOnlySpan<char> chars)
+        private static void CreatePathSegment(char command, SvgPathSegmentList segments, ref CoordinateParserState state, TextSlice chars)
         {
             var isRelative = char.IsLower(command);
             // http://www.w3.org/TR/SVG11/paths.html#PathDataGeneralInformation
@@ -242,7 +243,7 @@ namespace Svg
         public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
         {
             if (value is string s)
-                return Parse(s.AsSpan());
+                return Parse(s);
 
             return base.ConvertFrom(context, culture, value);
         }
