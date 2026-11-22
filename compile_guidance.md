@@ -609,6 +609,11 @@ The script rejects a tag whose numeric part disagrees with `version.txt`, a tag 
 is not newer than the latest published tag, a lightweight tag, a tag commit that is
 not an ancestor of `origin/main`, and a missing package or language directory.
 
+A dry run builds the tag's tree, because that tree is the release content. To
+rehearse a tag that is still being prepared against the current `main`, add
+`source_ref=main` (only allowed together with `dry_run: true`): the tag stays the
+release target and every check still runs against it, only the build input changes.
+
 A real run creates the release with `gh release create <tag>`: the title is the
 version without `v`, notes come from `release-notes/<tag>.md` when that file exists
 and are generated from the commits otherwise, and a tag containing `-` is marked as

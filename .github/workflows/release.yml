@@ -14,6 +14,10 @@ on:
         description: Release tag to publish, for example v3.5.1
         required: true
         type: string
+      source_ref:
+        description: "Only for dry runs: build this ref instead of the tag; the tag stays the release target"
+        required: false
+        type: string
       dry_run:
         description: Validate everything but do not create the GitHub release
         required: false
@@ -39,11 +43,24 @@ jobs:
       # the ref; release-checks.ps1 verifies the value before anything ships.
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
+      # The tag's tree is the release content, so source_ref is a rehearsal knob
+      # only: a real release must never build a ref other than the tag.
+      - name: Reject source_ref outside dry runs
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref != '' }}
+        shell: pwsh
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if ($env:DRY_RUN -ne 'true') {
+            throw "source_ref is only for dry runs; dispatch with dry_run=true, then rerun without source_ref to publish"
+          }
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # A dispatch must build the requested tag, not the default branch.
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          # A dispatch builds the requested tag, or the rehearsal ref of a dry
+          # run; a tag push builds the pushed tag.
+          ref: ${{ github.event_name == 'workflow_dispatch' && (inputs.source_ref || inputs.tag) || github.ref }}
           fetch-depth: 0
           submodules: recursive
 

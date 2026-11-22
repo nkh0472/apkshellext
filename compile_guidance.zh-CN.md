@@ -537,6 +537,10 @@ pwsh -File eng\release-checks.ps1 -Tag v3.5.1
 以下情况脚本一律拒绝:tag 的数字部分与 `version.txt` 不一致、tag 不高于最近发布的 tag、
 tag 是轻量 tag、tag 所在提交不是 `origin/main` 的祖先、缺包或缺语言目录。
 
+dry run 默认编译 tag 的树 —— 那棵树就是将来的发布内容。如果 tag 还没准备好、想先拿当前
+`main` 演练,就再加 `source_ref=main`(只允许和 `dry_run: true` 一起用):发布的仍然是 tag,
+所有校验也仍然对着 tag 做,只有编译输入换了。
+
 真正发布时用 `gh release create <tag>` 创建 Release:标题去掉 `v`,仓库有
 `release-notes/<tag>.md` 就用它、没有就用提交记录生成 notes,tag 里带 `-` 就标记为
 prerelease。随后断言上传资产的名称与大小,断言失败则整个 job 失败,不会留下坏的 Release;
