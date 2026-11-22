@@ -28,7 +28,9 @@ namespace SharpShell.Helpers
         /// </summary>
         ~ComStream()
         {
-            Marshal.FreeCoTaskMem(bufferPointer);
+            //  Fallback only: the buffer is normally released by Dispose.
+            if (bufferPointer != IntPtr.Zero)
+                Marshal.FreeCoTaskMem(bufferPointer);
         }
         /// <summary>
         /// Releases all resources used by the Com Stream.
@@ -36,11 +38,21 @@ namespace SharpShell.Helpers
         /// <param name="disposing"></param>
         protected override void Dispose(bool disposing)
         {
-            //  Release the underlying stream.
+            //  Release the underlying stream and the marshal buffer exactly once.
             if (comStream != null)
             {
                 Marshal.ReleaseComObject(comStream);
+                comStream = null;
             }
+
+            if (bufferPointer != IntPtr.Zero)
+            {
+                Marshal.FreeCoTaskMem(bufferPointer);
+                bufferPointer = IntPtr.Zero;
+            }
+
+            GC.SuppressFinalize(this);
+            base.Dispose(disposing);
         }
 
         /// <summary>
@@ -69,11 +81,12 @@ namespace SharpShell.Helpers
             if (offset != 0) 
                 throw new NotImplementedException();
 
-            //  Read into the buffer and advance the position.
+            //  Read into the buffer and advance the position by the actual byte count.
             comStream.Read(buffer, count, bufferPointer);
-            position += count;
+            var bytesRead = Marshal.ReadInt32(bufferPointer);
+            position += bytesRead;
 
-            return Marshal.ReadInt32(bufferPointer);
+            return bytesRead;
         }
 
         /// <summary>
@@ -94,7 +107,7 @@ namespace SharpShell.Helpers
             {
                 case SeekOrigin.Begin: position = offset; break;
                 case SeekOrigin.Current: position += offset; break;
-                case SeekOrigin.End: position = Length - offset; break;
+                case SeekOrigin.End: position = Length + offset; break;
                 default: throw new ArgumentOutOfRangeException("origin");
             }
 
@@ -125,18 +138,18 @@ namespace SharpShell.Helpers
 
             //  Write to the stream and advance the position.
             comStream.Write(buffer, count, IntPtr.Zero);
-            position = count;
+            position += count;
         }
 
         /// <summary>
         /// The COM stream instance.
         /// </summary>
-        private readonly IStream comStream;
+        private IStream comStream;
 
         /// <summary>
         /// The buffer pointer.
         /// </summary>
-        private readonly IntPtr bufferPointer;
+        private IntPtr bufferPointer;
 
         /// <summary>
         /// The position of the pointer in the stream.
