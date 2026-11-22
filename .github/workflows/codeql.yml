@@ -1,0 +1,79 @@
+# CodeQL analysis, advanced (workflow) setup. Code scanning default setup must be
+# disabled for this repository first: GitHub rejects the analyze step with a
+# configuration conflict while default setup is active (Settings > Code security).
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so the analysis also runs when the code stops changing and a new
+    # query pack lands.
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze C#
+    runs-on: windows-2022
+    permissions:
+      # upload-sarif writes the results; the other three are what init/analyze
+      # read (workflow run metadata, the repo and the CodeQL packs).
+      security-events: write
+      actions: read
+      contents: read
+      packages: read
+    steps:
+      # The net48 projects compile the SVG, PNGDecrush and SharpZipLib code from
+      # the vendored submodules, so the extraction build cannot succeed without
+      # them.
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+
+      - name: Set up .NET SDK (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Same pin as ci.yml: the committed global.json targets developer machines
+      # (Visual Studio 18 resolves SDK 11), while this runner must extract with the
+      # SDK setup-dotnet installed - the same compiler the acceptance builds used.
+      - name: Pin the .NET SDK for CI
+        shell: pwsh
+        run: |
+          '{ "sdk": { "version": "10.0.404", "rollForward": "latestPatch" } }' |
+            Set-Content -Path global.json -Encoding utf8NoBOM
+          $version = dotnet --version
+          Get-Content global.json
+          "resolved SDK: $version"
+          if ($version -notlike '10.0.*') { throw "expected SDK 10.0.x, got $version" }
+
+      # The snk is gitignored: the analysis build stays unsigned on purpose, and
+      # a missing key must never fail code scanning. The built dll is the only
+      # thing the extractor needs.
+      - name: Build Release for extraction
+        shell: pwsh
+        run: |
+          dotnet build ApkShellext2\ApkShellext2.csproj -c Release --nologo -warnaserror "-p:SignAssembly=false"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:csharp
