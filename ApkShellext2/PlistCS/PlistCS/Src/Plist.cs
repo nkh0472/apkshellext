@@ -33,8 +33,35 @@ using System.Xml;
 
 namespace PlistCS
 {
+    /// <summary>
+    /// Thrown when a plist file is structurally invalid in a way the parser can
+    /// detect from the bytes alone, e.g. an object reference outside the offset
+    /// table or nesting deeper than the parser accepts.
+    /// </summary>
+    public class PlistFormatException : FormatException
+    {
+        public PlistFormatException()
+        {
+        }
+
+        public PlistFormatException(string message) : base(message)
+        {
+        }
+
+        public PlistFormatException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+    }
+
     public static class Plist
     {
+        // bplist containers reference each other by index, so one file can chain
+        // dictionaries/arrays as deep as it likes; every level costs a recursive
+        // parseBinary frame. A cyclic reference recurses forever. Both are file
+        // data and must not be able to exhaust the stack: real Apple plists stay
+        // well below ten levels.
+        private const int MaxBinaryPlistDepth = 32;
+
         private static List<int> offsetTable = new List<int>();
         private static List<byte> objectTable = new List<byte>();
         private static int refCount;
@@ -236,19 +263,36 @@ namespace PlistCS
             offsetByteSize = 0;
             offsetTableOffset = 0;
 
+            // "bplist00" header plus the 32-byte trailer
+            if (data.Length < 40)
+                throw new PlistFormatException("binary plist is " + data.Length + " bytes, shorter than its header and trailer");
+
             List<byte> bList = new List<byte>(data);
 
             List<byte> trailer = bList.GetRange(bList.Count - 32, 32);
 
             parseTrailer(trailer);
 
+            // every value just parsed came from the file; check it against the
+            // bytes that actually exist before slicing anything out of them
+            if (offsetTableOffset < 8 || offsetTableOffset > data.Length - 32)
+                throw new PlistFormatException("offset table offset " + offsetTableOffset + " is outside the " + data.Length + "-byte file");
+            if (refCount < 1 || refCount > offsetTableOffset)
+                throw new PlistFormatException("object count " + refCount + " is outside the " + offsetTableOffset + "-byte object table");
+
             objectTable = bList.GetRange(0, (int)offsetTableOffset);
 
             offsetTableBytes = bList.GetRange((int)offsetTableOffset, bList.Count - (int)offsetTableOffset - 32);
 
+            if (offsetTableBytes.Count % offsetByteSize != 0)
+                throw new PlistFormatException("offset table is " + offsetTableBytes.Count + " bytes, not a multiple of the " + offsetByteSize + "-byte offset size");
+
             parseOffsetTable(offsetTableBytes);
 
-            return parseBinary(0);
+            if (offsetTable.Count < refCount)
+                throw new PlistFormatException("offset table holds " + offsetTable.Count + " entries for " + refCount + " declared objects");
+
+            return parseBinary(0, 0);
         }
 
         private static Dictionary<string, object> parseDictionary(XmlNode node)
@@ -697,11 +741,22 @@ namespace PlistCS
 
         private static void parseTrailer(List<byte> trailer)
         {
-            offsetByteSize = BitConverter.ToInt32(RegulateNullBytes(trailer.GetRange(6, 1).ToArray(), 4), 0);
-            objRefSize = BitConverter.ToInt32(RegulateNullBytes(trailer.GetRange(7, 1).ToArray(), 4), 0);
-            byte[] refCountBytes = trailer.GetRange(12, 4).ToArray();
+            // the trailer is 32 bytes of file data: 6 unused, the offset size,
+            // the object reference size, then three big-endian 64-bit values
+            offsetByteSize = trailer.GetRange(6, 1)[0];
+            objRefSize = trailer.GetRange(7, 1)[0];
+            if (offsetByteSize < 1 || offsetByteSize > 8)
+                throw new PlistFormatException("offset size " + offsetByteSize + " is not between 1 and 8");
+            if (objRefSize < 1 || objRefSize > 8)
+                throw new PlistFormatException("object reference size " + objRefSize + " is not between 1 and 8");
+
+            byte[] refCountBytes = trailer.GetRange(8, 8).ToArray();
             Array.Reverse(refCountBytes);
-            refCount = BitConverter.ToInt32(refCountBytes, 0);
+            long declaredObjects = BitConverter.ToInt64(refCountBytes, 0);
+            if (declaredObjects < 1 || declaredObjects > int.MaxValue)
+                throw new PlistFormatException("object count " + declaredObjects + " is not a valid count");
+            refCount = (int)declaredObjects;
+
             byte[] offsetTableOffsetBytes = trailer.GetRange(24, 8).ToArray();
             Array.Reverse(offsetTableOffsetBytes);
             offsetTableOffset = BitConverter.ToInt64(offsetTableOffsetBytes, 0);
@@ -717,20 +772,41 @@ namespace PlistCS
             }
         }
 
-        private static object parseBinaryDictionary(int objRef)
+        /// <summary>
+        /// Resolves an object reference to the position of its header byte,
+        /// rejecting references and offsets the file cannot back with bytes.
+        /// </summary>
+        private static int getObjectPosition(int objRef)
+        {
+            if (objRef < 0 || objRef >= offsetTable.Count)
+                throw new PlistFormatException("object reference " + objRef + " is outside the " + offsetTable.Count + "-entry offset table");
+            int position = offsetTable[objRef];
+            if (position < 0 || position >= objectTable.Count)
+                throw new PlistFormatException("object offset " + position + " is outside the " + objectTable.Count + "-byte object table");
+            return position;
+        }
+
+        private static void requireObjectBytes(int start, long count, string what)
+        {
+            if (start < 0 || count < 0 || count > (long)objectTable.Count - start)
+                throw new PlistFormatException(what + " (" + count + " bytes at " + start + ") is outside the " + objectTable.Count + "-byte object table");
+        }
+
+        private static object parseBinaryDictionary(int objRef, int depth)
         {
             Dictionary<string, object> buffer = new Dictionary<string, object>();
             List<int> refs = new List<int>();
             int refCount = 0;
 
             int refStartPosition;
-            refCount = getCount(offsetTable[objRef], out refStartPosition);
-
+            refCount = getCount(getObjectPosition(objRef), out refStartPosition);
 
             if (refCount < 15)
-                refStartPosition = offsetTable[objRef] + 1;
+                refStartPosition = getObjectPosition(objRef) + 1;
             else
-                refStartPosition = offsetTable[objRef] + 2 + RegulateNullBytes(BitConverter.GetBytes(refCount), 1).Length;
+                refStartPosition = getObjectPosition(objRef) + 2 + RegulateNullBytes(BitConverter.GetBytes(refCount), 1).Length;
+
+            requireObjectBytes(refStartPosition, (long)refCount * 2 * objRefSize, "dictionary reference list");
 
             for (int i = refStartPosition; i < refStartPosition + refCount * 2 * objRefSize; i += objRefSize)
             {
@@ -741,27 +817,32 @@ namespace PlistCS
 
             for (int i = 0; i < refCount; i++)
             {
-                buffer.Add((string)parseBinary(refs[i]), parseBinary(refs[i + refCount]));
+                string key = parseBinary(refs[i], depth) as string;
+                if (key == null)
+                    throw new PlistFormatException("dictionary key at object " + refs[i] + " is not a string");
+                buffer.Add(key, parseBinary(refs[i + refCount], depth));
             }
 
             return buffer;
         }
 
-        private static object parseBinaryArray(int objRef)
+        private static object parseBinaryArray(int objRef, int depth)
         {
             List<object> buffer = new List<object>();
             List<int> refs = new List<int>();
             int refCount = 0;
 
             int refStartPosition;
-            refCount = getCount(offsetTable[objRef], out refStartPosition);
+            refCount = getCount(getObjectPosition(objRef), out refStartPosition);
 
 
             if (refCount < 15)
-                refStartPosition = offsetTable[objRef] + 1;
+                refStartPosition = getObjectPosition(objRef) + 1;
             else
                 //The following integer has a header aswell so we increase the refStartPosition by two to account for that.
-                refStartPosition = offsetTable[objRef] + 2 + RegulateNullBytes(BitConverter.GetBytes(refCount), 1).Length;
+                refStartPosition = getObjectPosition(objRef) + 2 + RegulateNullBytes(BitConverter.GetBytes(refCount), 1).Length;
+
+            requireObjectBytes(refStartPosition, (long)refCount * objRefSize, "array reference list");
 
             for (int i = refStartPosition; i < refStartPosition + refCount * objRefSize; i += objRefSize)
             {
@@ -772,7 +853,7 @@ namespace PlistCS
 
             for (int i = 0; i < refCount; i++)
             {
-                buffer.Add(parseBinary(refs[i]));
+                buffer.Add(parseBinary(refs[i], depth));
             }
 
             return buffer;
@@ -780,6 +861,8 @@ namespace PlistCS
 
         private static int getCount(int bytePosition, out int newBytePosition)
         {
+            if (bytePosition < 0 || bytePosition >= objectTable.Count)
+                throw new PlistFormatException("object header position " + bytePosition + " is outside the " + objectTable.Count + "-byte object table");
             byte headerByte = objectTable[bytePosition];
             byte headerByteTrail = Convert.ToByte(headerByte & 0xf);
             int count;
@@ -793,9 +876,15 @@ namespace PlistCS
             return count;
         }
 
-        private static object parseBinary(int objRef)
+        private static object parseBinary(int objRef, int depth)
         {
-            byte header = objectTable[offsetTable[objRef]];
+            // containers recurse through parseBinary; stop before file data can
+            // overflow the stack (depth 32 is far above any real plist)
+            if (depth > MaxBinaryPlistDepth)
+                throw new PlistFormatException("binary plist nesting exceeds " + MaxBinaryPlistDepth + " levels");
+
+            int objPosition = getObjectPosition(objRef);
+            byte header = objectTable[objPosition];
             switch (header & 0xF0)
             {
                 case 0:
@@ -804,39 +893,39 @@ namespace PlistCS
                         //0 return null
                         //9 return true
                         //8 return false
-                        return (objectTable[offsetTable[objRef]] == 0) ? (object)null : ((objectTable[offsetTable[objRef]] == 9) ? true : false);
+                        return (objectTable[objPosition] == 0) ? (object)null : ((objectTable[objPosition] == 9) ? true : false);
                     }
                 case 0x10:
                     {
-                        return parseBinaryInt(offsetTable[objRef]);
+                        return parseBinaryInt(objPosition);
                     }
                 case 0x20:
                     {
-                        return parseBinaryReal(offsetTable[objRef]);
+                        return parseBinaryReal(objPosition);
                     }
                 case 0x30:
                     {
-                        return parseBinaryDate(offsetTable[objRef]);
+                        return parseBinaryDate(objPosition);
                     }
                 case 0x40:
                     {
-                        return parseBinaryByteArray(offsetTable[objRef]);
+                        return parseBinaryByteArray(objPosition);
                     }
                 case 0x50://String ASCII
                     {
-                        return parseBinaryAsciiString(offsetTable[objRef]);
+                        return parseBinaryAsciiString(objPosition);
                     }
                 case 0x60://String Unicode
                     {
-                        return parseBinaryUnicodeString(offsetTable[objRef]);
+                        return parseBinaryUnicodeString(objPosition);
                     }
                 case 0xD0:
                     {
-                        return parseBinaryDictionary(objRef);
+                        return parseBinaryDictionary(objRef, depth + 1);
                     }
                 case 0xA0:
                     {
-                        return parseBinaryArray(objRef);
+                        return parseBinaryArray(objRef, depth + 1);
                     }
             }
             throw new Exception("This type is not supported");
@@ -844,6 +933,7 @@ namespace PlistCS
 
         public static object parseBinaryDate(int headerPosition)
         {
+            requireObjectBytes(headerPosition + 1, 8, "date payload");
             byte[] buffer = objectTable.GetRange(headerPosition + 1, 8).ToArray();
             Array.Reverse(buffer);
             double appleTime = BitConverter.ToDouble(buffer, 0);
@@ -859,8 +949,11 @@ namespace PlistCS
 
         private static object parseBinaryInt(int headerPosition, out int newHeaderPosition)
         {
+            if (headerPosition < 0 || headerPosition >= objectTable.Count)
+                throw new PlistFormatException("integer header position " + headerPosition + " is outside the " + objectTable.Count + "-byte object table");
             byte header = objectTable[headerPosition];
-            int byteCount = (int)Math.Pow(2, header & 0xf);
+            int byteCount = 1 << (header & 0xf);
+            requireObjectBytes(headerPosition + 1, byteCount, "integer payload");
             byte[] buffer = objectTable.GetRange(headerPosition + 1, byteCount).ToArray();
             Array.Reverse(buffer);
             //Add one to account for the header byte
@@ -870,8 +963,11 @@ namespace PlistCS
 
         private static object parseBinaryReal(int headerPosition)
         {
+            if (headerPosition < 0 || headerPosition >= objectTable.Count)
+                throw new PlistFormatException("real header position " + headerPosition + " is outside the " + objectTable.Count + "-byte object table");
             byte header = objectTable[headerPosition];
-            int byteCount = (int)Math.Pow(2, header & 0xf);
+            int byteCount = 1 << (header & 0xf);
+            requireObjectBytes(headerPosition + 1, byteCount, "real payload");
             byte[] buffer = objectTable.GetRange(headerPosition + 1, byteCount).ToArray();
             Array.Reverse(buffer);
 
@@ -883,6 +979,7 @@ namespace PlistCS
             int charStartPosition;
             int charCount = getCount(headerPosition, out charStartPosition);
 
+            requireObjectBytes(charStartPosition, charCount, "ASCII string payload");
             var buffer = objectTable.GetRange(charStartPosition, charCount);
             return buffer.Count > 0 ? Encoding.ASCII.GetString(buffer.ToArray()) : string.Empty;
         }
@@ -891,6 +988,7 @@ namespace PlistCS
         {
             int charStartPosition;
             int charCount = getCount(headerPosition, out charStartPosition);
+            requireObjectBytes(charStartPosition, (long)charCount * 2, "unicode string payload");
             charCount = charCount * 2;
 
             byte[] buffer = new byte[charCount];
@@ -920,6 +1018,7 @@ namespace PlistCS
         {
             int byteStartPosition;
             int byteCount = getCount(headerPosition, out byteStartPosition);
+            requireObjectBytes(byteStartPosition, byteCount, "byte array payload");
             return objectTable.GetRange(byteStartPosition, byteCount).ToArray();
         }
 
