@@ -28,6 +28,20 @@ jobs:
         with:
           global-json-file: global.json
 
+      # The committed global.json targets developer machines, where Visual Studio 18
+      # resolves SDK 11. CI's Visual Studio 2022 carries MSBuild 17.14, which cannot
+      # load SDK 11 (it wants MSBuild >= 18.7) and fails restore, so both CI jobs pin
+      # the SDK setup-dotnet installed instead of weakening the file for everyone.
+      - name: Pin the .NET SDK for CI
+        shell: pwsh
+        run: |
+          '{ "sdk": { "version": "10.0.404", "rollForward": "latestPatch" } }' |
+            Set-Content -Path global.json -Encoding utf8NoBOM
+          $version = dotnet --version
+          Get-Content global.json
+          "resolved SDK: $version"
+          if ($version -notlike '10.0.*') { throw "expected SDK 10.0.x, got $version" }
+
       # The snk is gitignored, so CI signs only when the base64 key is configured.
       # A missing secret must never fail the build: the local-debug fallback is an
       # unsigned Release (the publish route signs later, T-G3).
@@ -86,6 +100,19 @@ jobs:
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
+
+      # Same pin as the dotnet job: setup-msbuild's 17.14 cannot load SDK 11, so the
+      # workspace global.json has to name the SDK setup-dotnet installed before both
+      # restore and build run.
+      - name: Pin the .NET SDK for CI
+        shell: pwsh
+        run: |
+          '{ "sdk": { "version": "10.0.404", "rollForward": "latestPatch" } }' |
+            Set-Content -Path global.json -Encoding utf8NoBOM
+          $version = dotnet --version
+          Get-Content global.json
+          "resolved SDK: $version"
+          if ($version -notlike '10.0.*') { throw "expected SDK 10.0.x, got $version" }
 
       - name: Restore strong-name key (optional secret)
         shell: pwsh
