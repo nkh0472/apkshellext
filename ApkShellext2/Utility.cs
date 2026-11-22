@@ -14,6 +14,7 @@ using System.Threading;
 using System.Web;
 using SharpShell.Extensions;
 using SharpShell.Interop;
+using ApkShellext2.Diagnostics;
 using ApkShellext2.Properties;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
@@ -85,7 +86,7 @@ namespace ApkShellext2 {
                     k.SetValue(key, value);
                 }
             } catch (Exception ex) {
-                Logging.Log("Error happens during write settings :" + ex.Message);
+                ErrorLog.Error("Settings", "Error happens during write settings: " + key, ex);
             }
         }
 
@@ -96,7 +97,7 @@ namespace ApkShellext2 {
                     k.SetValue(key, value);
                 }
             } catch (Exception ex) {
-                Logging.Log("Error happens during write settings :" + ex.Message);
+                ErrorLog.Error("Settings", "Error happens during write settings: " + key, ex);
             }
         }
 
@@ -106,7 +107,7 @@ namespace ApkShellext2 {
                 using (RegistryKey k = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\" + assembly_name))
                     return k.GetValue(key, defValue);
             }catch (Exception ex) {
-                Logging.Log("Error happens during reading settings :" + ex.Message);
+                ErrorLog.Error("Settings", "Error happens during reading settings: " + key, ex);
                 return defValue;
             }
         }
@@ -284,14 +285,14 @@ namespace ApkShellext2 {
                 // whatever comes back lands in HKCU and feeds NewVersionAvailible;
                 // store only something shaped like a version, never the raw body
                 if (!Regex.IsMatch(s, @"^\d+(\.\d+){0,3}$")) {
-                    Log(null, "Update", "Unexpected update-check response, ignored: " +
+                    ErrorLog.Warn("Update", "Unexpected update-check response, ignored: " +
                         (s.Length > 80 ? s.Substring(0, 80) + "..." : s));
                     return;
                 }
                 Utility.SaveSetting("LatestVersion", s);
                 Log(null, "Update", "Get the latest version :" + s);
             } catch (Exception ex) {
-                Log(null, "Update", "Error During check update:" + ex.Message);
+                ErrorLog.Error("Update", "Error During check update", ex);
             }
         }
 
@@ -406,14 +407,25 @@ namespace ApkShellext2 {
         }
 
         public static void Log(object caller, string title, string message) {
-#if DEBUG
-            string output="";
+            // Arm the process-wide crash hooks as soon as the extension does anything in the
+            // host process (idempotent); see ApkShellext2.Diagnostics.ErrorLog.
+            ErrorLog.EnsureHooks();
+            string output = "";
             //output = "[" + System.DateTime.Now.ToString() + "]";
             if (caller != null)
                 output += "<" + caller.GetType().Name + ">";
             if (title != "")
                 output += "|" + title + "|";
+#if DEBUG
+            // Debug builds keep the legacy SharpShell trace sink unchanged.
             SharpShell.Diagnostics.Logging.Log(output + message);
+#else
+            // Release has no trace sink. Informational call sites (the handlers' Log()
+            // overrides, localization progress, ...) go to the opt-in verbose channel only:
+            // the default-on ErrorLog is reserved for failures (see its Error/Warn call
+            // sites), otherwise every ordinary right-click would write error-log lines.
+            if (DbgLog.Enabled)
+                DbgLog.W(output + message);
 #endif
         }
 
