@@ -80,7 +80,7 @@ namespace ApkShellext2 {
             string singleNewName = "";
             if (singleSelected) {
                 // one parse feeds both the app name and the rename preview
-                using (AppPackageReader reader = AppPackageReader.Read(SelectedItemPaths.ElementAt(0))) {
+                using (IPackageReader reader = PackageReaderFactory.Create(SelectedItemPaths.ElementAt(0))) {
                     appname = reader.AppName;
                     singleNewName = getNewFileName(SelectedItemPaths.ElementAt(0), reader);
                 }
@@ -226,7 +226,7 @@ namespace ApkShellext2 {
                     int totalIconToDraw = (SelectedItemPaths.Count() > 3) ? 3 : SelectedItemPaths.Count();
                     Bitmap b = new Bitmap(size, size);
                     for (int i = 0; i < totalIconToDraw; i++) {
-                        using (AppPackageReader reader = AppPackageReader.Read(SelectedItemPaths.ElementAt(totalIconToDraw - i - 1)))
+                        using (IPackageReader reader = PackageReaderFactory.Create(SelectedItemPaths.ElementAt(totalIconToDraw - i - 1)))
                         using (Graphics g = Graphics.FromImage((Image)b)) {
                             reader.setFlag("ImageSize", size);
                             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
@@ -255,7 +255,7 @@ namespace ApkShellext2 {
         /// get the new filename for renaming function
         /// </summary>
         /// <returns></returns>
-        private string getNewFileName(string path, AppPackageReader reader = null) {
+        private string getNewFileName(string path, IPackageReader reader = null) {
             //bool key_RenameWithVersionCode = Settings.DefaultRenameWithVersionCode) == 1);
             string suffix = Path.GetExtension(path);
             string newFileName = "";
@@ -268,7 +268,7 @@ namespace ApkShellext2 {
                     // menu build already holds a parsed reader; reuse it
                     newFileName = ReplaceVariables(renamePattern, reader);
                 } else {
-                    using (AppPackageReader ownReader = AppPackageReader.Read(path)) {
+                    using (IPackageReader ownReader = PackageReaderFactory.Create(path)) {
                         newFileName = ReplaceVariables(renamePattern, ownReader);
                     }
                 }
@@ -304,7 +304,7 @@ namespace ApkShellext2 {
         }
 
         private void dumpXML(string apk, string xml) {
-            using (ApkReader reader = AppPackageReader.Read(apk) as ApkReader) {
+            using (ApkReader reader = PackageReaderFactory.Create(apk) as ApkReader) {
                 if (reader == null) {
                     // mixed selection contained a non-apk (ipa/appx):
                     // dump only works on android binary xml, skip quietly
@@ -331,7 +331,7 @@ namespace ApkShellext2 {
             }
         }
 
-        public static string ReplaceVariables(string ori, AppPackageReader reader) {
+        public static string ReplaceVariables(string ori, IPackageReader reader) {
             string[] tokens = ori.Split(new char[] { '%' });
             string newstr = "";
             bool inpattern = false;
@@ -427,7 +427,7 @@ namespace ApkShellext2 {
         private void gotoAppleStore() {
             foreach (var p in SelectedItemPaths) {
                 if (p.EndsWith(AppPackageReader.extIPA)) {
-                    using (IpaReader reader = AppPackageReader.Read(p) as IpaReader) {
+                    using (IpaReader reader = PackageReaderFactory.Create(p) as IpaReader) {
                         try {
                             Process.Start(string.Format(Properties.NonLocalizeResources.urlAppleStore, reader.AppID));
                         } catch (Exception ex) {
@@ -441,7 +441,7 @@ namespace ApkShellext2 {
         private void gotoMicrosoftStore() {
             foreach (var p in SelectedItemPaths) {
                 if (p.EndsWith(AppPackageReader.extAPPX) || p.EndsWith(AppPackageReader.extAPPXBUNDLE)) {
-                    using (AppPackageReader reader = AppPackageReader.Read(p)) {
+                    using (IPackageReader reader = PackageReaderFactory.Create(p)) {
                         string package = reader.PackageName;
                         CultureInfo ci = System.Threading.Thread.CurrentThread.CurrentCulture;
                         Process.Start(string.Format(Properties.NonLocalizeResources.urlMicrosoftStore,reader.AppID));

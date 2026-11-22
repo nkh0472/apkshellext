@@ -40,7 +40,7 @@ namespace ApkShellext2 {
                 bool isapk = SelectedItemPath.EndsWith(".apk", StringComparison.OrdinalIgnoreCase);
                 bool isipa = SelectedItemPath.EndsWith(".ipa", StringComparison.OrdinalIgnoreCase);
                 
-                using (AppPackageReader reader = AppPackageReader.Read(SelectedItemPath)) {
+                using (IPackageReader reader = PackageReaderFactory.Create(SelectedItemPath)) {
                     return ApkContextMenu.ReplaceVariables(TipPattern, reader);
                 }
             } catch (Exception ex) {

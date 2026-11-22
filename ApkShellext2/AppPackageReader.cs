@@ -7,8 +7,6 @@ using System.Drawing;
 using System.Globalization;
 using ApkQuickReader;
 using System.IO;
-using Microsoft.VisualBasic.Logging;
-using System.Windows.Forms;
 
 namespace ApkShellext2 {
     /// <summary>
@@ -16,7 +14,7 @@ namespace ApkShellext2 {
     /// defines common method a package reader should have
     /// for reusing and simplify in the code
     /// </summary>
-    public class AppPackageReader : IDisposable{
+    public class AppPackageReader : IPackageReader {
         public const string extAPK = ".apk";
         public const string extAAB = ".aab";
         public const string extIPA = ".ipa";
@@ -92,61 +90,6 @@ namespace ApkShellext2 {
                 Flags.Clear();
             Flags = null;
             disposed = true;
-        }
-
-        public static AppType getAppType(string path) {
-            // case-insensitive: FOO.APK is still an apk (extension is compared
-            // against lowercase constants below)
-            string suffix = Path.GetExtension(path).ToLowerInvariant();
-            if (suffix == extAPK)
-            {
-                return AppType.AndroidApp;
-            }
-            else if (suffix == extIPA)
-            {
-                return AppType.iOSApp;
-            }
-            else if (suffix == extAPPXBUNDLE)
-            {
-                return AppType.WindowsPhoneAppBundle;
-            }
-            else if (suffix == extAPPX)
-            {
-                return AppType.WindowsPhoneApp;
-            }
-            else if (suffix == extAAB) 
-            {
-                return AppType.AndroidAab;
-            } 
-            else if (suffix == extAPKS || suffix == extAPKM || suffix == extXAPK)
-            {
-                return AppType.AndroidApp; // split container: identity == its base apk
-            } 
-            else 
-            {
-                throw new NotSupportedException(suffix + " type is not supported.");
-            }
-        }
-
-        public static AppPackageReader Read(string path) {
-            switch (getAppType(path)) {
-                case AppType.AndroidApp:
-                    string ext = Path.GetExtension(path).ToLowerInvariant();
-                    if (ext == extAPKS || ext == extAPKM || ext == extXAPK)
-                        return new SplitApkBundleReader(path);
-                    return new ApkReader(path);
-                case AppType.iOSApp:
-                    return new IpaReader(path);
-                case AppType.WindowsPhoneAppBundle:
-                    return new AppxBundleReader(path);
-                case AppType.WindowsPhoneApp:
-                    return new AppxReader(path);
-                case AppType.AndroidAab:
-                    Utility.Log(null, "AndroidAab", "load AabReader");
-                    return new AabReader(path);
-                default :
-                    throw new NotSupportedException("File type is not supported.");
-            }
         }
 
         protected void Log(string message) {

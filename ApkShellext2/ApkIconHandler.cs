@@ -81,7 +81,7 @@ namespace ApkShellext2 {
                 m_icon = LookupIcon(key);
                 if (m_icon == null) {
                     try {
-                        using (AppPackageReader reader = AppPackageReader.Read(SelectedItemPath)) {
+                        using (IPackageReader reader = PackageReaderFactory.Create(SelectedItemPath)) {
                             if (reader.Type == AppPackageReader.AppType.iOSApp && Utility.GetSetting("ShowIpaIcon", "True") != "True") {
                                 m_icon = Utility.AppTypeIcon(reader.Type);
                             } else if ((reader.Type == AppPackageReader.AppType.WindowsPhoneApp ||
@@ -99,13 +99,13 @@ namespace ApkShellext2 {
                         ErrorLog.Warn(this.GetType().Name, "Error in reading icon for " + Path.GetFileName(SelectedItemPath) + ", draw default", ex);
                         DbgLog.W("ICON default for " + Path.GetFileName(SelectedItemPath) + " : " + ex.Message.Split('\n')[0]);
                         // read error, draw the default icon
-                        m_icon = Utility.AppTypeIcon(AppPackageReader.getAppType(SelectedItemPath));
+                        m_icon = Utility.AppTypeIcon(PackageReaderFactory.GetAppType(SelectedItemPath));
                     }
                     // overlay after the cache: it depends on a live setting and
                     // is cheap next to parsing the package
                     if (Utility.GetSetting("ShowOverLayIcon") == "True") try {
                         m_icon = Utility.CombineBitmap(m_icon,
-                           Utility.AppTypeIcon(AppPackageReader.getAppType(SelectedItemPath)),
+                           Utility.AppTypeIcon(PackageReaderFactory.GetAppType(SelectedItemPath)),
                            new Rectangle((int)(m_icon.Width * 0.05), 0, (int)(m_icon.Width * 0.95), (int)(m_icon.Height * 0.95)),
                            new Rectangle(0, (int)m_icon.Height / 2, (int)m_icon.Width / 2, (int)m_icon.Height / 2),
                            new Size((int)m_icon.Width, (int)m_icon.Height));
