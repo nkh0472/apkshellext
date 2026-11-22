@@ -7,6 +7,7 @@ using ICSharpCode.SharpZipLib.Zip;
 using System.Xml;
 using System.IO;
 using System.Drawing;
+using ApkQuickReader;
 
 namespace ApkShellext2 {
     /// <summary>
@@ -28,6 +29,13 @@ namespace ApkShellext2 {
         private const string ValApplication = @"application";
         private const string AttrFileName = @"FileName";
 
+        // the manifest, its package list and the file names it points at all come
+        // from the bundle: keep each of them small enough that a malformed bundle
+        // cannot turn an explorer thumbnail request into unbounded work
+        private const long MaxAppxBundleManifestBytes = 16L * 1024 * 1024;
+        private const int MaxAppxBundleManifestPackages = 4096;
+        private const int MaxAppxBundleFileNameLength = 1024;
+
         public AppxBundleReader(Stream stream) {
             FileName = "";
             openFile(stream);
@@ -46,20 +54,43 @@ namespace ApkShellext2 {
             if (en == null)
                 throw new EntryPointNotFoundException("cannot find " + AppxBundleManifestXml);
 
-            using (XmlReader reader = XmlReader.Create(zip.GetInputStream(en))) {
+            // the central directory declares the uncompressed size, so an oversized
+            // manifest is rejected before it is inflated at all
+            if (en.Size > MaxAppxBundleManifestBytes)
+                throw new InvalidDataException(AppxBundleManifestXml + " declares " + en.Size + " bytes, over the "
+                    + MaxAppxBundleManifestBytes + "-byte limit");
+
+            byte[] manifestBytes = ZipSafety.ReadEntryBounded(zip, en, MaxAppxBundleManifestBytes, AppxBundleManifestXml);
+
+            using (XmlReader reader = XmlReader.Create(new MemoryStream(manifestBytes, false))) {
                 reader.ReadToFollowing(ElemIdentity);
                 reader.MoveToAttribute(AttrName);
 
-                do {
-                    reader.ReadToFollowing(ElemPackage);
-                    reader.MoveToAttribute(AttrType);
-                } while (reader.Value != ValApplication || reader.EOF);
+                // ReadToFollowing returns false at EOF; a manifest whose Package
+                // elements never carry Type="application" used to spin here forever,
+                // so the scan is driven by the return value and stops at EOF
+                int packages = 0;
+                while (true) {
+                    if (!reader.ReadToFollowing(ElemPackage))
+                        throw new Exception("Cannot find application in " + AppxBundleManifestXml);
+                    if (++packages > MaxAppxBundleManifestPackages)
+                        throw new InvalidDataException(AppxBundleManifestXml + " declares more than "
+                            + MaxAppxBundleManifestPackages + " packages");
+                    if (!reader.MoveToAttribute(AttrType) || reader.Value != ValApplication)
+                        continue;
+                    if (!reader.MoveToAttribute(AttrFileName))
+                        throw new EntryPointNotFoundException("application package in " + AppxBundleManifestXml
+                            + " has no " + AttrFileName);
 
-                if (reader.EOF)
-                    throw new Exception("Cannot find application in " + AppxBundleManifestXml);
-
-                reader.MoveToAttribute(AttrFileName);
-                appxFileName = reader.Value;
+                    appxFileName = reader.Value;
+                    if (appxFileName.Length == 0)
+                        throw new EntryPointNotFoundException("application package in " + AppxBundleManifestXml
+                            + " has an empty " + AttrFileName);
+                    if (appxFileName.Length > MaxAppxBundleFileNameLength)
+                        throw new InvalidDataException(AttrFileName + " is " + appxFileName.Length
+                            + " characters, over the " + MaxAppxBundleFileNameLength + "-character limit");
+                    break;
+                }
             }
 
             en = zip.GetEntry(appxFileName);
