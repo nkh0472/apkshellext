@@ -1,0 +1,48 @@
+# Dependency updates. Every generated PR runs the full CI workflow - both
+# toolchains with warnings as errors, the layout gate and the package size gate -
+# so an update that breaks the net48 build, drops the satellite resources or
+# bloats the package cannot merge unnoticed.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps(nuget)
+    groups:
+      minor-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  # Action major bumps (v4 -> v5) change runner requirements, so they come
+  # individually; minor/patch movers of the existing pins are grouped.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:10"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps(actions)
+    groups:
+      minor-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+
+  # The three submodules are vendored at deliberate revisions (PNGDecrush is a
+  # fork), so they move monthly at most and stay ungrouped: even with a green CI
+  # run a renderer bump deserves a human look at the diff.
+  - package-ecosystem: gitsubmodule
+    directory: "/"
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: deps(submodule)
