@@ -1,0 +1,174 @@
+# Publishes a GitHub release from a version tag. ci.yml proves that both build
+# routes compile; this workflow is the only supported way to ship, so a
+# published 7z always comes from the FullFramework route plus the two gates and
+# never from a developer machine or from a dotnet-CLI build that also emits
+# System.Resources.Extensions.dll.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, for example v3.5.1
+        required: true
+        type: string
+      dry_run:
+        description: Validate everything but do not create the GitHub release
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  # A release run is never cancelled half way, otherwise a release object could
+  # survive without its asset being verified.
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish release
+    runs-on: windows-2022
+    env:
+      # A dispatch names the tag in its input, a tag push already carries it in
+      # the ref; release-checks.ps1 verifies the value before anything ships.
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # A dispatch must build the requested tag, not the default branch.
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+          fetch-depth: 0
+          submodules: recursive
+
+      # checkout only fetches the ref it needs, so fetch main and every tag
+      # explicitly: the release checks compare against the previous tag and
+      # require the tag commit to be an ancestor of origin/main.
+      - name: Fetch main and tags for the release checks
+        shell: pwsh
+        run: |
+          git fetch --force origin "+refs/heads/main:refs/remotes/origin/main" "+refs/tags/*:refs/tags/*"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # The FullFramework route needs an SDK the runner's MSBuild 17.14 can
+      # load; ci.yml pins the same version for the same reason.
+      - name: Set up .NET SDK 9 (MSBuild 17.14 compatible)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Pin the .NET SDK for the runner's msbuild
+        shell: pwsh
+        run: |
+          '{ "sdk": { "version": "9.0.100", "rollForward": "latestFeature" } }' |
+            Set-Content -Path global.json -Encoding utf8NoBOM
+          $version = dotnet --version
+          Get-Content global.json
+          "resolved SDK: $version"
+          if ($version -notlike '9.0.*') { throw "expected SDK 9.0.x, got $version" }
+
+      # Unlike ci.yml a missing key is fatal here: a release must be signed, so
+      # the secret has to exist before the first tag is pushed.
+      - name: Restore strong-name key (required for releases)
+        shell: pwsh
+        env:
+          SNK_B64: ${{ secrets.APKSHELLEXT2_SNK_B64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SNK_B64)) {
+            throw "secrets.APKSHELLEXT2_SNK_B64 is not configured; releases must be signed"
+          }
+          $keyPath = Join-Path $env:GITHUB_WORKSPACE 'ApkShellext2\apkshellext2_hy.snk'
+          [System.IO.File]::WriteAllBytes($keyPath, [System.Convert]::FromBase64String($env:SNK_B64))
+          "restored strong-name key: $keyPath ($((Get-Item $keyPath).Length) bytes)"
+
+      # The tests run first because dotnet test builds the product with the
+      # dotnet CLI into bin\Release; doing that before the MSBuild build keeps
+      # the artifact that the gates and the release checks see untouched.
+      # They are signed with the restored key; the trx file feeds the test count.
+      - name: Run unit tests
+        shell: pwsh
+        run: |
+          dotnet test tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj -c Release --nologo "-p:SignAssembly=true" --logger "trx;LogFileName=release.trx"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Restore
+        shell: pwsh
+        run: |
+          msbuild ApkShellext2\ApkShellext2.csproj -t:restore -p:Configuration=Release -nologo -v:m "-p:SignAssembly=true"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # Rebuild, not Build: the test step left dotnet-CLI outputs in bin\Release
+      # and MSBuild would otherwise consider them up to date.
+      - name: Rebuild Release (warnings as errors)
+        shell: pwsh
+        run: |
+          msbuild ApkShellext2\ApkShellext2.csproj -t:Rebuild -p:Configuration=Release -nologo -v:m -warnaserror "-p:SignAssembly=true"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check publish layout
+        shell: pwsh
+        run: |
+          & .\eng\check-layout.ps1 -Route vs
+
+      - name: Check package size
+        shell: pwsh
+        run: |
+          & .\eng\check-size.ps1
+
+      # Everything below reuses release-checks.ps1, which also runs by hand on a
+      # developer machine; the env block carries the verified values forward.
+      - name: Check the release
+        shell: pwsh
+        run: |
+          & .\eng\release-checks.ps1 -Tag $env:RELEASE_TAG
+
+      - name: Report the dry run
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        shell: pwsh
+        run: |
+          "dry run: $env:RELEASE_TAG passed every check, no GitHub release was created" |
+            Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "dry run: no release was created"
+
+      - name: Create the GitHub release
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.dry_run == false) }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = $env:RELEASE_TAG
+          $package = $env:RELEASE_PACKAGE
+          $assetPath = Join-Path $env:GITHUB_WORKSPACE "ApkShellext2\bin\Release\$package"
+
+          # Prefer a checked-in notes file so translator notes can ship with the
+          # release; otherwise GitHub generates notes from the commits.
+          $notesArgs = if (Test-Path "release-notes/$tag.md") {
+            @('--notes-file', "release-notes/$tag.md")
+          } else {
+            @('--generate-notes')
+          }
+          $prereleaseArgs = if ($env:RELEASE_PRERELEASE -eq 'true') { @('--prerelease') } else { @() }
+
+          gh release create $tag $assetPath --title $env:RELEASE_VERSION --verify-tag @notesArgs @prereleaseArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          # Assert the uploaded asset instead of trusting that gh succeeded: a
+          # wrong name or size would break the download links on the release page.
+          $assets = (gh release view $tag --json assets | ConvertFrom-Json).assets
+          $asset = $assets | Where-Object { $_.name -eq $package }
+          if (-not $asset) { throw "release $tag does not list $package" }
+          if ([long]$asset.size -ne [long]$env:RELEASE_PACKAGE_BYTES) {
+            throw "release $tag asset size $($asset.size) does not match $($env:RELEASE_PACKAGE_BYTES)"
+          }
+
+          "release $tag created with $package ($($asset.size) bytes)" |
+            Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
