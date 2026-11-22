@@ -34,9 +34,8 @@ namespace SharpShell
         {
             Logging.Log("Registering server for type " + type.Name);
 
-            //  Register the type, use the operating system architecture to determine
-            //  what registration type to perform.
-            DoRegister(type, Environment.Is64BitOperatingSystem ? RegistrationType.OS64Bit : RegistrationType.OS32Bit);
+            //  按 regasm 进程位数注册，32 位视图才真正生效。
+            DoRegister(type, Environment.Is64BitProcess ? RegistrationType.OS64Bit : RegistrationType.OS32Bit);
         }
 
         /// <summary>
@@ -50,14 +49,13 @@ namespace SharpShell
         {
             Logging.Log("Unregistering server for type " + type.Name);
 
-            //  Unregister the type, use the operating system architecture to determine
-            //  what registration type to unregister.
-            DoUnregister(type, Environment.Is64BitOperatingSystem ? RegistrationType.OS64Bit : RegistrationType.OS32Bit);
+            //  按 regasm 进程位数注销，32 位视图才真正生效。
+            DoUnregister(type, Environment.Is64BitProcess ? RegistrationType.OS64Bit : RegistrationType.OS32Bit);
         }
 
         /// <summary>
         /// Actually performs registration. The ComRegisterFunction decorated method will call this function
-        /// internally with the flag appropriate for the operating system processor architecture.
+        /// internally with the flag appropriate for the regasm process architecture.
         /// However, this function can also be called manually if needed.
         /// </summary>
         /// <param name="type">The type of object to register, this must be a SharpShellServer derived class.</param>
@@ -96,7 +94,7 @@ namespace SharpShell
 
         /// <summary>
         /// Actually performs unregistration. The ComUnregisterFunction decorated method will call this function
-        /// internally with the flag appropriate for the operating system processor architecture.
+        /// internally with the flag appropriate for the regasm process architecture.
         /// However, this function can also be called manually if needed.
         /// </summary>
         /// <param name="type">The type of object to unregister, this must be a SharpShellServer derived class.</param>
