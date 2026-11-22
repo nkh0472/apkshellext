@@ -10,6 +10,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Version-to-package-name rule lives only in eng\package-name.ps1; both gates
+# and Resources\postbuild.cmd call into it so they cannot drift apart.
+. (Join-Path $PSScriptRoot 'package-name.ps1')
+$packageName = Get-ApkShellextPackageName -VersionFile (Join-Path $PSScriptRoot '..\version.txt')
+
 # Same 13 files the postbuild 7z manifest packs. A missing one means the publish
 # folder is incomplete; the packaging step would fail too, but its error is easy
 # to lose among the compiler output.
@@ -48,9 +53,9 @@ else {
 
 "layout OK ($Route): $($manifest.Count) root files + $($langs.Count) language directories"
 
-$sevenZPath = Join-Path $OutputDir 'ApkShellext2.7z'
+$sevenZPath = Join-Path $OutputDir $packageName
 if (-not (Test-Path $sevenZPath)) {
-    throw 'ApkShellext2.7z is missing - the 7-Zip packaging step did not run'
+    throw "$packageName is missing - the 7-Zip packaging step did not run"
 }
 
 $dll = Get-Item (Join-Path $OutputDir 'ApkShellext2.dll')

@@ -18,7 +18,7 @@
 | Main artifact | `ApkShellext2\bin\Release\ApkShellext2.dll` (3.4.5.0, strong-named `Pkt=fb82661d1c53098c`, local key) |
 | Satellites | `bin\Release\{ar-SA,…,zh-CN,zh-TW}\ApkShellext2.resources.dll` × 19 |
 | Test app | `apkshellextTest\bin\Release\apkshellextTest.exe` |
-| Packages | `bin\Release\ApkShellext2.7z` — complete install set incl. all 19 language folders (needs 7-Zip; postbuild packs automatically) |
+| Packages | `bin\Release\ApkShellext2-3.5.1.7z` — complete install set incl. all 19 language folders (needs 7-Zip; postbuild packs automatically, name = `ApkShellext2-<version>.7z` from `version.txt` with a trailing `.0` dropped) |
 | Native deps | `ApkShellext2\LibWebP\libwebp_x86.dll` + `libwebp_x64.dll` — prebuilt libwebp 1.6.0, committed in-repo; rebuilding is optional (§4.5) |
 | Route A | .NET SDK **10.0.404** standalone: `dotnet build ApkShellext2\ApkShellext2.csproj -c Release` — one line, no flags |
 | Route B | Visual Studio 2022/2026 with *.NET desktop development*: `msbuild -t:restore` + `msbuild -p:Configuration=Release` — no flags either |
@@ -390,7 +390,11 @@ identically (`-c Debug` / `-p:Configuration=Debug`); the Debug output additional
   when `$(ProjectDir)`/`$(TargetDir)` are still undefined, so the old one-liner bakes
   into `call "Resources\postbuild.cmd" "" ""` (gotcha 4).
 - **`Resources\postbuild.cmd`** (Release-only; Debug exits immediately): deletes a stale
-  `debug.bat`, locates `7z.exe` (§4.3), deletes stale `*.7z`, then packs `ApkShellext2.7z`
+  `debug.bat`, locates `7z.exe` (§4.3), derives the package name with
+  `eng\package-name.ps1` from `version.txt` (`3.5.1.0` → `ApkShellext2-3.5.1.7z`;
+  the same rule `check-layout.ps1`/`check-size.ps1` dot-source), deletes stale
+  `*.7z` (the old unversioned name and any package from a previous version),
+  then packs the new name
   from an **explicit manifest** — the thirteen root files (`ApkShellext2.dll`, the five
   bats, two `libwebp_*` binaries, `ExCSS.dll`, `System.Memory.dll`, `System.Buffers.dll`,
   `System.Runtime.CompilerServices.Unsafe.dll`, `System.Numerics.Vectors.dll`) plus every
@@ -428,7 +432,7 @@ neither archive can smuggle it in — and do not hand-copy it into a deployment 
 it cannot rescue a preserialized build inside a host process.
 
 Deployment (on the target machine, as the user who owns the shell extension): extract
-`ApkShellext2.7z` — it already carries the culture folders next to the DLL — then run
+`ApkShellext2-3.5.1.7z` — it already carries the culture folders next to the DLL — then run
 `install.bat` (elevated, machine-wide) or `install_user.bat` (per-user;
 both register via regasm and NGEN the assembly — 3.4.5 fixed NGEN in these scripts).
 `restart_explorer.bat` reloads the shell. Uninstall with the matching `uninstall*.bat`.
@@ -466,7 +470,7 @@ official package in the same GAC/registration state.
    `ApkShellext2.dll(.pdb)`, the five bats, `libwebp_x86/x64.dll`,
    `ExCSS/System.Memory/System.Buffers/System.Runtime.CompilerServices.Unsafe/System.Numerics.Vectors` —
    plus the nineteen culture folders and — when 7-Zip was found —
-   `ApkShellext2.7z` (~1 MB). `7z l` must list **exactly 32 files on both routes**:
+   `ApkShellext2-3.5.1.7z` (~1 MB). `7z l` must list **exactly 32 files on both routes**:
    the 13 root entries (no `System.Resources.Extensions.dll` — packaging
    exclusion even when a dotnet-CLI build left it in the folder) plus 19
    `xx-XX\ApkShellext2.resources.dll`
@@ -573,7 +577,7 @@ Set-Location $R
 # verify the VS-route specifics: NO System.Resources.Extensions.dll in the output,
 # archive = 32 files (13 manifest items + 19 satellites)
 Test-Path "$R\ApkShellext2\bin\Release\System.Resources.Extensions.dll"   # expect False
-& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2.7z"   # expect 32 files (adjust 7z path)
+& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # expect 32 files (adjust 7z path)
 ```
 
 ---

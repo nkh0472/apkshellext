@@ -5,7 +5,7 @@
 #
 # Baseline measured on v3.5.1 (VS route, clean Release, 7-Zip 26.06):
 #   ApkShellext2.dll            1,573,888 B
-#   ApkShellext2.7z             1,028,101 B
+#   ApkShellext2-3.5.1.7z        1,028,101 B
 #   deployment tree             3,392,793 B over 32 files (13 manifest + 19 satellites)
 # The limits below keep ~5% headroom over that: enough for routine edits, tight
 # enough that a newly bundled dependency trips the gate. Phase 2 targets a <=2.5 MB
@@ -21,6 +21,11 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Version-to-package-name rule lives only in eng\package-name.ps1; both gates
+# and Resources\postbuild.cmd call into it so they cannot drift apart.
+. (Join-Path $PSScriptRoot 'package-name.ps1')
+$packageName = Get-ApkShellextPackageName -VersionFile (Join-Path $PSScriptRoot '..\version.txt')
 
 # The tree is counted from the same 13 manifest files the postbuild 7z packs plus
 # the 19 satellite resource assemblies, so the number does not move when the
@@ -48,7 +53,7 @@ foreach ($path in $treeFiles) {
     }
 }
 
-$packagePath = Join-Path $OutputDir 'ApkShellext2.7z'
+$packagePath = Join-Path $OutputDir $packageName
 if (-not (Test-Path $packagePath)) {
     throw "missing package: $packagePath"
 }
@@ -60,7 +65,7 @@ $treeBytes = ($treeFiles | ForEach-Object { (Get-Item $_).Length } | Measure-Obj
 $failed = $false
 $rows = @(
     @{ Name = 'ApkShellext2.dll'; Bytes = $dllBytes;     Max = $MaxDllBytes },
-    @{ Name = 'ApkShellext2.7z';  Bytes = $packageBytes; Max = $MaxPackageBytes },
+    @{ Name = $packageName;    Bytes = $packageBytes; Max = $MaxPackageBytes },
     @{ Name = "deployment tree ($($treeFiles.Count) files)"; Bytes = $treeBytes; Max = $MaxTreeBytes }
 )
 
