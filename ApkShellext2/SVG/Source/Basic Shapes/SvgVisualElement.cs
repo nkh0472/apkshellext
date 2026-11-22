@@ -1,5 +1,4 @@
 ﻿using System;
-using Svg.FilterEffects;
 
 namespace Svg
 {
@@ -41,7 +40,7 @@ namespace Svg
         }
 
         /// <summary>
-        /// Gets the associated <see cref="SvgFilter"/> if one has been specified.
+        /// Gets the associated filter if one has been specified.
         /// </summary>
         [SvgAttribute("filter")]
         public virtual Uri Filter

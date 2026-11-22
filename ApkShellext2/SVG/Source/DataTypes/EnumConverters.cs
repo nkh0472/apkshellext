@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using Svg.DataTypes;
-using Svg.FilterEffects;
 
 namespace Svg
 {
@@ -195,27 +194,4 @@ namespace Svg
 
     public sealed class SvgTextTransformationConverter : EnumBaseConverter<SvgTextTransformation> { }
 
-    public sealed class SvgBlendModeConverter : EnumBaseConverter<SvgBlendMode>
-    {
-        public SvgBlendModeConverter() : base(CaseHandling.KebabCase) { }
-    }
-
-    public sealed class SvgColourMatrixTypeConverter : EnumBaseConverter<SvgColourMatrixType> { }
-
-    public sealed class SvgComponentTransferTypeConverter : EnumBaseConverter<SvgComponentTransferType> { }
-
-    public sealed class SvgCompositeOperatorConverter : EnumBaseConverter<SvgCompositeOperator> { }
-
-    public sealed class SvgEdgeModeConverter : EnumBaseConverter<SvgEdgeMode> { }
-
-    public sealed class SvgChannelSelectorConverter : EnumBaseConverter<SvgChannelSelector>
-    {
-        public SvgChannelSelectorConverter() : base(CaseHandling.PascalCase) { }
-    }
-
-    public sealed class SvgMorphologyOperatorConverter : EnumBaseConverter<SvgMorphologyOperator> { }
-
-    public sealed class SvgStitchTypeConverter : EnumBaseConverter<SvgStitchType> { }
-
-    public sealed class SvgTurbulenceTypeConverter : EnumBaseConverter<SvgTurbulenceType> { }
 }

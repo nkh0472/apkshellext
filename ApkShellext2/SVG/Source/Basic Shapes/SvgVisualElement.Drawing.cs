@@ -6,7 +6,6 @@ using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Linq;
 using Svg.ExtensionMethods;
-using Svg.FilterEffects;
 
 namespace Svg
 {
@@ -48,54 +47,51 @@ namespace Svg
         protected override void Render(ISvgRenderer renderer)
         {
             if (Visible && Displayable && (!Renderable || Path(renderer) != null))
-                RenderInternal(renderer, true);
+                RenderInternal(renderer);
         }
 
-        private void RenderInternal(ISvgRenderer renderer, bool renderFilter)
+        private void RenderInternal(ISvgRenderer renderer)
         {
-            if (!(renderFilter && RenderFilter(renderer)))
-            {
-                var opacity = FixOpacityValue(Opacity);
-                if (opacity == 1f)
-                    if (Renderable)
-                        RenderInternal(renderer, RenderFillAndStroke);
-                    else
-                        RenderInternal(renderer, RenderChildren);
+            var opacity = FixOpacityValue(Opacity);
+            if (opacity == 1f)
+                if (Renderable)
+                    RenderInternal(renderer, RenderFillAndStroke);
                 else
+                    RenderInternal(renderer, RenderChildren);
+            else
+            {
+                IsPathDirty = true;
+                var bounds = Renderable ? Bounds : Path(null).GetBounds();
+                IsPathDirty = true;
+
+                if (bounds.Width > 0f && bounds.Height > 0f)
                 {
-                    IsPathDirty = true;
-                    var bounds = Renderable ? Bounds : Path(null).GetBounds();
-                    IsPathDirty = true;
-
-                    if (bounds.Width > 0f && bounds.Height > 0f)
+                    var scaleX = 1f;
+                    var scaleY = 1f;
+                    using (var transform = renderer.Transform)
                     {
-                        var scaleX = 1f;
-                        var scaleY = 1f;
-                        using (var transform = renderer.Transform)
-                        {
-                            scaleX = Math.Max(scaleX, Math.Abs(transform.Elements[0]));
-                            scaleY = Math.Max(scaleY, Math.Abs(transform.Elements[3]));
-                        }
+                        scaleX = Math.Max(scaleX, Math.Abs(transform.Elements[0]));
+                        scaleY = Math.Max(scaleY, Math.Abs(transform.Elements[3]));
+                    }
 
-                        using (var canvas = new Bitmap((int)Math.Ceiling(bounds.Width * scaleX), (int)Math.Ceiling(bounds.Height * scaleY)))
+                    using (var canvas = new Bitmap((int)Math.Ceiling(bounds.Width * scaleX), (int)Math.Ceiling(bounds.Height * scaleY)))
+                    {
+                        using (var canvasRenderer = SvgRenderer.FromImage(canvas))
                         {
-                            using (var canvasRenderer = SvgRenderer.FromImage(canvas))
-                            {
-                                canvasRenderer.SetBoundable(renderer.GetBoundable());
-                                canvasRenderer.TranslateTransform(-bounds.X, -bounds.Y);
-                                canvasRenderer.ScaleTransform(scaleX, scaleY);
+                            canvasRenderer.SetBoundable(renderer.GetBoundable());
+                            canvasRenderer.TranslateTransform(-bounds.X, -bounds.Y);
+                            canvasRenderer.ScaleTransform(scaleX, scaleY);
 
-                                if (Renderable)
-                                    RenderInternal(canvasRenderer, RenderFillAndStroke);
-                                else
-                                    RenderChildren(canvasRenderer);
-                            }
-                            var srcRect = new RectangleF(0f, 0f, bounds.Width * scaleX, bounds.Height * scaleY);
                             if (Renderable)
-                                renderer.DrawImage(canvas, bounds, srcRect, GraphicsUnit.Pixel, opacity);
+                                RenderInternal(canvasRenderer, RenderFillAndStroke);
                             else
-                                RenderInternal(renderer, r => r.DrawImage(canvas, bounds, srcRect, GraphicsUnit.Pixel, opacity));
+                                RenderChildren(canvasRenderer);
                         }
+                        var srcRect = new RectangleF(0f, 0f, bounds.Width * scaleX, bounds.Height * scaleY);
+                        if (Renderable)
+                            renderer.DrawImage(canvas, bounds, srcRect, GraphicsUnit.Pixel, opacity);
+                        else
+                            RenderInternal(renderer, r => r.DrawImage(canvas, bounds, srcRect, GraphicsUnit.Pixel, opacity));
                     }
                 }
             }
@@ -116,31 +112,6 @@ namespace Svg
             {
                 PopTransforms(renderer);
             }
-        }
-
-        private bool RenderFilter(ISvgRenderer renderer)
-        {
-            var rendered = false;
-
-            var filterPath = Filter.ReplaceWithNullIfNone();
-            if (filterPath != null)
-            {
-                var element = OwnerDocument.IdManager.GetElementById(filterPath);
-                if (element is SvgFilter)
-                {
-                    try
-                    {
-                        ((SvgFilter)element).ApplyFilter(this, renderer, r => RenderInternal(r, false));
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.Print(ex.ToString());
-                    }
-                    rendered = true;
-                }
-            }
-
-            return rendered;
         }
 
         protected internal virtual void RenderFillAndStroke(ISvgRenderer renderer)
