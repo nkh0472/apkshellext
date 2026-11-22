@@ -61,7 +61,7 @@ Quick version: clone with `--recursive`, then `msbuild ApkShellext2.sln /p:Confi
 
 ## Changelog
 
-Full bilingual release notes are on the [Releases page](https://github.com/nkh0472/apkshellext/releases).
+Full bilingual release notes are on the [Releases page](https://github.com/nkh0472/apkshellext/releases). Releases are published only by the tag-driven workflow; the tag, signing and dry-run procedure is in [compile_guidance.md §11](compile_guidance.md#11-releasing).
 
 | Version | Summary |
 |---------|---------|

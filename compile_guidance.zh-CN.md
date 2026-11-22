@@ -511,6 +511,37 @@ NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat
     `postbuild.cmd` 因此显式查两个视图(`/reg:64`、`/reg:32`);改脚本时保留这两个开关。
     (VS IDE 本身用 64 位引擎构建,所以这个坑只咬 x86 启动器的命令行构建。)
 
+## 11. 发布流程
+
+发布**只能**走 `.github/workflows/release.yml`;本地编译产物是开发用的,绝不能手工挂到
+GitHub Release 上。工作流在 `windows-2022` 上编译 FullFramework 路线(§6 路线 B),跑两个门禁
+和单元测试,然后发布一个已存在的 annotated tag。
+
+```bash
+git tag -a v3.5.1 -m "ApkShellext2 3.5.1"   # 必须是 annotated,不能是轻量 tag
+git push origin v3.5.1                      # push 只由 lead 执行,贡献者不要 push
+```
+
+tag 必须是 `v` + `version.txt` 去掉末尾 `.0`,与 `eng/package-name.ps1` 的包名规则一致。
+发布必须签名:工作流从 `APKSHELLEXT2_SNK_B64` secret 还原
+`ApkShellext2\apkshellext2_hy.snk`,secret 缺失时直接失败。
+
+想空跑一次发布而不产生任何东西,就手动 dispatch 工作流并填 tag、`dry_run: true`(dispatch 的
+默认值)。job 会把版本、dll 与 7z 的字节数和 SHA-256、上一个 tag、测试数写进 job summary,
+但不创建 GitHub Release。检查逻辑都在 `eng/release-checks.ps1`,本地可以复现同样的结论:
+
+```powershell
+pwsh -File eng\release-checks.ps1 -Tag v3.5.1
+```
+
+以下情况脚本一律拒绝:tag 的数字部分与 `version.txt` 不一致、tag 不高于最近发布的 tag、
+tag 是轻量 tag、tag 所在提交不是 `origin/main` 的祖先、缺包或缺语言目录。
+
+真正发布时用 `gh release create <tag>` 创建 Release:标题去掉 `v`,仓库有
+`release-notes/<tag>.md` 就用它、没有就用提交记录生成 notes,tag 里带 `-` 就标记为
+prerelease。随后断言上传资产的名称与大小,断言失败则整个 job 失败,不会留下坏的 Release;
+修好原因后重新 dispatch 即可(版本检查与递增检查会拒绝通过 tag push 重发已发布的版本)。
+
 ## 附录 A —— 一键参考脚本(路线 A)
 
 ```powershell

@@ -578,6 +578,45 @@ official package in the same GAC/registration state.
     (The VS IDE itself builds in a 64-bit engine, which is why this only bites
     command-line builds of the x86 launcher.)
 
+## 11. Releasing
+
+Releases are published **only** by `.github/workflows/release.yml`; a local build is a
+development artifact and must never be attached to a GitHub release by hand. The
+workflow builds the FullFramework route (§6 Route B), runs both gates and the unit
+tests, and publishes an existing annotated tag.
+
+```bash
+git tag -a v3.5.1 -m "ApkShellext2 3.5.1"   # annotated, never lightweight
+git push origin v3.5.1                      # the lead pushes; contributors do not
+```
+
+The tag must be `v` + `version.txt` without its trailing `.0`, the same rule
+`eng/package-name.ps1` uses for the package name. Every release is signed: the
+workflow restores `ApkShellext2\apkshellext2_hy.snk` from the
+`APKSHELLEXT2_SNK_B64` secret and fails when the secret is missing.
+
+To rehearse a release without publishing anything, dispatch the workflow with the
+tag and `dry_run: true` (the default for dispatches). The job prints version, dll and
+7z sizes with their SHA-256, the previous tag and the test count to the job summary,
+but creates no GitHub release. The checks live in `eng/release-checks.ps1`, so the
+same verdict can be reproduced locally:
+
+```powershell
+pwsh -File eng\release-checks.ps1 -Tag v3.5.1
+```
+
+The script rejects a tag whose numeric part disagrees with `version.txt`, a tag that
+is not newer than the latest published tag, a lightweight tag, a tag commit that is
+not an ancestor of `origin/main`, and a missing package or language directory.
+
+A real run creates the release with `gh release create <tag>`: the title is the
+version without `v`, notes come from `release-notes/<tag>.md` when that file exists
+and are generated from the commits otherwise, and a tag containing `-` is marked as
+a prerelease. The asset name and size are asserted afterwards, so a failed upload
+fails the job instead of leaving a broken release behind; re-run the dispatch after
+fixing the cause (the version and ordering checks refuse to republish an already
+published version from a tag push).
+
 ## Appendix A — one-shot reference script (Route A)
 
 ```powershell
