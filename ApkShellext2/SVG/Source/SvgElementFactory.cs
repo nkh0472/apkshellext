@@ -5,7 +5,6 @@ using System.Xml;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using ExCSS;
 
 namespace Svg
 {
@@ -15,7 +14,6 @@ namespace Svg
     [ElementFactory]
     internal partial class SvgElementFactory
     {
-        private readonly StylesheetParser stylesheetParser = new StylesheetParser(true, true, tolerateInvalidValues: true);
 
         /// <summary>
         /// Gets a list of available types that can be used when creating an <see cref="SvgElement"/>.
@@ -138,10 +136,21 @@ namespace Svg
                     }
                     if (localName.Equals("style") && !(element is NonSvgElement))
                     {
-                        var inlineSheet = stylesheetParser.Parse("#a{" + reader.Value + "}");
-                        foreach (var rule in inlineSheet.StyleRules)
-                            foreach (var declaration in rule.Style)
-                                element.AddStyle(declaration.Name, declaration.Original, SvgElement.StyleSpecificity_InlineStyle);
+                        // ExCSS is not linked anymore. Parse the common
+                        // "name: value; name2: value2" inline form directly; full
+                        // CSS (comments, escapes, !important) is intentionally not
+                        // supported. No product code path emits style attributes -
+                        // VectorDrawableToSvg only writes presentation attributes.
+                        foreach (var declaration in reader.Value.Split(';'))
+                        {
+                            var colon = declaration.IndexOf(':');
+                            if (colon <= 0)
+                                continue;
+                            var name = declaration.Substring(0, colon).Trim();
+                            var value = declaration.Substring(colon + 1).Trim();
+                            if (name.Length > 0 && value.Length > 0)
+                                element.AddStyle(name, value, SvgElement.StyleSpecificity_InlineStyle);
+                        }
                     }
                     else if (prefix.Length == 0 && IsStyleAttribute(localName))
                     {

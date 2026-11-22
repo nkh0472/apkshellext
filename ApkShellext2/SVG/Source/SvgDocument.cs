@@ -7,11 +7,9 @@ using System.IO;
 using System.Text;
 using System.Xml;
 using System.Linq;
-using Svg.Css;
 using System.Threading;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using ExCSS;
 
 namespace Svg
 {
@@ -376,37 +374,16 @@ namespace Svg
 
             var svgDocument = Create<T>(reader, elementFactory, styles);
             
-            if (css != null) {
-                styles.Add(new SvgStyle() { Content = css });
-            }
-
-            if (styles.Any())
+            // CSS stylesheets are intentionally not parsed in this build. The only
+            // SVG producer used by the product is VectorDrawableToSvg, which emits
+            // presentation attributes and never <style> or selectors. ExCSS (and
+            // the Svg.Css selector engine) was therefore removed with no pixel
+            // impact; a css argument or an SVG <style> element is accepted and
+            // ignored. See SVG\NOTICE.txt for the local trim.
+            if (styles.Count > 0 || css != null)
             {
-                var cssTotal = string.Join(Environment.NewLine, styles.Select(s => s.Content).ToArray());
-                var stylesheetParser = new StylesheetParser(true, true, tolerateInvalidValues: true);
-                var stylesheet = stylesheetParser.Parse(cssTotal);
-
-                var rootNode = new NonSvgElement();
-                rootNode.Children.Add(svgDocument);
-
-                foreach (var rule in stylesheet.StyleRules)
-                    try
-                    {
-                        var elemsToStyle = rootNode.QuerySelectorAll(rule.Selector, elementFactory);
-                        foreach (var elem in elemsToStyle)
-                            foreach (var declaration in rule.Style)
-                            {
-                                elem.AddStyle(declaration.Name, declaration.Original, rule.Selector.GetSpecificity());
-                            }
-                    }
-                    catch (Exception ex)
-                    {
-                        Trace.TraceWarning(ex.Message);
-                    }
-
-                // Forward CSS custom properties (--*) that landed on the wrapper
-                // (e.g. via :root selector) to the actual document root.
-                rootNode.ForwardCustomPropertiesTo(svgDocument);
+                Trace.TraceInformation(
+                    "CSS stylesheets are not supported; {0} style node(s) ignored.", styles.Count);
             }
 
             svgDocument?.FlushStyles(true);

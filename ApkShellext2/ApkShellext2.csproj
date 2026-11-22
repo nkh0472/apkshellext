@@ -237,7 +237,6 @@
     <!-- NuGet via restore: System.Memory drags System.Buffers + System.Numerics.Vectors;
          the direct Unsafe 6.0.0 overrides its transitive 4.5.3 (nearest-wins), which is
          exactly what the old HintPath set resolved to. No more manual package fetching. -->
-    <PackageReference Include="ExCSS" Version="4.2.3" />
     <PackageReference Include="System.Memory" Version="4.5.5" />
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
     <!-- Pinned to 4.5.0 (was 4.4.0): System.Memory 4.5.5 requires >= 4.5.0, so the old

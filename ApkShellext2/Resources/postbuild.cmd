@@ -83,8 +83,8 @@ REM Shipping manifest - explicit and toolchain-independent. Both build routes
 REM converge on exactly these root files; a missing entry FAILS the build here
 REM instead of silently packing a short archive (a bare *.bat wildcard would
 REM match nothing without any error - see compile_guidance gotcha 5).
-REM ExCSS + the facade dlls are load-time dependencies of the main dll (SVG
-REM renderer path + Span/Memory shims); omitting them makes a fresh machine hit
+REM The facade dlls are load-time dependencies of the main dll (SVG renderer
+REM path + Span/Memory shims); omitting them makes a fresh machine hit
 REM FileLoadException on the first vector-drawable icon.
 REM System.Numerics.Vectors.dll IS REQUIRED app-local: inside COM hosts
 REM (explorer/dllhost) TypeDescriptor builds Svg.NET's numeric converters, and
@@ -92,7 +92,7 @@ REM that binding probes the app base only - a missing file means
 REM FileNotFoundException on EVERY numeric SVG attribute (gradient coords,
 REM offsets...), which silently renders adaptive icons as blank/fragmented
 REM tiles (observed 2026-11-21 as the root cause of the broken-icon report).
-set "MANIFEST=ApkShellext2.dll install.bat install_user.bat uninstall.bat uninstall_user.bat restart_explorer.bat libwebp_x86.dll libwebp_x64.dll ExCSS.dll System.Memory.dll System.Buffers.dll System.Runtime.CompilerServices.Unsafe.dll System.Numerics.Vectors.dll"
+set "MANIFEST=ApkShellext2.dll install.bat install_user.bat uninstall.bat uninstall_user.bat restart_explorer.bat libwebp_x86.dll libwebp_x64.dll System.Memory.dll System.Buffers.dll System.Runtime.CompilerServices.Unsafe.dll System.Numerics.Vectors.dll"
 for %%F in (%MANIFEST%) do (
   if not exist "%%F" (
     echo ERROR: postbuild - manifest file missing from output: %%F

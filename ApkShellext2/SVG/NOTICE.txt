@@ -24,7 +24,15 @@ Local modifications are maintained in this tree; see
 `git log -- ApkShellext2/SVG`. Do not copy upstream files over this tree
 without re-reading that log first. Current local modifications:
 
-  - (none yet at import time)
+  - removed the ExCSS dependency and the Svg.Css selector engine
+    (Css\ExCssQuery.cs, Css\ExSvgElementOps.cs, Css\IExCssSelectorOps.cs);
+    CSS stylesheets in a document, or a css argument to Create/Open, are
+    accepted and ignored. The only SVG producer in this product
+    (VectorDrawableToSvg) emits presentation attributes and never <style>
+    or selectors, so rendering is unchanged;
+  - replaced the inline `style` attribute parser with a small direct
+    "name: value; name2: value2" parser (same AddStyle/InlineStyle path as
+    before); full CSS syntax is intentionally not supported.
 
 When updating from upstream, keep the in-tree path layout (the product csproj
 globs SVG\Source\**\*.cs and project-references SVG\Generators\).
