@@ -2093,27 +2093,53 @@ namespace ApkQuickReader
             return result;
         }
 
+        // ---- resources.arsc hardening limits ----
+        // resources.arsc content is attacker-controlled: every count, offset and
+        // chunk size below comes straight from the file. These caps bound the
+        // allocation, iteration and recursion that such values drive, and are far
+        // above what aapt emits (one package per APK, 64-byte config blocks,
+        // 16-bit entry indices).
+        private const int MaxResourceConfigSize = 1024; // ResTable_config is 64 bytes today
+        private const int MaxResourcePackages = 256;    // a real table holds one package
+        private const int MaxResourceEntries = 0x10000; // entry offset index is 16 bits
+
         private string QuickSearchStringPool(byte[] bytes, uint id) {
             if (id == 0xffffffff) return "";
+            if (bytes == null || bytes.Length < 8) return "";
             using (MemoryStream ms = new MemoryStream(bytes))
             using (BinaryReader br = new BinaryReader(ms)) {
                 RES_TYPE chunkType = (RES_TYPE)br.ReadInt16();
                 short headerSize = br.ReadInt16();
+                if (headerSize < 8 || headerSize > ms.Length) return "";
                 ms.Seek(headerSize, SeekOrigin.Begin);
 
-                while (ms.Position < ms.Length) {
+                while (ms.Position + 8 <= ms.Length) {
                     long chunkPos = ms.Position;
                     chunkType = (RES_TYPE)br.ReadInt16();
                     headerSize = br.ReadInt16();
                     int chunkSize = br.ReadInt32();
+                    // each walk step must land on a later chunk inside the buffer,
+                    // otherwise a forged size would make this loop spin forever
+                    if (headerSize < 8 || chunkSize < headerSize ||
+                        chunkPos + chunkSize > ms.Length)
+                        return "";
                     if (chunkType == RES_TYPE.RES_STRING_POOL_TYPE) {
+                        if (headerSize < 28) return "";
                         int stringcount = br.ReadInt32();
                         int stylecount = br.ReadInt32();
                         int flags = br.ReadInt32();
                         bool isUTF_8 = (flags & (1 << 8)) != 0;
                         int stringStart = br.ReadInt32();
-                        ms.Seek(4 + id*4, SeekOrigin.Current);
+                        // the offset array must contain id, and the declared data
+                        // base must stay inside this chunk
+                        if (stringcount < 0 || id >= (uint)stringcount ||
+                            stringStart < 0 || stringStart > chunkSize ||
+                            (long)id * 4 + 32 > chunkSize)
+                            return "";
+                        ms.Seek(4 + (long)id * 4, SeekOrigin.Current);
                         int stringPos = br.ReadInt32();
+                        if (stringPos < 0 || (long)stringStart + stringPos > chunkSize)
+                            return "";
                         ms.Seek(chunkPos + stringStart + stringPos, SeekOrigin.Begin);
                         if (isUTF_8) {
                             int u16len = br.ReadByte(); // u16len
@@ -2142,7 +2168,7 @@ namespace ApkQuickReader
                             return Encoding.Unicode.GetString(br.ReadBytes(u16len * 2));
                         }
                     } else {
-                        SeekNextChunk(ms, chunkPos, chunkSize);
+                        ms.Seek(chunkPos + chunkSize, SeekOrigin.Begin);
                     }
                 }
                 return "";
@@ -2151,28 +2177,35 @@ namespace ApkQuickReader
 
         private string QuickSearchCompressedXMlResMap(byte[] xml, uint id) {
             if (id == 0xffffffff) return "";
+            if (xml == null || xml.Length < 8) return "";
             using (MemoryStream ms = new MemoryStream(xml))
             using (BinaryReader br = new BinaryReader(ms)) {
                 RES_TYPE chunkType = (RES_TYPE)br.ReadInt16();
                 short headerSize = br.ReadInt16();
+                if (headerSize < 8 || headerSize > ms.Length) return "";
                 ms.Seek(headerSize, SeekOrigin.Begin);
 
-                while (ms.Position < ms.Length) {
+                while (ms.Position + 8 <= ms.Length) {
                     long chunkPos = ms.Position;
                     chunkType = (RES_TYPE)br.ReadInt16();
                     headerSize = br.ReadInt16();
                     int chunkSize = br.ReadInt32();
+                    // as in QuickSearchStringPool: never walk backwards or outside
+                    if (headerSize < 8 || chunkSize < headerSize ||
+                        chunkPos + chunkSize > ms.Length)
+                        return "";
 
                     if (chunkType == RES_TYPE.RES_XML_RESOURCE_MAP_TYPE) {
                         //Resource map
-                        ms.Seek(id * 4, SeekOrigin.Current);
+                        if ((long)id * 4 + 12 > chunkSize) return "";
+                        ms.Seek((long)id * 4, SeekOrigin.Current);
                         string result = Enum.GetName(typeof(R_attr), br.ReadUInt32());
                         if (result != null)
                             return result;
                         else
                             return "";
                     } else {
-                        SeekNextChunk(ms, chunkPos, chunkSize);
+                        ms.Seek(chunkPos + chunkSize, SeekOrigin.Begin);
                     }
                 }
                 return "";
@@ -2230,106 +2263,150 @@ namespace ApkQuickReader
 
         // for handling loop reference
         private Stack<UInt32> searchstack = new Stack<UInt32>();
+
+        // Skip one chunk that starts at chunkPos and must end at or before limit.
+        // The chunk size is file-declared, so it is only trusted after it has been
+        // checked to advance and stay inside the parent. Returns the position of
+        // the next chunk, or -1 when the header cannot be trusted.
+        private static long SkipChunk(MemoryStream ms, BinaryReader br, long chunkPos, long limit) {
+            if (chunkPos < 0 || chunkPos + 8 > limit) return -1;
+            ms.Seek(chunkPos + 4, SeekOrigin.Begin);
+            int chunkSize = br.ReadInt32();
+            if (chunkSize < 8 || chunkPos + chunkSize > limit) return -1;
+            long next = chunkPos + chunkSize;
+            ms.Seek(next, SeekOrigin.Begin);
+            return next;
+        }
+
         /// <summary>
         /// Find the requested resource, according to config setting, if the config was set.
-        /// This method is NOT HANDLING ANY ERROR, yet!!!!
+        /// Every length, offset and count below is read from resources.arsc, so each one
+        /// is bounded before it is used; malformed input yields the values collected so
+        /// far instead of an exception or an allocation the file asked for.
         /// </summary>
         /// <param name="id">resourceID</param>
         /// <returns>the resource, in string format, if resource id not found, return null value</returns>
         private ApkResource QuickSearchResource(UInt32 id) {
-            searchstack.Push(id);
             ApkResource res = new ApkResource(id);
+            searchstack.Push(id);
+            try {
+                if (resources == null || resources.Length < 12)
+                    return res; // no table to read: behave like "resource not found"
 
-            using (MemoryStream ms = new MemoryStream(resources))
-            using (BinaryReader br = new BinaryReader(ms)) {
-                ms.Seek(8, SeekOrigin.Begin); // jump type/headersize/chunksize
-                int packageCount = br.ReadInt32();
-                // comes to stringpool chunk, skipit
-                long stringPoolPos = ms.Position;
-                ms.Seek(4, SeekOrigin.Current);
-                int stringPoolSize = br.ReadInt32();
-                ms.Seek(stringPoolSize - 8, SeekOrigin.Current); // jump to the end
+                using (MemoryStream ms = new MemoryStream(resources))
+                using (BinaryReader br = new BinaryReader(ms)) {
+                    ms.Seek(8, SeekOrigin.Begin); // jump type/headersize/chunksize
+                    int packageCount = br.ReadInt32();
+                    if (packageCount < 0 || packageCount > MaxResourcePackages)
+                        return res; // a real table holds one package
 
-                //Package chunk now
-                for (int pack = 0; pack < packageCount; pack++) {
-                    long PackChunkPos = ms.Position;
-                    ms.Seek(2, SeekOrigin.Current); // jump type/headersize
-                    int headerSize = br.ReadInt16();
-                    int PackChunkSize = br.ReadInt32();
-                    int packID = br.ReadInt32();
+                    // comes to stringpool chunk, skipit
+                    long stringPoolPos = ms.Position;
+                    ms.Seek(4, SeekOrigin.Current);
+                    int stringPoolSize = br.ReadInt32();
+                    // a forged pool size must not seek outside the table
+                    if (stringPoolSize < 8 || stringPoolPos + stringPoolSize > ms.Length)
+                        return res;
+                    ms.Seek(stringPoolPos + stringPoolSize, SeekOrigin.Begin); // jump to the end
 
-                    if (packID != res.PackageID) { // check if the resource is in this pack
-                                                   // goto next chunk
-                        ms.Seek(PackChunkPos + PackChunkSize, SeekOrigin.Begin);
-                        continue;
-                    } else {
-                        //ms.Seek(128*2, SeekOrigin.Current); // skip name
-                        //int typeStringsPos = br.ReadInt32();
-                        //ms.Seek(4,SeekOrigin.Current);    // skip lastpublictype
-                        //int keyStringsPos = br.ReadInt32();
-                        //ms.Seek(4, SeekOrigin.Current);  // skip lastpublickey
-                        ms.Seek(PackChunkPos + headerSize, SeekOrigin.Begin);
+                    //Package chunk now
+                    for (int pack = 0; pack < packageCount; pack++) {
+                        long PackChunkPos = ms.Position;
+                        // package header: type, headerSize, chunkSize, package id
+                        if (PackChunkPos + 12 > ms.Length) break;
+                        ms.Seek(2, SeekOrigin.Current); // jump type/headersize
+                        int headerSize = br.ReadInt16();
+                        int PackChunkSize = br.ReadInt32();
+                        int packID = br.ReadInt32();
+                        if (headerSize < 12 || PackChunkSize < headerSize ||
+                            PackChunkPos + PackChunkSize > ms.Length)
+                            break; // lying package header: stop with what we have
+                        long packEnd = PackChunkPos + PackChunkSize;
 
-                        // skip typestring chunk
-                        ms.Seek(4, SeekOrigin.Current);
-                        ms.Seek(br.ReadInt32() - 8, SeekOrigin.Current); // jump to the end
-                                                                         // skip keystring chunk
-                        ms.Seek(4, SeekOrigin.Current);
-                        ms.Seek(br.ReadInt32() - 8, SeekOrigin.Current); // jump to the end
+                        if (packID != res.PackageID) { // check if the resource is in this pack
+                            // goto next chunk
+                            ms.Seek(packEnd, SeekOrigin.Begin);
+                            continue;
+                        }
+
+                        // skip typestring chunk and keystring chunk
+                        long typeStringsPos = SkipChunk(ms, br, PackChunkPos + headerSize, packEnd);
+                        if (typeStringsPos < 0) return res;
+                        long keyStringsPos = SkipChunk(ms, br, typeStringsPos, packEnd);
+                        if (keyStringsPos < 0) return res;
 
                         // come to typespec chunks and type chunks
                         // typespec and type chunks may happen in a row.
-                        do {
-                            long chunkPos = ms.Position;
+                        long chunkPos = keyStringsPos;
+                        while (chunkPos + 8 <= packEnd) {
+                            ms.Seek(chunkPos, SeekOrigin.Begin);
                             short chunkType = br.ReadInt16();
-                            headerSize = br.ReadInt16();
+                            short chunkHeaderSize = br.ReadInt16();
                             int chunkSize = br.ReadInt32();
-                            byte typeid;
+                            // chunkSize < 8 would make the walk stand still, and a
+                            // chunk crossing the package end would read foreign bytes
+                            if (chunkHeaderSize < 8 || chunkSize < 8 ||
+                                chunkPos + chunkSize > packEnd)
+                                break;
+                            long chunkEnd = chunkPos + chunkSize;
 
-                            if (chunkType == (short)RES_TYPE.RES_TABLE_TYPE_TYPE) {
-                                typeid = br.ReadByte();
+                            if (chunkType == (short)RES_TYPE.RES_TABLE_TYPE_TYPE &&
+                                chunkHeaderSize >= 24) { // 20 fixed bytes + config size
+                                byte typeid = br.ReadByte();
                                 if (typeid == res.TypeID) {
                                     ms.Seek(3, SeekOrigin.Current); // skip 0
                                     int entryCount = br.ReadInt32();
                                     int entryStart = br.ReadInt32();
 
-                                    // read the config section
+                                    // read the config section: 4-byte size prefix + payload
                                     int config_size = br.ReadInt32();
-                                    byte[] conf = br.ReadBytes(config_size - 4);
+                                    int configBytes = config_size - 4;
+                                    // entry counts and the config block drive a seek and
+                                    // an allocation, so both must fit this chunk and the caps
+                                    if (entryCount < 0 || entryCount > MaxResourceEntries ||
+                                        entryStart < 0 || entryStart > chunkSize ||
+                                        configBytes < 0 || config_size > MaxResourceConfigSize ||
+                                        configBytes > chunkEnd - ms.Position ||
+                                        res.EntryID >= (uint)entryCount)
+                                        break;
+                                    byte[] conf = br.ReadBytes(configBytes);
 
-                                    ms.Seek(chunkPos + headerSize + res.EntryID * 4, SeekOrigin.Begin);
-                                    //ms.Seek(EntryID * 4, SeekOrigin.Current); // goto index
+                                    long indexPos = chunkPos + chunkHeaderSize + (long)res.EntryID * 4;
+                                    if (indexPos + 4 > chunkEnd) break;
+                                    ms.Seek(indexPos, SeekOrigin.Begin); // goto index
                                     uint entryIndic = br.ReadUInt32();
-                                    if (entryIndic == 0xffffffff) {
-                                        SeekNextChunk(ms, chunkPos, chunkSize);
-                                        continue; //no entry here, go to next chunk
-                                    }
-                                    ms.Seek(chunkPos + entryStart + entryIndic, SeekOrigin.Begin);
+                                    if (entryIndic != 0xffffffff) { // else no entry here
+                                        long entryPos = chunkPos + entryStart + (long)entryIndic;
+                                        if (entryPos + 16 > chunkEnd) break;
+                                        ms.Seek(entryPos, SeekOrigin.Begin);
 
-                                    // get to the entry
-                                    ms.Seek(11, SeekOrigin.Current); // skip entry size, flags, key, size, 0
-                                    byte dataType = br.ReadByte();
-                                    uint data = br.ReadUInt32();
-                                    if (dataType == (byte)DATA_TYPE.TYPE_STRING) {
-                                        res.Add(conf, QuickSearchStringPool(resources, data));
-                                    } else if (dataType == (byte)DATA_TYPE.TYPE_REFERENCE) {
-                                        // the entry is null, or it's referencing in loop, go to next chunk
-                                        if (data == 0x00000000 || searchstack.Contains(data)) {
-                                            SeekNextChunk(ms, chunkPos, chunkSize);
-                                            continue;
+                                        // get to the entry
+                                        ms.Seek(11, SeekOrigin.Current); // skip entry size, flags, key, size, 0
+                                        byte dataType = br.ReadByte();
+                                        uint data = br.ReadUInt32();
+                                        if (dataType == (byte)DATA_TYPE.TYPE_STRING) {
+                                            res.Add(conf, QuickSearchStringPool(resources, data));
+                                        } else if (dataType == (byte)DATA_TYPE.TYPE_REFERENCE) {
+                                            // the entry is null, or it's referencing in loop, skip it
+                                            if (data != 0x00000000 && !searchstack.Contains(data))
+                                                res.Add(QuickSearchResource((UInt32)data));
+                                        } else { // I would like to expect we only will receive TYPE_STRING/TYPE_REFERENCE/any integer type, complex is not considering here,yet
+                                            res.Add(conf, data.ToString());
                                         }
-                                        res.Add(QuickSearchResource((UInt32)data));
-                                    } else { // I would like to expect we only will receive TYPE_STRING/TYPE_REFERENCE/any integer type, complex is not considering here,yet
-                                        res.Add(conf, data.ToString());
                                     }
                                 }
                             }
-                            SeekNextChunk(ms, chunkPos, chunkSize); // skip this chunk
-                        } while (ms.Position < PackChunkPos + PackChunkSize);
+                            chunkPos = chunkEnd; // chunkSize >= 8 keeps this strictly forward
+                        }
                     }
                 }
-                searchstack.Pop();
                 return res;
+            } catch (Exception ex) when (!(ex is OutOfMemoryException)) {
+                // malformed table: return what was collected (- neither a truncated
+                // value nor a partially parsed key may escape to the shell UI thread)
+                return res;
+            } finally {
+                searchstack.Pop();
             }
         }
 
