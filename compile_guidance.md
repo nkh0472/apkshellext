@@ -65,7 +65,7 @@ Only if github.com is unreachable or too slow, use the githubfast mirror instead
 git clone https://githubfast.com/nkh0472/apkshellext.git E:\src\apkshellext
 ```
 
-## 3. Submodules (5 of them)
+## 3. Submodules (4 of them)
 
 `.gitmodules` points at github.com, so the plain command works whenever the clone
 above was direct:
@@ -81,17 +81,21 @@ rewrite (`-c` keeps the `insteadOf` mapping to this command only):
 git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://github.com/" submodule update --init --recursive --jobs 4
 ```
 
-All five submodules are genuinely compiled into the build:
+All four submodules are genuinely compiled into the build:
 
 | Submodule | Upstream | Notes |
 |---|---|---|
 | `ApkShellext2\SharpZipLib` | icsharpcode/SharpZipLib @ `33f64eb` | glob-compiles `src\ICSharpCode.SharpZipLib\**` (excludes AssemblyInfo/GZip/Lzw/Tar/Core\ExactMemoryPool.cs) |
-| `ApkShellext2\PlistCS` | kkguo/PlistCS @ `0fc69e7` | source-level reference |
 | `ApkShellext2\PNGDecrush` | nkh0472/PNGDecrush @ `e926128` | source-level reference |
 | `ApkShellext2\SVG` | vvvv-github/SVG **v3.5.0** @ `9d564f4` | source-level reference; its **source generator runs automatically** as a compiler analyzer (§5) — no manual step |
 | `ApkShellext2\WebP-wrapper` | JosePineiro/WebP-wrapper @ `79e4234` | source-level reference (runtime additionally needs `LibWebP\libwebp_x86/x64.dll`, committed in-repo — no build needed) |
 
 Notes:
+- **PlistCS is not a submodule any more** — upstream (kkguo/PlistCS @ `0fc69e7`, a fork of
+  animetrics/PlistCS) is unmaintained, so its single source file was absorbed into the tree as
+  `ApkShellext2\PlistCS\PlistCS\Src\Plist.cs` and now carries local hardening (depth/index caps,
+  per-call parser state — see `ApkShellext2\PlistCS\NOTICE.txt`). It no longer needs
+  `git submodule update`.
 - **SharpShell is not a submodule** — its sources (2.7.1) are vendored directly under
   `ApkShellext2\SharpShell\` and compiled by the csproj (minus dead code, §5.1).
 - Building the repo dirties the SVG submodule with `bin\`/`obj\` (the generator project

@@ -1,0 +1,29 @@
+PlistCS - vendored third-party source
+=====================================
+
+Upstream:  https://github.com/kkguo/PlistCS
+Origin:    fork of https://github.com/animetrics/PlistCS (Animetrics Inc., 2011)
+Baseline:  upstream commit 0fc69e7 "Merge pull request #5 from uzzu/suppress-warnings"
+
+This directory used to be a git submodule. Upstream is unmaintained, so the
+source is now kept in-tree and carries local hardening maintained here. Only
+the files the build needs are vendored:
+
+  PlistCS/Src/Plist.cs   the library source (license text in its file header)
+  README.txt             upstream readme, kept for provenance
+
+License: MIT, Copyright (c) 2011 Animetrics Inc. The full license text ships in
+the header of PlistCS/Src/Plist.cs and is reproduced by reference here.
+
+Local modifications (see `git log -- ApkShellext2/PlistCS`):
+  - bound binary plist recursion depth (32) and validate file-declared table
+    indexes and object references against the real data length, so a malformed
+    .bplist raises a catchable PlistFormatException instead of overflowing the
+    stack;
+  - move the binary plist parse state into a per-call reader instance, so
+    concurrent parses (explorer COM handler) no longer share static state;
+  - bound xml plist recursion depth (32) for the same reason.
+
+When updating from upstream, do not copy upstream Plist.cs over this file.
+Re-read `git log -- ApkShellext2/PlistCS/PlistCS/Src/Plist.cs` first: the depth
+and index guards plus the per-call reader must be preserved.

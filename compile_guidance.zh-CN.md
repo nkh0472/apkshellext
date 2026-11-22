@@ -58,7 +58,7 @@ git clone https://github.com/nkh0472/apkshellext.git E:\src\apkshellext
 git clone https://githubfast.com/nkh0472/apkshellext.git E:\src\apkshellext
 ```
 
-## 3. 子模块(5 个)
+## 3. 子模块(4 个)
 
 `.gitmodules` 里写的是 github.com,上面的克隆走直连时,直接:
 
@@ -73,17 +73,19 @@ git -C E:\src\apkshellext submodule update --init --recursive --jobs 4
 git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://github.com/" submodule update --init --recursive --jobs 4
 ```
 
-5 个子模块全部真实参与编译:
+4 个子模块全部真实参与编译:
 
 | 子模块 | 上游 | 说明 |
 |---|---|---|
 | `ApkShellext2\SharpZipLib` | icsharpcode/SharpZipLib @ `33f64eb` | glob 编译 `src\ICSharpCode.SharpZipLib\**`(排除 AssemblyInfo/GZip/Lzw/Tar/Core\ExactMemoryPool.cs) |
-| `ApkShellext2\PlistCS` | kkguo/PlistCS @ `0fc69e7` | 源码级引用 |
 | `ApkShellext2\PNGDecrush` | nkh0472/PNGDecrush @ `e926128` | 源码级引用 |
 | `ApkShellext2\SVG` | vvvv-github/SVG **v3.5.0** @ `9d564f4` | 源码级引用;其**源生成器作为编译器 analyzer 自动运行**(§5),无手工步骤 |
 | `ApkShellext2\WebP-wrapper` | JosePineiro/WebP-wrapper @ `79e4234` | 源码级引用(运行时还需 `LibWebP\libwebp_x86/x64.dll`,已提交在仓库,无需构建) |
 
 注意:
+- **PlistCS 已不是子模块** —— 上游(kkguo/PlistCS @ `0fc69e7`,属 animetrics/PlistCS 的 fork)已无人维护,
+  其唯一源文件收编进仓库为 `ApkShellext2\PlistCS\PlistCS\Src\Plist.cs`,并带有本地加固(深度/索引上限、
+  每次调用独立解析状态,见 `ApkShellext2\PlistCS\NOTICE.txt`),不再需要 `git submodule update`。
 - **SharpShell 不是子模块** —— 其源码(2.7.1)直接 vendored 在 `ApkShellext2\SharpShell\`,
   由 csproj 编译(死代码除外,§5.1)。
 - 编译会把 SVG 子模块弄"脏"(`bin\`/`obj\`,analyzer 工程编译到此)。在子模块内做
