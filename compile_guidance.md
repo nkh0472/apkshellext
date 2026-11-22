@@ -105,7 +105,7 @@ Notes:
 - **SVG is not a submodule any more** — upstream (vvvv-github/SVG **v3.5.0** @ `9d564f4`) was
   absorbed at `ApkShellext2\SVG\Source\` together with its Roslyn generator at
   `SVG\Generators\`; the generator still runs automatically as a compiler analyzer (§5).
-  Provenance, license and the local ExCSS trim are recorded in `ApkShellext2\SVG\NOTICE.txt`;
+  Provenance, license and the local trims (ExCSS, and the unused SVG subtrees) are recorded in `ApkShellext2\SVG\NOTICE.txt`;
   its `bin\`/`obj\` now live inside the repo tree and are covered by the root `.gitignore`.
 
 ## 4. Toolchain and one-time setup

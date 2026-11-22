@@ -10,6 +10,9 @@
 # T-H dropped the ExCSS dependency (2026-11-23, VS route): dll 1,551,360 B,
 # 7z ~926,000 B (archive timestamps vary by a few hundred bytes), tree 3,027,225 B
 # over 31 files (12 manifest + 19 satellites).
+# T-I trimmed the unused SVG vendor subtrees (2026-11-23, VS route): dll 1,356,288 B,
+# 7z ~886,900 B (archive timestamps vary by a few hundred bytes), tree 2,832,153 B
+# over 31 files (12 manifest + 19 satellites).
 # The limits below keep ~5% headroom over that: enough for routine edits, tight
 # enough that a newly bundled dependency trips the gate. Phase 2 targets a <=2.5 MB
 # package, so these limits are meant to be tightened then, never relaxed silently.

@@ -33,6 +33,12 @@ without re-reading that log first. Current local modifications:
   - replaced the inline `style` attribute parser with a small direct
     "name: value; name2: value2" parser (same AddStyle/InlineStyle path as
     before); full CSS syntax is intentionally not supported.
+  - removed the unused rendering subtrees that the product's only SVG
+    producer never exercises: Text\ (text and font rendering), Filter Effects\
+    (every SvgFe* primitive), Extensibility\ (foreignObject) and the raster
+    <image> element (Document Structure\SvgImage*). VectorDrawableToSvg emits
+    paths, groups, gradients and clips only, so rendered output is unchanged.
+    The ExternalType switches stay because ApkQuickReader sets them to None.
 
 When updating from upstream, keep the in-tree path layout (the product csproj
 globs SVG\Source\**\*.cs and project-references SVG\Generators\).

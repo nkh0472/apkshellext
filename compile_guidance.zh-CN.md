@@ -93,7 +93,7 @@ git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://gi
   由 csproj 编译(死代码除外,§5.1)。
 - **SVG 已不是子模块** —— 上游(vvvv-github/SVG **v3.5.0** @ `9d564f4`)收编在
   `ApkShellext2\SVG\Source\`,其 Roslyn 生成器在 `SVG\Generators\`,仍作为编译器
-  analyzer 自动运行(§5)。来源、许可证与本地 ExCSS 裁剪记录在
+  analyzer 自动运行(§5)。来源、许可证与本地裁剪(ExCSS、未使用的 SVG 子树)记录在
   `ApkShellext2\SVG\NOTICE.txt`;其 `bin\`/`obj\` 现在位于仓库树内,由根 `.gitignore` 覆盖。
 
 ## 4. 工具链与一次性准备
