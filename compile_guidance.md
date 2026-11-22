@@ -342,6 +342,21 @@ The whole solution (main + test) also builds in one go on either route:
 `dotnet build ApkShellext2.sln -c Release` / `msbuild ApkShellext2.sln -t:restore` +
 `msbuild ApkShellext2.sln -p:Configuration=Release`.
 
+### Size budget (the CI gate)
+
+```powershell
+& .\eng\check-size.ps1
+```
+
+Exits 1 when `ApkShellext2.dll`, the 7z package or the 32-file deployment tree grows
+past its budget (currently 1,650,000 / 1,100,000 / 3,600,000 B; the v3.5.1 baseline is
+1,573,888 / 1,028,101 / 3,392,793 B). The ~5% headroom lets routine edits pass while a
+newly bundled dependency trips the gate. The tree is counted from the 13 manifest files
+plus the 19 satellites, never from a directory glob, so stray pdb or log files in
+`bin\Release` cannot affect it. The thresholds are parameters (`-MaxDllBytes` …) —
+deliberately lowering one is how you test the gate itself. Phase 2 targets a <=2.5 MB
+package and will tighten these numbers, never relax them.
+
 ## 7. Build the test project
 
 ```powershell

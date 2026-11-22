@@ -123,6 +123,14 @@ jobs:
         run: |
           & .\eng\check-layout.ps1 -Route vs
 
+      # Only the VS route is gated: that tree is what gets packaged and shipped, and
+      # the dotnet route additionally carries System.Resources.Extensions.dll, which
+      # would make the same byte limits meaningless.
+      - name: Check package size
+        shell: pwsh
+        run: |
+          & .\eng\check-size.ps1
+
       - name: Upload build output
         uses: actions/upload-artifact@v4
         with:

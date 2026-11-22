@@ -307,6 +307,19 @@ postbuild 的 7-Zip 定位就是专门做成位宽无关的(坑 14)。VS 18 还�
 `dotnet build ApkShellext2.sln -c Release` / `msbuild ApkShellext2.sln -t:restore` +
 `msbuild ApkShellext2.sln -p:Configuration=Release`。
 
+### 体积门禁(CI 用)
+
+```powershell
+& .\eng\check-size.ps1
+```
+
+`ApkShellext2.dll`、7z 包或 32 文件的部署树超预算时脚本 exit 1(当前阈值
+1,650,000 / 1,100,000 / 3,600,000 B;v3.5.1 基线 1,573,888 / 1,028,101 / 3,392,793 B)。
+约 5% 的余量让日常改动能过,而新打包进来的依赖会被拦下。部署树只按 13 个清单文件 +
+19 个卫星资源集计,不扫目录,所以 `bin\Release` 里多出的 pdb/日志不影响数字。阈值都是参数
+(`-MaxDllBytes` 等)—— 故意调小就是检验门禁本身的办法。阶段 2 目标 ≤2.5 MB,届时只会
+收紧这些数字,不会放宽。
+
 ## 7. 编译测试工程
 
 ```powershell
