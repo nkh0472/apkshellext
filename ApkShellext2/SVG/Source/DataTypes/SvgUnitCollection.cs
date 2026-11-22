@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -94,14 +94,13 @@ namespace Svg
         /// <exception cref="T:System.NotSupportedException">The conversion cannot be performed. </exception>
         public override object ConvertFrom(ITypeDescriptorContext context, CultureInfo culture, object value)
         {
-            return value is not string str ? base.ConvertFrom(context, culture, value) : Parse(str.AsSpan());
+            return value is not string str ? base.ConvertFrom(context, culture, value) : Parse(str);
         }
 
-        public static SvgUnitCollection Parse(ReadOnlySpan<char> points)
+        public static SvgUnitCollection Parse(string points)
         {
             var units = new SvgUnitCollection();
-            var splitChars = SplitChars.AsSpan();
-            var parts = new StringSplitEnumerator(points, splitChars);
+            var parts = new StringSplitEnumerator(points, SplitChars);
 
             foreach (var part in parts)
             {
@@ -122,17 +121,16 @@ namespace Svg
         {
             if (value is string s1)
             {
-                var span = s1.AsSpan();
-                var s = span.Trim();
+                TextSlice s = s1.Trim();
 
-                if (MemoryExtensions.Equals(s, SvgUnitCollection.None.AsSpan(), StringComparison.OrdinalIgnoreCase))
+                if (s.SequenceEqual(SvgUnitCollection.None, StringComparison.OrdinalIgnoreCase))
                 {
                     return new SvgUnitCollection
                     {
                         StringForEmptyValue = SvgUnitCollection.None
                     };
                 }
-                else if (MemoryExtensions.Equals(s, SvgUnitCollection.Inherit.AsSpan(), StringComparison.OrdinalIgnoreCase))
+                else if (s.SequenceEqual(SvgUnitCollection.Inherit, StringComparison.OrdinalIgnoreCase))
                 {
                     return new SvgUnitCollection
                     {
@@ -140,7 +138,7 @@ namespace Svg
                     };
                 }
 
-                return SvgUnitCollectionConverter.Parse(span);
+                return SvgUnitCollectionConverter.Parse(s1);
             }
 
             return base.ConvertFrom(context, culture, value);

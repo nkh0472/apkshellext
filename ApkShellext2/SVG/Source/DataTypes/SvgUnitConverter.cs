@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Globalization;
 using Svg.Helpers;
@@ -7,14 +7,19 @@ namespace Svg
 {
     public sealed class SvgUnitConverter : TypeConverter
     {
-        public static SvgUnit Parse(ReadOnlySpan<char> unit)
+        public static SvgUnit Parse(string unit)
+        {
+            return Parse((TextSlice)unit);
+        }
+
+        internal static SvgUnit Parse(TextSlice unit)
         {
             // http://www.w3.org/TR/CSS21/syndata.html#values
             // http://www.w3.org/TR/SVG11/coords.html#Units
 
             int identifierIndex = -1;
 
-            if (unit.SequenceEqual("none".AsSpan()))
+            if (unit.SequenceEqual("none"))
             {
                 return SvgUnit.None;
             }
@@ -22,37 +27,37 @@ namespace Svg
             // Note: these are ad-hoc values based on a factor of about 1.2 between adjacent values
             // see https://www.w3.org/TR/CSS2/fonts.html#value-def-absolute-size for more information
 
-            if (unit.SequenceEqual("medium".AsSpan()))
+            if (unit.SequenceEqual("medium"))
             {
                 // unit = "1em";
                 return new SvgUnit(SvgUnitType.Em, 1f);
             }
-            if (unit.SequenceEqual("small".AsSpan()))
+            if (unit.SequenceEqual("small"))
             {
                 // unit = "0.8em";
                 return new SvgUnit(SvgUnitType.Em, 0.8f);
             }
-            if (unit.SequenceEqual("x-small".AsSpan()))
+            if (unit.SequenceEqual("x-small"))
             {
                 // unit = "0.7em";
                 return new SvgUnit(SvgUnitType.Em, 0.7f);
             }
-            if (unit.SequenceEqual("xx-small".AsSpan()))
+            if (unit.SequenceEqual("xx-small"))
             {
                 // unit = "0.6em";
                 return new SvgUnit(SvgUnitType.Em, 0.6f);
             }
-            if (unit.SequenceEqual("large".AsSpan()))
+            if (unit.SequenceEqual("large"))
             {
                 // unit = "1.2em";
                 return new SvgUnit(SvgUnitType.Em, 1.2f);
             }
-            if (unit.SequenceEqual("x-large".AsSpan()))
+            if (unit.SequenceEqual("x-large"))
             {
                 // unit = "1.4em";
                 return new SvgUnit(SvgUnitType.Em, 1.4f);
             }
-            if (unit.SequenceEqual("xx-large".AsSpan()))
+            if (unit.SequenceEqual("xx-large"))
             {
                 // unit = "1.7em";
                 return new SvgUnit(SvgUnitType.Em, 1.7f);
@@ -80,31 +85,34 @@ namespace Svg
                 }
             }
 
-            var valSpan = identifierIndex > -1 ? unit.Slice(0, identifierIndex) : unit;
-            var val = StringParser.ToFloat(valSpan);
+            var valSlice = identifierIndex > -1 ? unit.Slice(0, identifierIndex) : unit;
+            var val = StringParser.ToFloat(valSlice);
             if (identifierIndex == -1)
             {
                 return new SvgUnit(val);
             }
 
-            Span<char> typeSpan = stackalloc char[2];
-            var toLowerLength = unit.Slice(identifierIndex).Trim().ToLowerInvariant(typeSpan);
-            if (toLowerLength <= 0 || toLowerLength > 2)
+            // The identifier is lower-cased into a two-character window: anything shorter than
+            // one or longer than two characters is invalid, exactly as the old
+            // span + fixed-size character buffer path reported it.
+            var identifier = unit.Slice(identifierIndex).Trim();
+            if (identifier.Length <= 0 || identifier.Length > 2)
             {
                 throw new FormatException("Unit is in an invalid format '" + unit.ToString() + "'.");
             }
 
-            if (toLowerLength == 1)
+            var char0 = char.ToLowerInvariant(identifier[0]);
+
+            if (identifier.Length == 1)
             {
-                if (typeSpan[0] == '%')
+                if (char0 == '%')
                 {
                     return new SvgUnit(SvgUnitType.Percentage, val);
                 }
             }
             else
             {
-                var char0 = typeSpan[0];
-                var char1 = typeSpan[1];
+                var char1 = char.ToLowerInvariant(identifier[1]);
 
                 // mm
                 if (char0 == 'm' && char1 == 'm')
@@ -170,7 +178,7 @@ namespace Svg
                 throw new ArgumentException("The value argument must be a string.");
             }
 
-            return Parse(unit.AsSpan());
+            return Parse((TextSlice)unit);
         }
 
         public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)

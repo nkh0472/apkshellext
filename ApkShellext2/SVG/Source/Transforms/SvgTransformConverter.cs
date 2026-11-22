@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -68,7 +68,6 @@ namespace Svg.Transforms
             var transformList = new SvgTransformCollection();
             var source = transform.TrimStart();
             var sourceLength = source.Length;
-            var splitChars = SplitChars.AsSpan();
 
             while (true)
             {
@@ -83,7 +82,7 @@ namespace Svg.Transforms
 
                 var transformName = source.Slice(currentIndex, startIndex - currentIndex).Trim().Trim(',').Trim();
                 var contents = source.Slice(startIndex + 1, endIndex - startIndex - 1).Trim();
-                var parts = new StringSplitEnumerator(contents, splitChars);
+                var parts = new StringSplitEnumerator(contents.ToString(), SplitChars);
                 var transformType = GetTransformType(ref transformName);
 
                 switch (transformType)

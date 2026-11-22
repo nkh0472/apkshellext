@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -49,17 +49,16 @@ namespace Svg
         {
             if (value is string str)
             {
-                return Parse(str.AsSpan());
+                return Parse(str);
             }
 
             return base.ConvertFrom(context, culture, value);
         }
 
-        public static SvgNumberCollection Parse(ReadOnlySpan<char> numbers)
+        public static SvgNumberCollection Parse(string numbers)
         {
             var collection = new SvgNumberCollection();
-            var splitChars = SplitChars.AsSpan();
-            var parts = new StringSplitEnumerator(numbers, splitChars);
+            var parts = new StringSplitEnumerator(numbers, SplitChars);
 
             foreach (var part in parts)
             {

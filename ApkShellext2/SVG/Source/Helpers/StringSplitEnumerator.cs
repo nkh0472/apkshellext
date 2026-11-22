@@ -1,13 +1,18 @@
-﻿using System;
+using System;
 
 namespace Svg.Helpers
 {
-    internal ref struct StringSplitEnumerator
+    /// <summary>
+    /// Splits a <see cref="TextSlice"/> on any of the given characters, skipping empty parts.
+    /// Same semantics as the previous span-based implementation (leading, trailing and repeated
+    /// separators produce no empty part), only now it walks a string window.
+    /// </summary>
+    internal struct StringSplitEnumerator
     {
-        private ReadOnlySpan<char> _str;
-        private readonly ReadOnlySpan<char> _chars;
+        private TextSlice _str;
+        private readonly char[] _chars;
 
-        public StringSplitEnumerator(ReadOnlySpan<char> str, ReadOnlySpan<char> chars)
+        public StringSplitEnumerator(TextSlice str, char[] chars)
         {
             _str = str;
             _chars = chars;
@@ -20,23 +25,23 @@ namespace Svg.Helpers
         {
             while (true)
             {
-                var span = _str;
+                var str = _str;
 
-                if (span.Length == 0)
+                if (str.Length == 0)
                 {
                     return false;
                 }
 
-                var index = span.IndexOfAny(_chars);
+                var index = str.IndexOfAny(_chars);
                 if (index == -1)
                 {
-                    Current = new StringPart(span);
-                    _str = ReadOnlySpan<char>.Empty;
+                    Current = new StringPart(str);
+                    _str = default;
                     return true;
                 }
 
-                var slice = span.Slice(0, index);
-                _str = span.Slice(index + 1);
+                var slice = str.Slice(0, index);
+                _str = str.Slice(index + 1);
                 if (slice.Length == 0)
                 {
                     continue;
@@ -49,15 +54,15 @@ namespace Svg.Helpers
         public StringPart Current { get; private set; }
     }
 
-    internal readonly ref struct StringPart
+    internal readonly struct StringPart
     {
-        public StringPart(ReadOnlySpan<char> value)
+        public StringPart(TextSlice value)
         {
             Value = value;
         }
 
-        public ReadOnlySpan<char> Value { get; }
+        public TextSlice Value { get; }
 
-        public static implicit operator ReadOnlySpan<char>(StringPart part) => part.Value;
+        public static implicit operator TextSlice(StringPart part) => part.Value;
     }
 }
