@@ -62,6 +62,11 @@ namespace PlistCS
         // well below ten levels.
         private const int MaxBinaryPlistDepth = 32;
 
+        // the XML reader walks nested <dict>/<array> elements recursively as well;
+        // XmlDocument itself loads arbitrarily deep documents without recursing,
+        // so the stack is only at risk once parse() descends into them
+        private const int MaxXmlPlistDepth = 32;
+
         private static List<int> writeOffsetTable = new List<int>();
         private static List<byte> writeObjectTable = new List<byte>();
         private static int writeRefCount;
@@ -250,7 +255,7 @@ namespace PlistCS
         private static object readXml(XmlDocument xml)
         {
             XmlNode rootNode = xml.DocumentElement.ChildNodes[0];
-            return parse(rootNode);
+            return parse(rootNode, 0);
         }
 
         private static object readBinary(byte[] data)
@@ -258,7 +263,7 @@ namespace PlistCS
             return new BinaryPlistReader(data).Parse();
         }
 
-        private static Dictionary<string, object> parseDictionary(XmlNode node)
+        private static Dictionary<string, object> parseDictionary(XmlNode node, int depth)
         {
             XmlNodeList children = node.ChildNodes;
             if (children.Count % 2 != 0)
@@ -278,7 +283,7 @@ namespace PlistCS
                     throw new ApplicationException("expected a key node");
                 }
 
-                object result = parse(valnode);
+                object result = parse(valnode, depth);
 
                 if (result != null)
                 {
@@ -289,13 +294,13 @@ namespace PlistCS
             return dict;
         }
 
-        private static List<object> parseArray(XmlNode node)
+        private static List<object> parseArray(XmlNode node, int depth)
         {
             List<object> array = new List<object>();
 
             foreach (XmlNode child in node.ChildNodes)
             {
-                object result = parse(child);
+                object result = parse(child, depth);
                 if (result != null)
                 {
                     array.Add(result);
@@ -315,14 +320,19 @@ namespace PlistCS
             writer.WriteEndElement();
         }
 
-        private static object parse(XmlNode node)
+        private static object parse(XmlNode node, int depth)
         {
+            // dict/array elements recurse through parse(); stop before file data
+            // can overflow the stack (real plists stay well below ten levels)
+            if (depth > MaxXmlPlistDepth)
+                throw new PlistFormatException("plist nesting exceeds " + MaxXmlPlistDepth + " levels");
+
             switch (node.Name)
             {
                 case "dict":
-                    return parseDictionary(node);
+                    return parseDictionary(node, depth + 1);
                 case "array":
-                    return parseArray(node);
+                    return parseArray(node, depth + 1);
                 case "string":
                     return node.InnerText;
                 case "integer":
