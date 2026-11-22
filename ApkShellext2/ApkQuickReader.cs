@@ -2102,6 +2102,7 @@ namespace ApkQuickReader
         private const int MaxResourceConfigSize = 1024; // ResTable_config is 64 bytes today
         private const int MaxResourcePackages = 256;    // a real table holds one package
         private const int MaxResourceEntries = 0x10000; // entry offset index is 16 bits
+        private const int MaxResourceRefDepth = 32;     // resource reference chains are shallow
 
         private string QuickSearchStringPool(byte[] bytes, uint id) {
             if (id == 0xffffffff) return "";
@@ -2288,6 +2289,10 @@ namespace ApkQuickReader
         /// <returns>the resource, in string format, if resource id not found, return null value</returns>
         private ApkResource QuickSearchResource(UInt32 id) {
             ApkResource res = new ApkResource(id);
+            // a TYPE_REFERENCE entry may point at another reference, and the chain
+            // length is chosen by the file: stop before it can exhaust the stack
+            if (searchstack.Count >= MaxResourceRefDepth)
+                return res;
             searchstack.Push(id);
             try {
                 if (resources == null || resources.Length < 12)
