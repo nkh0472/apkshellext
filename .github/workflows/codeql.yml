@@ -37,7 +37,7 @@ jobs:
       # the vendored submodules, so the extraction build cannot succeed without
       # them.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
