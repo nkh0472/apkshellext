@@ -238,17 +238,17 @@
          the direct Unsafe 6.0.0 overrides its transitive 4.5.3 (nearest-wins), which is
          exactly what the old HintPath set resolved to. No more manual package fetching. -->
     <PackageReference Include="ExCSS" Version="4.2.3" />
-    <PackageReference Include="System.Memory" Version="4.5.5" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" />
+    <PackageReference Include="System.Memory" Version="4.6.3" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.1.2" />
     <!-- Pinned to 4.5.0 (was 4.4.0): System.Memory 4.5.5 requires >= 4.5.0, so the old
          direct pin failed restore with NU1605 on both toolchains.
          Direct (not just transitive) so BOTH toolchains copy it app-local: inside COM hosts
          (explorer/dllhost) binding only probes app base + GAC, and the facade version the
          compile references is newer than the GAC's 4.0.0.0 -> missing file = vector gradient
          fills silently dropped (the "shield disappears" bug of 3.4.6). -->
-    <PackageReference Include="System.Numerics.Vectors" Version="4.5.0" />
+    <PackageReference Include="System.Numerics.Vectors" Version="4.6.1" />
     <!-- only the coreclr resource path needs it at compile time (see the property above) -->
-    <PackageReference Include="System.Resources.Extensions" Version="6.0.0"
+    <PackageReference Include="System.Resources.Extensions" Version="11.0.0"
                       Condition="'$(GenerateResourceUsePreserializedResources)' == 'true'" />
   </ItemGroup>
 
