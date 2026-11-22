@@ -320,7 +320,11 @@
        target expand at execution time, when everything is known.
        The script exits 0 quickly when 7-Zip is absent; it only packages, never
        copies (the publish layout above is already in $(TargetDir) by then). -->
-  <Target Name="PackageWith7z" AfterTargets="PostBuildEvent">
+  <!-- Skip7zPackage=true is set by tests\ApkShellext2.Tests.csproj (ProjectReference
+       AdditionalProperties) so that `dotnet test` builds the product without
+       repackaging the release archive; the publish routes never set it. -->
+  <Target Name="PackageWith7z" AfterTargets="PostBuildEvent"
+          Condition="'$(Skip7zPackage)' != 'true'">
     <Exec Command="call &quot;$(MSBuildProjectDirectory)\Resources\postbuild.cmd&quot; &quot;$(TargetDir)&quot; &quot;$(MSBuildProjectDirectory)\&quot; $(Configuration)" />
   </Target>
 
