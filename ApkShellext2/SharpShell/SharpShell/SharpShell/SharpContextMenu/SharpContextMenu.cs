@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Policy;
 using System.Text;
@@ -59,6 +60,20 @@ namespace SharpShell.SharpContextMenu
         }
         private int QueryContextMenuCore(IntPtr hMenu, uint indexMenu, int idCmdFirst, int idCmdLast, CMF uFlags)
         {
+            //  Nothing selected: return a failure before the native menu wrapper is touched.
+            //  BuildNativeContextMenu() turns the menu items into native menu items and, for
+            //  an item with an image, goes through PARGB32.CreatePARGB32HBitmap
+            //  (NativeContextMenuWrapper.cs:139). A menu built for an empty selection has no
+            //  item metadata to anchor on and that call faults with an access violation
+            //  (measured: 0xC0000005 on both the pre-T-E and current build). Explorer does not
+            //  call us this way, but an in-tree entry point that can take the host process down
+            //  must not stay reachable until stage 4 replaces this COM layer - so fail fast.
+            if (SelectedItemPaths == null || !SelectedItemPaths.Any())
+            {
+                Log("Query Context Menu skipped: no selected items.");
+                return WinError.E_FAIL;
+            }
+
             //  Log this key event.
             Log(string.Format("Query Context Menu for items: {0}{1}", Environment.NewLine, string.Join(Environment.NewLine, SelectedItemPaths)));
             

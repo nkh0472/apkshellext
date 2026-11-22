@@ -59,6 +59,12 @@ namespace SharpShell
             }
             catch (Exception exception)
             {
+                //  The shell may reuse a cached extension instance, so a failed Initialize must
+                //  not leave the previous batch selected: the menu and the rename/export actions
+                //  would then run against files the user did not pick (a stale-selection bug, not
+                //  just a logging gap). Every downstream entry point tolerates an empty
+                //  selection, so clearing here is the safe state.
+                try { selectedItemPaths.Clear(); } catch { }
                 LogError("An exception ocurred initializing the shell extension.", exception);
             }
         }
