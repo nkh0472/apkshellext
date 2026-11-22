@@ -43,7 +43,15 @@ ApkShellext2\LibWebP\ (libwebp_x86.dll / libwebp_x64.dll) and are committed
 separately.
 
 Local modifications are maintained in this tree; see
-`git log -- ApkShellext2/WebP-wrapper`.
+`git log -- ApkShellext2/WebP-wrapper`. The hardening currently carried here:
+
+  * decoded dimensions are bounded before any Bitmap/LockBits allocation
+    (side <= 4096 and total pixels <= 8 Mpx, otherwise InvalidDataException);
+  * libwebp is preloaded from the assembly's own directory with LoadLibraryW
+    before the bare-name P/Invokes bind, so the installed copy is pinned and a
+    same-named DLL in the current working directory cannot be picked up;
+  * a failed native decode (NULL return) disposes the partially built Bitmap and
+    raises InvalidDataException instead of handing back a half-decoded image.
 
 When updating from upstream, do not copy upstream WebPWrapper.cs over this
 file. Re-read `git log -- ApkShellext2/WebP-wrapper/WebPWrapper.cs` first and

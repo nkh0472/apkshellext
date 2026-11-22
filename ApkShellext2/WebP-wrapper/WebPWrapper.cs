@@ -1,4 +1,4 @@
-﻿/////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Wrapper for WebP format in C#. (MIT) Jose M. Piñeiro
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////// 
 /// Decode Functions:
@@ -34,7 +34,160 @@ namespace WebPWrapper
     public sealed class WebP : IDisposable
     {
         private const int WEBP_MAX_DIMENSION = 16383;
+
+        // Hard limits for a decoded bitmap. WebP headers are attacker-controlled when the
+        // input is an untrusted APK; without a bound, a malformed 100000x100000 canvas makes
+        // the hosting process (explorer.exe) allocate gigabytes before decoding fails.
+        // 4096 px per side and 8 Mpx total cap a 32bpp bitmap at 32 MB.
+        private const int MaxWebPDecodeSide = 4096;
+        private const long MaxWebPDecodePixels = 8L * 1024 * 1024;
+
+        private static readonly object NativeLoadLock = new object();
+        private static volatile bool _nativeLibraryLoaded;
+
         private UnsafeNativeMethods.WebPMemoryWrite _myWriterDelegate;
+
+        public WebP()
+        {
+            EnsureNativeLibraryLoaded();
+        }
+
+        // The libwebp P/Invokes below use bare file names. Windows resolves those through
+        // the loader search path, which includes the current working directory, so any
+        // process that can drop libwebp_x64.dll there could get its DLL loaded into
+        // explorer.exe (DLL hijacking). Loading the copy that ships next to this assembly
+        // by full path first pins the module: later bare-name DllImports bind to the
+        // already-loaded module instead of searching the filesystem.
+        private static void EnsureNativeLibraryLoaded()
+        {
+            if (_nativeLibraryLoaded)
+                return;
+
+            lock (NativeLoadLock)
+            {
+                if (_nativeLibraryLoaded)
+                    return;
+
+                string fileName = IntPtr.Size == 8 ? "libwebp_x64.dll" : "libwebp_x86.dll";
+
+                // AppDomain.CurrentDomain.BaseDirectory is the HOST executable's directory
+                // when this assembly runs as a COM shell extension inside explorer.exe, not
+                // the install directory. The assembly's own location is the directory that
+                // actually contains libwebp_x64/x86.dll; BaseDirectory is only a fallback
+                // for hosts that load the assembly from memory.
+                string assemblyDirectory = null;
+                try
+                {
+                    assemblyDirectory = Path.GetDirectoryName(typeof(WebP).Assembly.Location);
+                }
+                catch (Exception)
+                {
+                    // Assembly.Location can throw for dynamic/in-memory assemblies.
+                }
+                string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+
+                string[] candidates = new[]
+                {
+                    string.IsNullOrEmpty(assemblyDirectory) ? null : Path.Combine(assemblyDirectory, fileName),
+                    string.IsNullOrEmpty(baseDirectory) ? null : Path.Combine(baseDirectory, fileName)
+                };
+
+                string attempted = null;
+                foreach (string candidate in candidates)
+                {
+                    if (candidate == null)
+                        continue;
+                    attempted = attempted == null ? candidate : attempted + "; " + candidate;
+                    if (!File.Exists(candidate))
+                        continue;
+
+                    IntPtr handle = LoadLibraryW(candidate);
+                    if (handle != IntPtr.Zero)
+                    {
+                        _nativeLibraryLoaded = true;
+                        return;
+                    }
+                    int error = Marshal.GetLastWin32Error();
+                    throw new InvalidOperationException(
+                        "Failed to load " + candidate + " (Win32 error " + error + ").");
+                }
+
+                throw new DllNotFoundException(
+                    "Cannot load " + fileName + " from the installation directory. Tried: " +
+                    (attempted ?? "<none>") + ".");
+            }
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr LoadLibraryW(string lpFileName);
+
+        private static void ValidateDecodeSize(int width, int height)
+        {
+            if (width <= 0 || height <= 0 ||
+                width > MaxWebPDecodeSide || height > MaxWebPDecodeSide ||
+                (long)width * height > MaxWebPDecodePixels)
+            {
+                throw new InvalidDataException(
+                    "Refusing to decode WebP image: " + width + "x" + height +
+                    " exceeds the decode limits (side <= " + MaxWebPDecodeSide +
+                    ", total pixels <= " + MaxWebPDecodePixels + ").");
+            }
+        }
+
+        // Read the declared canvas dimensions straight from the container header. Current
+        // libwebp rejects canvases above 16384 anyway, but checking the declaration first
+        // keeps the bound effective if a future decoder accepts larger canvases, and it
+        // lets the error name the declared size instead of a generic bitstream failure.
+        private static void ValidateDeclaredSize(byte[] rawWebP)
+        {
+            if (rawWebP == null || rawWebP.Length < 16)
+                return; // let GetInfo report the malformed input
+
+            if (rawWebP[0] != 'R' || rawWebP[1] != 'I' || rawWebP[2] != 'F' || rawWebP[3] != 'F' ||
+                rawWebP[8] != 'W' || rawWebP[9] != 'E' || rawWebP[10] != 'B' || rawWebP[11] != 'P')
+                return;
+
+            const int firstChunk = 12;
+            int chunkSize = rawWebP[firstChunk + 4] | (rawWebP[firstChunk + 5] << 8) |
+                            (rawWebP[firstChunk + 6] << 16) | (rawWebP[firstChunk + 7] << 24);
+            int payload = firstChunk + 8;
+            if (chunkSize < 0 || payload + chunkSize > rawWebP.Length)
+                return; // truncated; GetInfo reports it
+
+            if (IsChunk(rawWebP, firstChunk, "VP8X"))
+            {
+                if (chunkSize < 10)
+                    return;
+                int width = 1 + (rawWebP[payload + 4] | (rawWebP[payload + 5] << 8) | (rawWebP[payload + 6] << 16));
+                int height = 1 + (rawWebP[payload + 7] | (rawWebP[payload + 8] << 8) | (rawWebP[payload + 9] << 16));
+                ValidateDecodeSize(width, height);
+            }
+            else if (IsChunk(rawWebP, firstChunk, "VP8L"))
+            {
+                if (chunkSize < 5)
+                    return;
+                uint bits = (uint)(rawWebP[payload + 1] | (rawWebP[payload + 2] << 8) |
+                                   (rawWebP[payload + 3] << 16) | (rawWebP[payload + 4] << 24));
+                ValidateDecodeSize(1 + (int)(bits & 0x3FFF), 1 + (int)((bits >> 14) & 0x3FFF));
+            }
+            else if (IsChunk(rawWebP, firstChunk, "VP8 "))
+            {
+                if (chunkSize < 10)
+                    return;
+                // Start code 9d 01 2a, then 14-bit width/height plus 2 scaling bits each.
+                if (rawWebP[payload + 3] != 0x9D || rawWebP[payload + 4] != 0x01 || rawWebP[payload + 5] != 0x2A)
+                    return;
+                int width = (rawWebP[payload + 6] | (rawWebP[payload + 7] << 8)) & 0x3FFF;
+                int height = (rawWebP[payload + 8] | (rawWebP[payload + 9] << 8)) & 0x3FFF;
+                ValidateDecodeSize(width, height);
+            }
+        }
+
+        private static bool IsChunk(byte[] data, int offset, string fourCC)
+        {
+            return data[offset] == fourCC[0] && data[offset + 1] == fourCC[1] &&
+                   data[offset + 2] == fourCC[2] && data[offset + 3] == fourCC[3];
+        }
 
         #region | Public Decode Functions |
         /// <summary>Read a WebP file</summary>
@@ -58,12 +211,16 @@ namespace WebPWrapper
         {
             Bitmap bmp = null;
             BitmapData bmpData = null;
+            bool success = false;
             GCHandle pinnedWebP = GCHandle.Alloc(rawWebP, GCHandleType.Pinned);
 
             try
             {
+                ValidateDeclaredSize(rawWebP);
+
                 //Get image width and height
                 GetInfo(rawWebP, out int imgWidth, out int imgHeight, out bool hasAlpha, out bool hasAnimation, out string format);
+                ValidateDecodeSize(imgWidth, imgHeight);
 
                 //Create a BitmapData and Lock all pixels to be written
                 if (hasAlpha)
@@ -75,11 +232,16 @@ namespace WebPWrapper
                 //Uncompress the image
                 int outputSize = bmpData.Stride * imgHeight;
                 IntPtr ptrData = pinnedWebP.AddrOfPinnedObject();
+                IntPtr decoded;
                 if (bmp.PixelFormat == PixelFormat.Format24bppRgb)
-                     UnsafeNativeMethods.WebPDecodeBGRInto(ptrData, rawWebP.Length, bmpData.Scan0, outputSize, bmpData.Stride);
+                     decoded = UnsafeNativeMethods.WebPDecodeBGRInto(ptrData, rawWebP.Length, bmpData.Scan0, outputSize, bmpData.Stride);
                 else
-                     UnsafeNativeMethods.WebPDecodeBGRAInto(ptrData, rawWebP.Length, bmpData.Scan0, outputSize, bmpData.Stride);
+                     decoded = UnsafeNativeMethods.WebPDecodeBGRAInto(ptrData, rawWebP.Length, bmpData.Scan0, outputSize, bmpData.Stride);
 
+                if (decoded == IntPtr.Zero)
+                    throw new InvalidDataException("libwebp failed to decode the WebP image (decoder returned NULL).");
+
+                success = true;
                 return bmp;
             }
             catch (Exception) { throw; }
@@ -88,6 +250,10 @@ namespace WebPWrapper
                 //Unlock the pixels
                 if (bmpData != null)
                     bmp.UnlockBits(bmpData);
+
+                //Do not hand out a partially decoded bitmap
+                if (!success && bmp != null)
+                    bmp.Dispose();
 
                 //Free memory
                 if (pinnedWebP.IsAllocated)
@@ -104,9 +270,11 @@ namespace WebPWrapper
             GCHandle pinnedWebP = GCHandle.Alloc(rawWebP, GCHandleType.Pinned);
             Bitmap bmp = null;
             BitmapData bmpData = null;
+            bool success = false;
             VP8StatusCode result;
             try
             {
+                ValidateDeclaredSize(rawWebP);
                 WebPDecoderConfig config = new WebPDecoderConfig();
                 if (UnsafeNativeMethods.WebPInitDecoderConfig(ref config) == 0)
                 {
@@ -116,12 +284,16 @@ namespace WebPWrapper
                 IntPtr ptrRawWebP = pinnedWebP.AddrOfPinnedObject();
                 int height;
                 int width;
+                // Always populate config.input: it carries the source dimensions used to
+                // allocate the bitmap and Has_alpha, and must be validated before allocating.
+                // (The use_scaling branch used to leave config.input zeroed.)
+                result = UnsafeNativeMethods.WebPGetFeatures(ptrRawWebP, rawWebP.Length, ref config.input);
+                if (result != VP8StatusCode.VP8_STATUS_OK)
+                    throw new Exception("Failed WebPGetFeatures with error " + result);
+                ValidateDecodeSize(config.input.Width, config.input.Height);
+
                 if (options.use_scaling == 0)
                 {
-                    result = UnsafeNativeMethods.WebPGetFeatures(ptrRawWebP, rawWebP.Length, ref config.input);
-                    if (result != VP8StatusCode.VP8_STATUS_OK)
-                        throw new Exception("Failed WebPGetFeatures with error " + result);
-
                     //Test cropping values
                     if (options.use_cropping == 1)
                     {
@@ -181,14 +353,20 @@ namespace WebPWrapper
                 }
                 UnsafeNativeMethods.WebPFreeDecBuffer(ref config.output);
 
+                success = true;
                 return bmp;
             }
+            catch (InvalidDataException) { throw; }
             catch (Exception ex) { throw new Exception(ex.Message + "\r\nIn WebP.Decode"); }
             finally
             {
                 //Unlock the pixels
                 if (bmpData != null)
                     bmp.UnlockBits(bmpData);
+
+                //Do not hand out a partially decoded bitmap
+                if (!success && bmp != null)
+                    bmp.Dispose();
 
                 //Free memory
                 if (pinnedWebP.IsAllocated)
@@ -1155,18 +1333,15 @@ namespace WebPWrapper
         /// <param name="output_buffer">Pointer to decoded WebP image</param>
         /// <param name="output_buffer_size">Size of allocated buffer</param>
         /// <param name="output_stride">Specifies the distance between scan lines</param>
-        internal static void WebPDecodeBGRInto(IntPtr data, int data_size, IntPtr output_buffer, int output_buffer_size, int output_stride)
+        /// <returns>Pointer to the last decoded row, or IntPtr.Zero on error</returns>
+        internal static IntPtr WebPDecodeBGRInto(IntPtr data, int data_size, IntPtr output_buffer, int output_buffer_size, int output_stride)
         {
             switch (IntPtr.Size)
             {
                 case 4:
-                    if (WebPDecodeBGRInto_x86(data, (UIntPtr)data_size, output_buffer, output_buffer_size, output_stride) == null)
-                        throw new InvalidOperationException("Can not decode WebP");
-                    break;
+                    return WebPDecodeBGRInto_x86(data, (UIntPtr)data_size, output_buffer, output_buffer_size, output_stride);
                 case 8:
-                    if (WebPDecodeBGRInto_x64(data, (UIntPtr)data_size, output_buffer, output_buffer_size, output_stride) == null)
-                        throw new InvalidOperationException("Can not decode WebP");
-                    break;
+                    return WebPDecodeBGRInto_x64(data, (UIntPtr)data_size, output_buffer, output_buffer_size, output_stride);
                 default:
                     throw new InvalidOperationException("Invalid platform. Can not find proper function");
             }
@@ -1182,18 +1357,15 @@ namespace WebPWrapper
         /// <param name="output_buffer">Pointer to decoded WebP image</param>
         /// <param name="output_buffer_size">Size of allocated buffer</param>
         /// <param name="output_stride">Specifies the distance between scan lines</param>
-        internal static void WebPDecodeBGRAInto(IntPtr data, int data_size, IntPtr output_buffer, int output_buffer_size, int output_stride)
+        /// <returns>Pointer to the last decoded row, or IntPtr.Zero on error</returns>
+        internal static IntPtr WebPDecodeBGRAInto(IntPtr data, int data_size, IntPtr output_buffer, int output_buffer_size, int output_stride)
         {
             switch (IntPtr.Size)
             {
                 case 4:
-                    if (WebPDecodeBGRAInto_x86(data, (UIntPtr)data_size, output_buffer, output_buffer_size, output_stride) == null)
-                        throw new InvalidOperationException("Can not decode WebP"); 
-                    break;
+                    return WebPDecodeBGRAInto_x86(data, (UIntPtr)data_size, output_buffer, output_buffer_size, output_stride);
                 case 8:
-                    if (WebPDecodeBGRAInto_x64(data, (UIntPtr)data_size, output_buffer, output_buffer_size, output_stride) == null)
-                        throw new InvalidOperationException("Can not decode WebP");
-                    break;
+                    return WebPDecodeBGRAInto_x64(data, (UIntPtr)data_size, output_buffer, output_buffer_size, output_stride);
                 default:
                     throw new InvalidOperationException("Invalid platform. Can not find proper function");
             }
