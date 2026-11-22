@@ -58,7 +58,7 @@ git clone https://github.com/nkh0472/apkshellext.git E:\src\apkshellext
 git clone https://githubfast.com/nkh0472/apkshellext.git E:\src\apkshellext
 ```
 
-## 3. 子模块(4 个)
+## 3. 子模块(3 个)
 
 `.gitmodules` 里写的是 github.com,上面的克隆走直连时,直接:
 
@@ -73,19 +73,23 @@ git -C E:\src\apkshellext submodule update --init --recursive --jobs 4
 git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://github.com/" submodule update --init --recursive --jobs 4
 ```
 
-4 个子模块全部真实参与编译:
+3 个子模块全部真实参与编译:
 
 | 子模块 | 上游 | 说明 |
 |---|---|---|
 | `ApkShellext2\SharpZipLib` | icsharpcode/SharpZipLib @ `33f64eb` | glob 编译 `src\ICSharpCode.SharpZipLib\**`(排除 AssemblyInfo/GZip/Lzw/Tar/Core\ExactMemoryPool.cs) |
 | `ApkShellext2\PNGDecrush` | nkh0472/PNGDecrush @ `e926128` | 源码级引用 |
 | `ApkShellext2\SVG` | vvvv-github/SVG **v3.5.0** @ `9d564f4` | 源码级引用;其**源生成器作为编译器 analyzer 自动运行**(§5),无手工步骤 |
-| `ApkShellext2\WebP-wrapper` | JosePineiro/WebP-wrapper @ `79e4234` | 源码级引用(运行时还需 `LibWebP\libwebp_x86/x64.dll`,已提交在仓库,无需构建) |
 
 注意:
 - **PlistCS 已不是子模块** —— 上游(kkguo/PlistCS @ `0fc69e7`,属 animetrics/PlistCS 的 fork)已无人维护,
   其唯一源文件收编进仓库为 `ApkShellext2\PlistCS\PlistCS\Src\Plist.cs`,并带有本地加固(深度/索引上限、
   每次调用独立解析状态,见 `ApkShellext2\PlistCS\NOTICE.txt`),不再需要 `git submodule update`。
+- **WebP-wrapper 已不是子模块** —— 上游(JosePineiro/WebP-wrapper @ `79e4234`)只保留一个
+  收编文件 `ApkShellext2\WebP-wrapper\WebPWrapper.cs`(MIT,来源与许可见
+  `ApkShellext2\WebP-wrapper\NOTICE.txt`),因为本仓库在该文件里带有本地加固(解码尺寸上限、
+  从安装目录预加载原生库)。不再需要 `git submodule update`;运行时仍需仓库内已提交的
+  `LibWebP\libwebp_x86/x64.dll`。
 - **SharpShell 不是子模块** —— 其源码(2.7.1)直接 vendored 在 `ApkShellext2\SharpShell\`,
   由 csproj 编译(死代码除外,§5.1)。
 - 编译会把 SVG 子模块弄"脏"(`bin\`/`obj\`,analyzer 工程编译到此)。在子模块内做
@@ -168,7 +172,7 @@ winget install 7zip.7zip
 
 ### 4.5 LibWebP 原生依赖(可选重建)
 
-WebP 支持是原生代码。`WebPWrapper.cs`(来自 `WebP-wrapper` 子模块,直接编进主工程)
+WebP 支持是原生代码。`ApkShellext2\WebP-wrapper\WebPWrapper.cs`(已收编进仓库,直接编进主工程)
 P/Invoke 的 DLL 名 **`libwebp_x86.dll` / `libwebp_x64.dll`** 硬编码在其 `[DllImport]`
 特性里,运行时按 `switch (IntPtr.Size)` 二选一。外壳扩展寄宿在宿主进程内运行:64 位
 `explorer.exe` 加载 x64 DLL,32 位宿主进程(32 位文件对话框、老应用)加载 x86 那个。
@@ -217,9 +221,9 @@ libwebp,因为官方 Windows 构建会额外要求一个 `libsharpyuv.dll`,而�
   `build\libwebp\README.md`。
 - **文件名是硬约束。** 重建产物就是覆盖 `ApkShellext2\LibWebP\` 下的
   `libwebp_x86.dll` / `libwebp_x64.dll` 两个文件 —— wrapper 里的 P/Invoke 名是硬编码的。
-- `WebP-wrapper` 子模块自带的 `BUILDING.md` / `Compile dll.txt` 是上游老口径(nmake +
+- 上游 WebP-wrapper 自带的 `BUILDING.md` / `Compile dll.txt`(未收编)是上游老口径(nmake +
   `Makefile.vc`,钉在 libwebp 1.2.1,那还没有 libsharpyuv)。该口径与本仓库实际发布方式
-  不一致;把它们当子模块自己的说明看,重建一律以 `build\libwebp\` 为准。
+  不一致;重建一律以 `build\libwebp\` 为准。
 
 ## 5. 本检出相对上游的改动(现代化)
 

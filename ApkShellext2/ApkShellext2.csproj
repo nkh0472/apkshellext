@@ -97,7 +97,7 @@
     <!-- small vendored sources, pinned files -->
     <Compile Include="PlistCS\PlistCS\Src\Plist.cs" />
     <Compile Include="PNGDecrush\PNGDecrush\*.cs" />
-    <Compile Include="WebP-wrapper\WebPTest\WebPWrapper.cs" />
+    <Compile Include="WebP-wrapper\WebPWrapper.cs" />
 
     <!-- Svg 3.5.0 (v3.5.0 tag, source-embedded). Generated\ is the legacy pregen output
          folder - always excluded now that Svg.Generators runs as an analyzer below. -->

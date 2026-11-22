@@ -65,7 +65,7 @@ Only if github.com is unreachable or too slow, use the githubfast mirror instead
 git clone https://githubfast.com/nkh0472/apkshellext.git E:\src\apkshellext
 ```
 
-## 3. Submodules (4 of them)
+## 3. Submodules (3 of them)
 
 `.gitmodules` points at github.com, so the plain command works whenever the clone
 above was direct:
@@ -81,14 +81,13 @@ rewrite (`-c` keeps the `insteadOf` mapping to this command only):
 git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://github.com/" submodule update --init --recursive --jobs 4
 ```
 
-All four submodules are genuinely compiled into the build:
+All three submodules are genuinely compiled into the build:
 
 | Submodule | Upstream | Notes |
 |---|---|---|
 | `ApkShellext2\SharpZipLib` | icsharpcode/SharpZipLib @ `33f64eb` | glob-compiles `src\ICSharpCode.SharpZipLib\**` (excludes AssemblyInfo/GZip/Lzw/Tar/Core\ExactMemoryPool.cs) |
 | `ApkShellext2\PNGDecrush` | nkh0472/PNGDecrush @ `e926128` | source-level reference |
 | `ApkShellext2\SVG` | vvvv-github/SVG **v3.5.0** @ `9d564f4` | source-level reference; its **source generator runs automatically** as a compiler analyzer (§5) — no manual step |
-| `ApkShellext2\WebP-wrapper` | JosePineiro/WebP-wrapper @ `79e4234` | source-level reference (runtime additionally needs `LibWebP\libwebp_x86/x64.dll`, committed in-repo — no build needed) |
 
 Notes:
 - **PlistCS is not a submodule any more** — upstream (kkguo/PlistCS @ `0fc69e7`, a fork of
@@ -96,6 +95,12 @@ Notes:
   `ApkShellext2\PlistCS\PlistCS\Src\Plist.cs` and now carries local hardening (depth/index caps,
   per-call parser state — see `ApkShellext2\PlistCS\NOTICE.txt`). It no longer needs
   `git submodule update`.
+- **WebP-wrapper is not a submodule any more** — upstream (JosePineiro/WebP-wrapper @
+  `79e4234`) is kept as a single vendored file, `ApkShellext2\WebP-wrapper\WebPWrapper.cs`
+  (MIT, provenance and license in `ApkShellext2\WebP-wrapper\NOTICE.txt`), because this repo
+  carries local hardening in it (decode-size bound, install-directory native-library preload).
+  It no longer needs `git submodule update`; runtime still needs the committed
+  `LibWebP\libwebp_x86/x64.dll` files.
 - **SharpShell is not a submodule** — its sources (2.7.1) are vendored directly under
   `ApkShellext2\SharpShell\` and compiled by the csproj (minus dead code, §5.1).
 - Building the repo dirties the SVG submodule with `bin\`/`obj\` (the generator project
@@ -183,8 +188,8 @@ versions; do not rely on that — check the folder exists.
 
 ### 4.5 LibWebP native dependency (optional rebuild)
 
-WebP support is native code. `WebPWrapper.cs` (from the `WebP-wrapper` submodule, compiled
-straight into the main assembly) P/Invokes the DLL names **`libwebp_x86.dll` /
+WebP support is native code. `ApkShellext2\WebP-wrapper\WebPWrapper.cs` (vendored in-tree,
+compiled straight into the main assembly) P/Invokes the DLL names **`libwebp_x86.dll` /
 `libwebp_x64.dll`** — hard-coded in its `[DllImport]` attributes — and picks between them
 at runtime with `switch (IntPtr.Size)`. The shell extension runs in-process inside its
 host: 64-bit `explorer.exe` loads the x64 DLL, a 32-bit host process (32-bit file dialogs,
@@ -241,10 +246,10 @@ What matters in practice:
 - **File names are load-bearing.** A rebuild overwrites the two files in
   `ApkShellext2\LibWebP\` as `libwebp_x86.dll` / `libwebp_x64.dll` — the P/Invoke names in
   the wrapper are hard-coded.
-- The `WebP-wrapper` submodule's own docs (`BUILDING.md`, `Compile dll.txt`) give the
-  upstream recipe — nmake + `Makefile.vc`, pinned to libwebp 1.2.1, which predates
-  libsharpyuv entirely. That recipe does not match what this repo ships; treat those files
-  as the submodule's own notes and use `build\libwebp\` for rebuilds.
+- The upstream WebP-wrapper docs (`BUILDING.md`, `Compile dll.txt`, not vendored here) give
+  the upstream recipe — nmake + `Makefile.vc`, pinned to libwebp 1.2.1, which predates
+  libsharpyuv entirely. That recipe does not match what this repo ships; use
+  `build\libwebp\` for rebuilds.
 
 ## 5. What this checkout changed vs. upstream (the modernization)
 
