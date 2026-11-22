@@ -28,7 +28,12 @@ namespace ApkShellext2.Diagnostics {
     /// - A single line is capped at 4 KiB (UTF-8) so a huge stack/message cannot fill the file.
     /// - Never throws. A log that breaks the shell is worse than no log at all, so every
     ///   failure path here degrades to silently dropping the entry.
-    /// - Process-wide lock + AppendAllText: concurrent handler threads never interleave a line.
+    /// - Shared by several host processes (explorer.exe runs the menu and the icon handler,
+    ///   dllhost.exe / thumbnail hosts run the preview handlers), and they can be hammering
+    ///   the same file at the same moment. Writes therefore open with FileShare.ReadWrite and
+    ///   re-read the real length under the lock instead of trusting a cached per-process size;
+    ///   a sharing violation is retried once and then dropped.
+    /// - Process-wide lock: concurrent handler threads in one process never interleave a line.
     /// </summary>
     internal static class ErrorLog {
         private const int MaxLogBytes = 1024 * 1024;
@@ -42,6 +47,7 @@ namespace ApkShellext2.Diagnostics {
         private static readonly string _pid;
         private static readonly string _version;
         private static long _size = -1;
+        private static readonly Mutex _crossProcessLock = CreateCrossProcessLock();
         private static int _hooksInstalled;
 
         static ErrorLog() {
@@ -121,14 +127,60 @@ namespace ApkShellext2.Diagnostics {
             try {
                 if (_logPath.Length == 0) return;
                 string line = Format(level, module, message, ex) + "\r\n";
-                int bytes = _utf8.GetByteCount(line);
+                byte[] bytes = _utf8.GetBytes(line);
                 lock (_writeLock) {
-                    if (_size < 0) _size = CurrentSize();
-                    if (_size > 0 && _size + bytes > MaxLogBytes) Rotate();
-                    File.AppendAllText(_logPath, line, _utf8);
-                    _size += bytes;
+                    // Append mode alone is not an atomic append: two processes opening the file
+                    // both position their handle at the current end of file and the second write
+                    // overwrites the first (measured: 2 x 2000 lines with FileShare.ReadWrite but
+                    // no cross-process lock left only 3574 of 4000 lines in the file). The shell
+                    // runs us in explorer.exe, dllhost.exe and the thumbnail hosts at once, so a
+                    // session-local named mutex serialises the whole read-size/rotate/append
+                    // sequence. If the mutex cannot be taken the write still happens, just
+                    // unprotected - a lost entry is acceptable, a hang is not.
+                    bool owns = false;
+                    try {
+                        owns = WaitCrossProcessLock();
+                        // Another process may have appended since our last write, so the cached
+                        // _size is not trustworthy: re-read it while holding the lock.
+                        _size = CurrentSize();
+                        if (_size > 0 && _size + bytes.Length > MaxLogBytes) Rotate();
+                        if (!Append(bytes)) {
+                            // Most likely File.Move/append raced with another process' rotation.
+                            // A short back-off is enough to land on the fresh file; then give up
+                            // quietly, the shell is never allowed to see a logging failure.
+                            try { Thread.Sleep(50); } catch { }
+                            if (!Append(bytes)) return;
+                        }
+                        _size += bytes.Length;
+                    } finally {
+                        if (owns) {
+                            try { _crossProcessLock.ReleaseMutex(); } catch { }
+                        }
+                    }
                 }
             } catch { }
+        }
+
+        private static bool WaitCrossProcessLock() {
+            if (_crossProcessLock == null) return false;
+            try {
+                // An abandoned mutex means its owner died mid-write (explorer can die); the file
+                // may then hold a partial line, but taking ownership is still correct.
+                return _crossProcessLock.WaitOne(2000);
+            } catch (AbandonedMutexException) {
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        private static bool Append(byte[] bytes) {
+            try {
+                using (FileStream fs = new FileStream(_logPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite)) {
+                    fs.Write(bytes, 0, bytes.Length);
+                }
+                return true;
+            } catch { return false; }
         }
 
         private static long CurrentSize() {
@@ -141,7 +193,17 @@ namespace ApkShellext2.Diagnostics {
         private static void Rotate() {
             try { if (File.Exists(_rotatedPath)) File.Delete(_rotatedPath); } catch { }
             try { if (File.Exists(_logPath)) File.Move(_logPath, _rotatedPath); } catch { }
-            _size = 0;
+            // Do not assume the move worked: if another process holds the file open (or moved it
+            // first) the current file is still there and must keep counting towards its cap.
+            _size = CurrentSize();
+        }
+
+        private static Mutex CreateCrossProcessLock() {
+            try {
+                // Local\ is session-scoped, which covers explorer.exe + dllhost.exe of one user;
+                // a Global\ name would need SeCreateGlobalPrivilege and can fail for a plain user.
+                return new Mutex(false, @"Local\ApkShellext2.ErrorLog.Write");
+            } catch { return null; }
         }
 
         private static string Format(string level, string module, string message, Exception ex) {
@@ -216,3 +278,4 @@ namespace ApkShellext2.Diagnostics {
         }
     }
 }
+
