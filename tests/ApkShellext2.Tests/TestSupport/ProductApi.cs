@@ -95,6 +95,38 @@ namespace ApkShellext2.Tests
         }
 
         /// <summary>
+        /// Opens with an explicit cumulative read budget instead of the shipped
+        /// MaxTotalReadBytes, so the budget path can be driven with a few kilobytes.
+        /// Production readers never call this overload: they go through Open, which
+        /// passes the 1 GiB constant.
+        /// </summary>
+        public static ArchiveHandle OpenArchiveWithBudget(byte[] bytes, long maxTotalReadBytes)
+        {
+            return OpenArchiveWithBudget(
+                new MemoryStream(bytes, 0, bytes.Length, false, false), maxTotalReadBytes);
+        }
+
+        public static ArchiveHandle OpenArchiveWithBudget(Stream stream, long maxTotalReadBytes)
+        {
+            ConstructorInfo ctor = SafeArchiveType.GetConstructor(
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null,
+                new[] { typeof(Stream), typeof(long) },
+                null);
+            Assert.That(ctor, Is.Not.Null,
+                "ApkQuickReader.SafeArchive(Stream, long) was not found; update TestSupport/ProductApi.cs.");
+            try
+            {
+                return new ArchiveHandle(ctor.Invoke(new object[] { stream, maxTotalReadBytes }));
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw; // unreachable: Throw() always rethrows
+            }
+        }
+
+        /// <summary>
         /// A disposable handle around one internal SafeArchive instance. Every member goes
         /// through the reflection helpers above, so a renamed guard fails with a clear
         /// message instead of a compile error, and the product surface stays internal.
