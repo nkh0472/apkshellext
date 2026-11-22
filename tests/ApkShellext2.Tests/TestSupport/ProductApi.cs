@@ -245,5 +245,170 @@ namespace ApkShellext2.Tests
                 throw; // unreachable: Throw() always rethrows
             }
         }
+
+        // ------------------------------------------------------------------
+        // Shared binary format parsers (stage 3 T-N).
+        //
+        // AxmlParser and ArscParser are internal, and they are the only place where the
+        // stage 0 resource-table caps and the B4 icon lookup rules live. The fixtures
+        // under tests/ApkShellext2.Tests/fixtures are real byte ranges cut out of a real
+        // apk (see X:\apks-tn\fixtures\make-fixtures.ps1 for the offsets); the tests
+        // drive the shipped parsers over those bytes.
+        // ------------------------------------------------------------------
+
+        private static Type AxmlParserType
+        {
+            get { return RequireType("ApkQuickReader.AxmlParser"); }
+        }
+
+        private static Type ArscParserType
+        {
+            get { return RequireType("ApkQuickReader.ArscParser"); }
+        }
+
+        private static Type ApkResourceType
+        {
+            get { return RequireType("ApkQuickReader.ApkResource"); }
+        }
+
+        /// <summary>
+        /// Creates the parser the way ApkReader.createImage does: the resource table may be
+        /// null (an .aab carries no resources.arsc, so referenced attributes stay numeric).
+        /// densityRequested/ignoreXmlDensity are fixed to the shipping icon defaults here so
+        /// a test asserts on the same config filter the shell uses.
+        /// </summary>
+        public static object NewAxmlParser(byte[] table, bool resolveReferences)
+        {
+            ConstructorInfo ctor = AxmlParserType.GetConstructor(
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null,
+                new[] { typeof(byte[]), typeof(bool), typeof(bool), typeof(bool), typeof(Action<string>) },
+                null);
+            Assert.That(
+                ctor,
+                Is.Not.Null,
+                "ApkQuickReader.AxmlParser(byte[], bool, bool, bool, Action<string>) was not found; " +
+                "update TestSupport/ProductApi.cs together with the parser so the regression stays pinned.");
+            try
+            {
+                return ctor.Invoke(new object[] { table, resolveReferences, false, false, (Action<string>)(_ => { }) });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw; // unreachable: Throw() always rethrows
+            }
+        }
+
+        /// <summary>The ArscParser an AxmlParser resolves references through.</summary>
+        public static object ArscOf(object axmlParser)
+        {
+            FieldInfo field = AxmlParserType.GetField("arsc", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, "ApkQuickReader.AxmlParser.arsc was not found; update TestSupport/ProductApi.cs.");
+            return field.GetValue(axmlParser);
+        }
+
+        /// <summary>QuickSearchCompressedXml(xml, xpath, attribute, preferLocale): the rendered attribute value.</summary>
+        public static string AxmlAttribute(object parser, byte[] xml, string xpath, string attribute)
+        {
+            return (string)InvokeInstance(parser, "QuickSearchCompressedXml", xml, xpath, attribute, false);
+        }
+
+        public static string AxmlStringPool(object parser, byte[] bytes, uint id)
+        {
+            return (string)InvokeInstance(parser, "QuickSearchStringPool", bytes, id);
+        }
+
+        public static string AxmlResourceMap(object parser, byte[] bytes, uint id)
+        {
+            return (string)InvokeInstance(parser, "QuickSearchCompressedXMlResMap", bytes, id);
+        }
+
+        public static string AxmlStringPoolOrResourceMap(object parser, byte[] bytes, uint id)
+        {
+            return (string)InvokeInstance(parser, "QuickSearchCompressedXmlStringPoolAndResMap", bytes, id);
+        }
+
+        public static System.Xml.XmlDocument AxmlExtract(object parser, byte[] xml)
+        {
+            return (System.Xml.XmlDocument)InvokeInstance(parser, "ExtractCompressedXml", xml);
+        }
+
+        /// <summary>ResolveIconValue(value, referenceId): the B4 icon lookup chain (rules 1, 3, 4, 5).</summary>
+        public static string AxmlResolveIconValue(object parser, string value, uint referenceId)
+        {
+            return (string)InvokeInstance(parser, "ResolveIconValue", value, referenceId);
+        }
+
+        /// <summary>FindResourceId(typeName, entryName): name lookup across packages, smallest id wins.</summary>
+        public static uint ArscFindResourceId(object arsc, string typeName, string entryName)
+        {
+            return (uint)InvokeInstance(arsc, "FindResourceId", typeName, entryName);
+        }
+
+        /// <summary>QuickSearchResource(id): the resolved configs/values, following references.</summary>
+        public static object ArscQuickSearchResource(object arsc, uint id)
+        {
+            return InvokeInstance(arsc, "QuickSearchResource", id);
+        }
+
+        public static uint ResourceCount(object resource)
+        {
+            return (uint)GetInstanceProperty(resource, "Count");
+        }
+
+        public static string ResourceValue(object resource, int index)
+        {
+            // ApkResource exposes "values" as a public *field*, not a property; List<object>
+            // exposes its indexer as "Item".
+            FieldInfo valuesField = resource.GetType().GetField("values", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(valuesField, Is.Not.Null, resource.GetType().Name + ".values was not found; update TestSupport/ProductApi.cs.");
+            object values = valuesField.GetValue(resource);
+            PropertyInfo item = values.GetType().GetProperty("Item", BindingFlags.Instance | BindingFlags.Public);
+            Assert.That(item, Is.Not.Null, values.GetType().Name + ".Item was not found; update TestSupport/ProductApi.cs.");
+            return (string)item.GetValue(values, new object[] { index });
+        }
+
+        /// <summary>Reads one of the stage 0 caps (MaxResourceConfigSize, MaxResourcePackages, ...).</summary>
+        public static long ArscConstant(string name)
+        {
+            FieldInfo field = ArscParserType.GetField(name, StaticAnyVisibility);
+            Assert.That(field, Is.Not.Null, "ApkQuickReader.ArscParser." + name + " was not found; update TestSupport/ProductApi.cs.");
+            return Convert.ToInt64(field.GetRawConstantValue());
+        }
+
+        private static PropertyInfo RequireInstanceProperty(object instance, string name)
+        {
+            PropertyInfo property = instance.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(
+                property,
+                Is.Not.Null,
+                instance.GetType().Name + "." + name + " was not found; update TestSupport/ProductApi.cs.");
+            return property;
+        }
+
+        private static object GetInstanceProperty(object instance, string name)
+        {
+            return RequireInstanceProperty(instance, name).GetValue(instance, null);
+        }
+
+        private static object InvokeInstance(object instance, string name, params object[] arguments)
+        {
+            MethodInfo method = instance.GetType().GetMethod(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            Assert.That(
+                method,
+                Is.Not.Null,
+                instance.GetType().Name + "." + name + " was not found. The parser was renamed or moved; " +
+                "update TestSupport/ProductApi.cs together with the parser so the regression stays pinned.");
+            try
+            {
+                return method.Invoke(instance, arguments);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw; // unreachable: Throw() always rethrows
+            }
+        }
     }
 }
