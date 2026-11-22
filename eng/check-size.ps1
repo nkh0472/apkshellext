@@ -1,5 +1,5 @@
 # Size gate for the publish artifacts. The repository bundles native and managed
-# dependencies (LibWebP, SharpZipLib, System.Memory, ...), so a stray reference shows
+# dependencies (LibWebP, System.Memory, ...), so a stray reference shows
 # up as package growth long before anyone notices it in Explorer - a hard byte limit
 # is the only cheap way to catch that in CI.
 #
@@ -13,6 +13,12 @@
 # T-I trimmed the unused SVG vendor subtrees (2026-11-23, VS route): dll 1,356,288 B,
 # 7z ~886,900 B (archive timestamps vary by a few hundred bytes), tree 2,832,153 B
 # over 31 files (12 manifest + 19 satellites).
+# T-J replaced the source-embedded SharpZipLib with System.IO.Compression and dropped
+# the submodule (2026-11-23, VS route): dll 1,165,824 B, 7z ~826,400 B (archive
+# timestamps vary by a few hundred bytes), tree 2,641,689 B over 31 files (12 manifest
+# + 19 satellites). That is 192,000 B below T-I: the zip container reader now comes from
+# the framework, and the only replacement code is the capped reader layer in ZipSafety.cs
+# plus a small zlib/CRC-32 shim for the pinned PNGDecrush source.
 # The limits below keep ~5% headroom over that: enough for routine edits, tight
 # enough that a newly bundled dependency trips the gate. Phase 2 targets a <=2.5 MB
 # package, so these limits are meant to be tightened then, never relaxed silently.

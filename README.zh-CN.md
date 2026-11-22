@@ -85,7 +85,6 @@
 | [SharpShell](https://github.com/dwmkerr/sharpshell) | 外壳扩展框架 |
 | [libwebp](https://chromium.googlesource.com/webm/libwebp) | WebP 编解码（1.6.0，源码构建） |
 | [WebP-wrapper](https://github.com/JosePineiro/WebP-wrapper) | WebP C# 绑定 |
-| [SharpZipLib](https://github.com/icsharpcode/SharpZipLib) | Zip 归档访问 |
 | [SVG](https://github.com/vvvv/SVG) | SVG / 矢量 drawable 渲染 |
 | [PlistCS](https://github.com/animetrics/PlistCS) | iOS plist 读取 |
 | [PNGDecrush](https://github.com/MikeWeller/PNGDecrush) | PNG zlib 重编码 |

@@ -81,11 +81,10 @@ rewrite (`-c` keeps the `insteadOf` mapping to this command only):
 git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://github.com/" submodule update --init --recursive --jobs 4
 ```
 
-Both submodules are genuinely compiled into the build:
+Only one submodule is left, and it is genuinely compiled into the build:
 
 | Submodule | Upstream | Notes |
 |---|---|---|
-| `ApkShellext2\SharpZipLib` | icsharpcode/SharpZipLib @ `33f64eb` | glob-compiles `src\ICSharpCode.SharpZipLib\**` (excludes AssemblyInfo/GZip/Lzw/Tar/Core\ExactMemoryPool.cs) |
 | `ApkShellext2\PNGDecrush` | nkh0472/PNGDecrush @ `e926128` | source-level reference |
 
 Notes:
@@ -100,6 +99,14 @@ Notes:
   carries local hardening in it (decode-size bound, install-directory native-library preload).
   It no longer needs `git submodule update`; runtime still needs the committed
   `LibWebP\libwebp_x86/x64.dll` files.
+- **SharpZipLib is not a submodule any more** — upstream (icsharpcode/SharpZipLib v1.4.2
+  @ `33f64eb`) was never used as a general zip library here: only its read-only container
+  reader was, so zip containers are now read with the BCL `System.IO.Compression.ZipArchive`
+  behind `ApkShellext2\ZipSafety.cs` (≤ 65535 entries, per-entry byte/ratio caps, legacy
+  name encoding, precise lookup). The pinned PNGDecrush source still names three
+  SharpZipLib types by full name, so `ApkShellext2\SharpZipLibShim.cs` provides exactly
+  those (zlib/CRC-32 on `System.IO.Compression`); nothing else of SharpZipLib is compiled.
+  Removed: the submodule, the `.gitmodules` stanza, the csproj glob, its `LICENSE.txt`.
 - **SharpShell is not a submodule** — its sources (2.7.1) are vendored directly under
   `ApkShellext2\SharpShell\` and compiled by the csproj (minus dead code, §5.1).
 - **SVG is not a submodule any more** — upstream (vvvv-github/SVG **v3.5.0** @ `9d564f4`) was
@@ -553,8 +560,8 @@ official package in the same GAC/registration state.
    NativeBridge native DLLs are missing upstream by design (`4f30b7c`) and their dead
    consumer code has been deleted from the tree (§5.1). Do not “fix” either.
 9. **SVG is in-tree now** (absorbed at `ApkShellext2\SVG\Source\`, §3) — the generator's
-   `bin\`/`obj\` are covered by the root `.gitignore`; the two remaining submodules
-   (SharpZipLib, PNGDecrush) still produce their own `bin\`/`obj\` if built standalone.
+   `bin\`/`obj\` are covered by the root `.gitignore`; the one remaining submodule
+   (PNGDecrush) still produces its own `bin\`/`obj\` if built standalone.
 10. **Renaming/moving the SDK folder fails with “Access denied”** while MSBuild
     node-reuse workers are alive (`MSBuild.exe … /nodemode:2 /nodereuse:True` started
     from the SDK dir; `dotnet build-server shutdown` does not always catch them).

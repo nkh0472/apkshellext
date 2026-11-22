@@ -1,6 +1,3 @@
-[submodule "ApkShellext2/SharpZipLib"]
-	path = ApkShellext2/SharpZipLib
-	url = https://github.com/icsharpcode/SharpZipLib.git
 [submodule "ApkShellext2/PNGDecrush"]
 	path = ApkShellext2/PNGDecrush
 	url = https://github.com/nkh0472/PNGDecrush.git

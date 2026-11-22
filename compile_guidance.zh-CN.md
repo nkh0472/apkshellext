@@ -73,11 +73,10 @@ git -C E:\src\apkshellext submodule update --init --recursive --jobs 4
 git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://github.com/" submodule update --init --recursive --jobs 4
 ```
 
-2 个子模块全部真实参与编译:
+只剩 1 个子模块,且真实参与编译:
 
 | 子模块 | 上游 | 说明 |
 |---|---|---|
-| `ApkShellext2\SharpZipLib` | icsharpcode/SharpZipLib @ `33f64eb` | glob 编译 `src\ICSharpCode.SharpZipLib\**`(排除 AssemblyInfo/GZip/Lzw/Tar/Core\ExactMemoryPool.cs) |
 | `ApkShellext2\PNGDecrush` | nkh0472/PNGDecrush @ `e926128` | 源码级引用 |
 
 注意:
@@ -89,6 +88,13 @@ git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://gi
   `ApkShellext2\WebP-wrapper\NOTICE.txt`),因为本仓库在该文件里带有本地加固(解码尺寸上限、
   从安装目录预加载原生库)。不再需要 `git submodule update`;运行时仍需仓库内已提交的
   `LibWebP\libwebp_x86/x64.dll`。
+- **SharpZipLib 已不是子模块** —— 上游(icsharpcode/SharpZipLib v1.4.2 @ `33f64eb`)在本仓库
+  从来不是通用 zip 库,只用到了它的只读容器读取,因此 zip 容器现在由 BCL
+  `System.IO.Compression.ZipArchive` 在 `ApkShellext2\ZipSafety.cs` 之后读取(条目 ≤ 65535、
+  单条目字节/压缩比率上限、旧编码条目名、精确查找)。固定版本的 PNGDecrush 源码仍按全名引用
+  三个 SharpZipLib 类型,由 `ApkShellext2\SharpZipLibShim.cs` 只提供这三个
+  (基于 `System.IO.Compression` 的 zlib/CRC-32);SharpZipLib 其余部分一律不再编译。
+  已删除:子模块、`.gitmodules` 段、csproj 的 glob、其 `LICENSE.txt`。
 - **SharpShell 不是子模块** —— 其源码(2.7.1)直接 vendored 在 `ApkShellext2\SharpShell\`,
   由 csproj 编译(死代码除外,§5.1)。
 - **SVG 已不是子模块** —— 上游(vvvv-github/SVG **v3.5.0** @ `9d564f4`)收编在
@@ -489,7 +495,7 @@ NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat
 8. **老残留是有意的**:`packages\` 目录现已不再使用;NativeBridge 原生 DLL 在上游
    `4f30b7c` 里就是有意删除的,引用它们的死代码已从仓库删除(§5.1)。两者都不要"修"。
 9. **SVG 已收编进仓**(`ApkShellext2\SVG\Source\`,§3)—— 生成器的 `bin\`/`obj\`
-   由根 `.gitignore` 覆盖;剩余两个子模块(SharpZipLib、PNGDecrush)独立编译时仍会
+   由根 `.gitignore` 覆盖;剩下唯一的子模块(PNGDecrush)独立编译时仍会
    在各自目录产生 `bin\`/`obj\`。
 10. **MSBuild node-reuse 工作进程活着时改名/移动 SDK 目录会「Access denied」**
     (`MSBuild.exe … /nodemode:2 /nodereuse:True`,从 SDK 目录启动;

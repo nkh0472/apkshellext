@@ -5,8 +5,9 @@ namespace ApkShellext2.Tests
 {
     /// <summary>
     /// A pass-through stream that counts how many bytes the code under test pulls
-    /// from the archive. SharpZipLib reads a Stored entry straight out of the
-    /// stream handed to ZipFile, so the counter measures exactly how much entry
+    /// from the archive. Both readers this repo has shipped (SharpZipLib, then BCL
+    /// ZipArchive over the same stream) read a Stored entry straight out of the
+    /// stream handed to them, so the counter measures exactly how much entry
     /// data ZipSafety.ReadEntryBounded materialised - the only portable way on
     /// .NET Framework 4.8 to prove "it stopped at the cap" (net48 has no
     /// GC.GetAllocatedBytesForCurrentThread, and surviving-heap deltas would hide

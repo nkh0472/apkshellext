@@ -141,17 +141,9 @@
       <SubType>Form</SubType>
     </Compile>
 
-    <!-- SharpZipLib v1.4.2 (official icsharpcode tag, source-embedded; was kkguo fork
-         @v0.86-era; BZip2 is REQUIRED - ZipFile.cs references it).
-         Exclusions: unused codecs (GZip/Lzw/Tar, incl. its only System.Memory dependency
-         ExactMemoryPool.cs) match the pre-upgrade compile surface; AssemblyInfo.cs
-         excluded (host owns asm attributes). -->
-    <Compile Include="SharpZipLib\src\ICSharpCode.SharpZipLib\**\*.cs" />
-    <Compile Remove="SharpZipLib\src\ICSharpCode.SharpZipLib\AssemblyInfo.cs" />
-    <Compile Remove="SharpZipLib\src\ICSharpCode.SharpZipLib\GZip\**\*.cs" />
-    <Compile Remove="SharpZipLib\src\ICSharpCode.SharpZipLib\Lzw\**\*.cs" />
-    <Compile Remove="SharpZipLib\src\ICSharpCode.SharpZipLib\Tar\**\*.cs" />
-    <Compile Remove="SharpZipLib\src\ICSharpCode.SharpZipLib\Core\ExactMemoryPool.cs" />
+    <!-- SharpZipLib is gone (T-J): zip containers are read with ZipArchive (see
+         ZipSafety.cs) and the three SharpZipLib types the pinned PNGDecrush source
+         still names come from the System.IO.Compression-based shim (SharpZipLibShim.cs). -->
   </ItemGroup>
 
   <ItemGroup>

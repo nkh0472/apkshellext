@@ -88,7 +88,6 @@ The project stands on these open-source works:
 | [SharpShell](https://github.com/dwmkerr/sharpshell) | Shell extension framework |
 | [libwebp](https://chromium.googlesource.com/webm/libwebp) | WebP codec (1.6.0, built from source) |
 | [WebP-wrapper](https://github.com/JosePineiro/WebP-wrapper) | WebP C# bindings |
-| [SharpZipLib](https://github.com/icsharpcode/SharpZipLib) | Zip archive access |
 | [SVG](https://github.com/vvvv/SVG) | SVG / vector-drawable rendering |
 | [PlistCS](https://github.com/animetrics/PlistCS) | iOS plist reader |
 | [PNGDecrush](https://github.com/MikeWeller/PNGDecrush) | PNG zlib re-encoding |
