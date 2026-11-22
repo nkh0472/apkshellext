@@ -1,0 +1,30 @@
+SVG (Svg.NET) - vendored third-party source
+==========================================
+
+Upstream:  https://github.com/vvvv/SVG
+Baseline:  upstream commit 9d564f47c82780df4b703ee0bf2436c6a2276f5c (tag v3.5.0)
+License:   Microsoft Public License (Ms-PL). The full text ships in
+           license.txt next to this file.
+Copyright: (c) Copyright 2009 Microsoft. All Rights Reserved.
+           (c) Copyright 2011 vvvv Group. All Rights Reserved.
+           (c) Copyright 2021 SVG.NET Contributors
+
+This directory used to be a git submodule (vvvv/SVG). It is now kept in-tree
+so the renderer can be trimmed locally without requiring a fork of upstream.
+Only what the build consumes is vendored:
+
+  Source\        the SVG library sources, glob-compiled into ApkShellext2.dll
+  Generators\    the Roslyn source generator (Element metadata), referenced as
+                 an analyzer by ApkShellext2.csproj
+  license.txt    upstream license text
+
+The upstream tests, docs, samples and .github tree are not vendored.
+
+Local modifications are maintained in this tree; see
+`git log -- ApkShellext2/SVG`. Do not copy upstream files over this tree
+without re-reading that log first. Current local modifications:
+
+  - (none yet at import time)
+
+When updating from upstream, keep the in-tree path layout (the product csproj
+globs SVG\Source\**\*.cs and project-references SVG\Generators\).
