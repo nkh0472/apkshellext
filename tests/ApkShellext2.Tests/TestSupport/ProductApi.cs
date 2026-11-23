@@ -13,7 +13,7 @@ namespace ApkShellext2.Tests
     /// <summary>
     /// The one place that knows the product's internal/private member names.
     ///
-    /// The stage 0 guards are deliberately not public API: WebPWrapper.ValidateDecodeSize is
+    /// The parser guards are not public API: WebPWrapper.ValidateDecodeSize is
     /// private and SafeArchive is internal. A friend-assembly declaration is not an option
     /// here because the product is strong-named with a key that is not in the repository
     /// (each checkout generates its own, and CI builds unsigned when the key secret is
@@ -380,13 +380,13 @@ namespace ApkShellext2.Tests
         }
 
         // ------------------------------------------------------------------
-        // Shared binary format parsers (stage 3 T-N).
+        // Shared binary format parsers.
         //
         // AxmlParser and ArscParser are internal, and they are the only place where the
-        // stage 0 resource-table caps and the B4 icon lookup rules live. The fixtures
-        // under tests/ApkShellext2.Tests/fixtures are real byte ranges cut out of a real
-        // apk (see X:\apks-tn\fixtures\make-fixtures.ps1 for the offsets); the tests
-        // drive the shipped parsers over those bytes.
+        // resource-table caps and the icon lookup rules live. The fixtures under
+        // tests/ApkShellext2.Tests/fixtures are real byte ranges cut out of a real apk
+        // (fixtures/README.md lists the offsets and the patches applied to them); the
+        // tests drive the shipped parsers over those bytes.
         // ------------------------------------------------------------------
 
         private static Type AxmlParserType
@@ -467,7 +467,8 @@ namespace ApkShellext2.Tests
             return (System.Xml.XmlDocument)InvokeInstance(parser, "ExtractCompressedXml", xml);
         }
 
-        /// <summary>ResolveIconValue(value, referenceId): the B4 icon lookup chain (rules 1, 3, 4, 5).</summary>
+        /// <summary>ResolveIconValue(value, referenceId): the typed reference id wins, then the name
+        /// fallback; an "android:" reference is refused and a "res/" value is a zip path, not a name.</summary>
         public static string AxmlResolveIconValue(object parser, string value, uint referenceId)
         {
             return (string)InvokeInstance(parser, "ResolveIconValue", value, referenceId);
@@ -502,7 +503,7 @@ namespace ApkShellext2.Tests
             return (string)item.GetValue(values, new object[] { index });
         }
 
-        /// <summary>Reads one of the stage 0 caps (MaxResourceConfigSize, MaxResourcePackages, ...).</summary>
+        /// <summary>Reads one of the parser caps (MaxResourceConfigSize, MaxResourcePackages, ...).</summary>
         public static long ArscConstant(string name)
         {
             FieldInfo field = ArscParserType.GetField(name, StaticAnyVisibility);

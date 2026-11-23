@@ -6,15 +6,16 @@ the icon lookup steps can be exercised deterministically.
 
 - Source apk: `Spectroid_org.intoorbit.spectrum_1.1.2(31).apk`, the public F-Droid build
   (107,824 B; `resources.arsc` 21,336 B stored, `AndroidManifest.xml` 2,584 B deflated)
-- Generator: `make-fixtures.ps1` (asserts the source layout before patching, then writes this
-  directory and prints every SHA-256)
-- Parser-side dump tool: `ArscTool.cs` (`ArscTool.Parse/ReadPool/Dump`,
-  `AxmlTool.Pools/Chunks/Dump`)
-- Behaviour probe: `verify-fixtures.ps1` (drives the shipped `ApkQuickReader.AxmlParser` /
-  `ArscParser` through reflection; its output is what the NUnit assertions were written against)
+- Generator: `make-fixtures.ps1` in this directory. It asserts the source layout below before
+  patching anything, writes every file in this directory and prints each SHA-256, so a
+  regeneration can be compared against the checked-in bytes:
 
-The generator, the dump tool and the probe are development-time tools; they are not part of
-this repository.
+  ```powershell
+  pwsh -File tests\ApkShellext2.Tests\fixtures\make-fixtures.ps1 -SourceApk <path to the apk>
+  ```
+
+  `-OutDir` defaults to the script's own directory; point it somewhere else to inspect the
+  output before replacing the checked-in files.
 
 Source layout (absolute offsets inside the extracted file):
 

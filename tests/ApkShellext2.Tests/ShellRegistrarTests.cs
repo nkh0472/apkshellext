@@ -11,7 +11,7 @@ namespace ApkShellext2.Tests
     /// <summary>
     /// Pins what the self-hosted registrar writes: the regasm-equivalent COM registration, the
     /// per-user association slots of install_user.bat, the 32 bit mirror that fixes the
-    /// 0x80040154 bug (plan §5.1.1), the DefaultIcon backup rule, idempotency, the Win11 build
+    /// 0x80040154 bug that a per-user install hits without the WOW6432Node mirror, the DefaultIcon backup rule, idempotency, the Win11 build
     /// gate and a symmetric Unregister.
     ///
     /// Every test runs against a sandbox root under HKCU\Software\ApkShellext2\RegistrationTests,

@@ -15,7 +15,7 @@ namespace ApkShellext2.Tests
     /// every method marked [PreserveSig], because the CLR orders derived interface methods
     /// before base interface methods in a vtable: a declaration that mirrors the COM inheritance
     /// chain puts HandleMenuMsg2 two slots too early and explorer calls into the wrong method
-    /// (plan §3.1). These tests fail as soon as a slot, an IID, a [PreserveSig] or a structure
+    /// These tests fail as soon as a slot, an IID, a [PreserveSig] or a structure
     /// size drifts, before any handler is wired to the interface.
     /// </summary>
     [TestFixture]
@@ -40,7 +40,7 @@ namespace ApkShellext2.Tests
             { "IClassFactoryFlat", new Guid("00000001-0000-0000-c000-000000000046") }
         };
 
-        // x86 / x64 sizes measured with Marshal.SizeOf in the shipping build (plan §4.2); the
+        // x86 / x64 sizes measured with Marshal.SizeOf in the shipping build; the
         // structures use the natural Win32 alignment, so no [StructLayout(Pack = ...)].
         private static readonly Dictionary<string, int[]> s_expectedStructSizes = new Dictionary<string, int[]>
         {

@@ -25,7 +25,7 @@ namespace ApkShellext2.Tests
         private static byte[] Fixture(string name)
         {
             string path = RepoLayout.PathOf(FixtureDir + name);
-            Assert.That(path, Does.Exist, "fixture " + path + " is missing; regenerate it with X:\\apks-tn\\fixtures\\make-fixtures.ps1.");
+            Assert.That(path, Does.Exist, "fixture " + path + " is missing; regenerate it with tests\\ApkShellext2.Tests\\fixtures\\make-fixtures.ps1.");
             return System.IO.File.ReadAllBytes(path);
         }
 
@@ -41,7 +41,7 @@ namespace ApkShellext2.Tests
         }
 
         [Test]
-        public void CapsAreTheStageZeroLimits()
+        public void CapsBoundHostileTables()
         {
             // Loosening these is a security regression, not a tuning knob.
             Assert.That(ProductApi.ArscConstant("MaxResourceConfigSize"), Is.EqualTo(1024L));
