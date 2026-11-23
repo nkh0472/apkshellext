@@ -295,8 +295,8 @@ ApkShellext2\
   Preferences\    WinForms 设置窗体与 designer(Preferences.resx 仍留在根目录)
   Vendor\         net48 polyfill(SharpZipLibShim、ModuleInitializerAttribute)
   Utility.cs      留在根目录:每一层都用它
-  Interop\        尚未创建 —— COM/PInvoke 声明是阶段 4 的产物
-  Registration\   尚未创建 —— 注册/注销是阶段 4 的产物
+  Interop\        手写 COM 接口与 P/Invoke 声明(阶段 4 T-S1,§5.5)
+  Registration\   自有注册器(阶段 4 T-S1,§5.5)
   PlistCS\ PNGDecrush\ WebP-wrapper\ SVG\ SharpShell\ LibWebP\ Properties\ Resources\
 ```
 
@@ -310,6 +310,89 @@ ApkShellext2\
 全部显示 100% 相似度 rename,文件字节(BOM 与 CRLF/LF 混合)原样保留。
 `Preferences.resx` 的路径与 `ApkShellext2.Preferences.resources` 资源名都不变;窗体移走后
 必须去掉它的 `DependentUpon` 元数据,否则 MSBuild 取名时会以 MSB3041 失败。
+
+### 5.5 Interop 与注册器(阶段 4 T-S1)
+
+阶段 4 要删掉 vendored 的 SharpShell(26,525 行),换成自有最小 COM 层。T-S1 只落地其中两半
+——声明与注册器,S2/S3 再把四个 handler 接过来。**T-S1 不改任何 handler 行为**:四个 SharpShell
+类仍占据同样的四个 CLSID,`install*.bat` / `update.bat` 也照旧走各自的 `regasm` 流程。
+
+#### 5.5.1 声明规范(`Interop\`)
+
+全部手写,不用 CsWin32、不用源生成器(只有 `[ComImport]` + `[PreserveSig]` + 显式 `DllImport`),
+所以文件可 grep、净构建只依赖 net48。
+
+- **一个 COM 接口 = 一个扁平接口,接口之间不继承。** 每个接口都隐式继承 `IUnknown`,然后把
+  自己需要的**全部**槽按 vtable 顺序重新声明一遍。CLR 会把继承来的方法排在声明的方法之前,
+  SharpShell 那种 `IContextMenu3 : IContextMenu2` 写法会让 `HandleMenuMsg2` 落到错误的槽上
+  (实测崩溃 `0xC0000005`)。因此 `IContextMenuFlat`、`IContextMenu2Flat`、`IContextMenu3Flat`
+  是三个**互不继承**的接口,各带自己的 IID —— 服务端可以同时实现三个,`QueryInterface` 沿
+  任一路径都能命中正确的槽位。
+- **每个槽都必须 `[PreserveSig]`。** 没有它,CLR 会把失败的 `HRESULT` 翻译成 `COMException`
+  并吞掉返回值;而外壳回调靠返回值通信(`QueryContextMenu` 还要把条目数放在低 16 位里)。
+- **IID 必须是真 IID。** 扁平的 `IContextMenu3` 要声明
+  `bcfce0a0-ec17-11d0-8d10-00a0c90f2719`;`000214e4-…` 是 `IContextMenu`,`QueryInterface`
+  拿着它会返回形状不对的那段。
+- **结构体走自然对齐,一律不加 `Pack`。** Win32 头文件用的是默认对齐;照抄 spike 的 `Pack = 4`
+  会在 x64 上把 `FORMATETC`、`STGMEDIUM`、`MENUITEMINFO` 翻译错。尺寸改由测试钉住
+  (x64 / x86):`FORMATETC` 32/20、`STGMEDIUM` 24/12、`CMINVOKECOMMANDINFO` 64/40、
+  `…INFOEX` 104/64、`MENUITEMINFO` 80/48、`PROPERTYKEY` 20/20。
+- **调用方直接用裸 vtable**(`ComObject`:读 `vtable + slot * IntPtr.Size`,再
+  `Marshal.GetDelegateForFunctionPointer`)。对 `IShellExtInit.Initialize` 送进来的指针
+  **绝不能** `Marshal.ReleaseComObject` —— 那会把外壳自己的引用减掉。
+- **build 号只信 `RtlGetVersion`。** 没有 manifest 时 `Environment.OSVersion` 在
+  Windows 10/11 上会谎报 6.2;`ntdll!RtlGetVersion` 返回真实 build(本机:19045)。
+
+`Interop\ComLayout.cs` 保存契约表(13 个接口 × vtable 槽名、8 个结构 × 尺寸/偏移),
+`Verify()` 返回人可读的违规清单;`InteropLayoutTests` 断言清单为空,并额外钉住每个 IID、
+每个槽的顺序和 `PreserveSig`。
+
+#### 5.5.2 注册器(`Registration\`)
+
+`ShellRegistrar.Register(RegistrationScope, string dllPath, RegistrationOptions)` 与
+`Unregister(scope, options)` 写的是 `regasm /codebase` 那套键(CLSID 根默认值 = ProgID、
+`InprocServer32` 里的 `mscoree.dll` + `Class` + `Assembly` + `RuntimeVersion` +
+`ThreadingModel=Both` + `CodeBase`、版本子键、`ProgId`、以及类的 `ProgID` 键和它的 `CLSID`
+子键),然后按 `ShellGuids.AppliesTo` 写关联槽(图标 8 个扩展全写、信息提示与右键菜单除
+`.aab`、缩略图仅 `.apk`),最后写 `DefaultIcon` 占位并遵循 `install_user.bat` 的
+`SharpShell_Backup_DefaultIcon` 备份语义(只备份一次、已有备份不覆盖、`%1` 本身不备份)。
+`ShellGuids.cs` 是四个 CLSID、四个 ProgID、八个扩展和全部键名/值名的唯一出处;`.bat` 里
+的同值副本保留到 S3 收敛。
+
+- **作用域。** `Machine` = `HKLM\SOFTWARE\Classes`(外加
+  `SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved`,只有真正的机器级安装
+  才写);`User` = `HKCU\Software\Classes`。
+- **per-user 必须双视图。** 所有写入都要镜像进 `Wow6432Node` 树
+  (`HKCU\Software\Classes\Wow6432Node\Classes\…`、`HKLM\SOFTWARE\WOW6432Node\Classes\…`),
+  因为 32 位宿主解析 per-user CLSID 时只读 32 位视图 —— 没有镜像,`CoCreateInstance` 会以
+  `0x80040154` 失败(已实测;`D:` 上那份真实 per-user 安装缺的正是这个)。注册器一律用
+  `RegistryView.Registry64` 打开,32 位树通过显式 `Wow6432Node` 路径写,因此在 32 位和 64 位
+  宿主里行为一致。
+- **Win11 命令按真实 build 门控。** 只有 `RtlGetVersion().BuildNumber >= 22621` 才写
+  `ExplorerCommandHandler`(类 `ShellEx` 下的 `IExplorerCommand` 值);
+  `RegistrationOptions.BuildNumber` / `ExplorerCommandBuildThreshold` 让测试在任何机器上都能
+  走门控两侧。它指向的 CLSID 目前仍是 `ShellGuids` 里标注 S4/S2 的占位值。
+- **幂等且对称。** 第二次 `Register` 产出的树逐字节一致(只报告仍需创建/删除的键,
+  见 `RegistrationReport.KeysWritten`);`Unregister` 只删 `Register` 写过的东西,并把它顶掉过
+  的 `DefaultIcon` 回灌。每次 `Register` 都会清掉 `InprocServer32` 下非当前版本的子键(只留
+  当前版,与现有 `CustomRegisterFunction` 一致);四个 CLSID 也会从三处
+  `Shell Extensions\Blocked` 名单里删除,per-user 无权限打开的机器级名单静默跳过。
+- **`RegistrationTarget` 把注册表隔离出来。** `RegistryTarget.ForScope` 给真实根;
+  `RegistryTarget.Sandbox(rootPath)` 在 `HKCU\Software\<root>` 下给出同样形状的根,
+  `ShellRegistrarTests` 与等价性 harness 靠它跑,不碰任何真实安装。
+
+等价性验证方式:在一个沙盒根里把 `regasm /codebase /regfile` 的产物落地,再把
+`install_user.bat` 的关联循环重放一遍,与第二个沙盒根里 `ShellRegistrar.Register(User, dll)`
+的结果逐键逐值比对:两边各 103 条值记录,归一化 `CodeBase`/`Assembly` 后**零差异**,
+`Wow6432Node` 镜像与 64 位树完全一致(参照树根本没有镜像)。
+
+#### 5.5.3 与 `.bat` 安装器的关系
+
+`install.bat`、`install_user.bat`、`uninstall*.bat`、`update.bat` **不改**,仍做 `regasm` +
+关联那套;要到 S3 handler 彻底脱离 SharpShell 时才由注册器接管。相对
+`uninstall_user.bat` 的清扫有两点刻意差异,前面已说明:`Unregister` 不做全局
+`sweepzoo`/`:cleancls` 清扫(只反向 `Register`),并且只在安装器自建的 `\<ext>.1` 类下
+只剩默认值时才会删掉它。
 
 ## 6. 编译主工程
 

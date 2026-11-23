@@ -330,8 +330,8 @@ ApkShellext2\
   Preferences\    the WinForms settings form + designer (Preferences.resx stays at the root)
   Vendor\         net48 polyfills (SharpZipLibShim, ModuleInitializerAttribute)
   Utility.cs      stays at the root: every layer uses it
-  Interop\        not created yet - COM/PInvoke declarations arrive in stage 4
-  Registration\   not created yet - registration/unregistration arrive in stage 4
+  Interop\        hand-written COM interfaces and P/Invoke declarations (stage-4 T-S1, §5.5)
+  Registration\   the self-hosted registrar (stage-4 T-S1, §5.5)
   PlistCS\ PNGDecrush\ WebP-wrapper\ SVG\ SharpShell\ LibWebP\ Properties\ Resources\
 ```
 
@@ -348,6 +348,102 @@ and `git log --follow` report 100%-similarity renames, and the files keep their 
 bytes (BOM and CRLF/LF mix). `Preferences.resx` keeps both its path and its
 `ApkShellext2.Preferences.resources` manifest name; its `DependentUpon` metadata had to
 go once the form moved, otherwise MSBuild fails with MSB3041 while deriving that name.
+
+### 5.5 Interop and the registration layer (stage-4 T-S1)
+
+Stage 4 removes the vendored SharpShell (26,525 lines) and replaces it with a minimal COM
+layer of our own. T-S1 lands the two halves the handlers get rewired to in S2/S3 — the
+declarations and the registrar. **No handler behaviour changed in T-S1**: the four SharpShell
+classes keep serving the same four CLSIDs, and `install*.bat` / `update.bat` keep their
+existing `regasm` flow.
+
+#### 5.5.1 Declaration rules (`Interop\`)
+
+The layer is hand-written; no CsWin32 and no source generators (`[ComImport]` + `[PreserveSig]`
++ explicit `DllImport`s only), so the file is greppable and the build stays net48-only.
+
+- **One flat interface per COM interface, no interface inheritance.** Each interface inherits
+  `IUnknown` implicitly and re-declares *every* vtable slot it needs, in vtable order. The CLR
+  emits inherited methods ahead of the declared ones, so the SharpShell-style
+  `IContextMenu3 : IContextMenu2` chain lands `HandleMenuMsg2` in the wrong slot (probe: crash
+  in `0xC0000005`). Because of that, `IContextMenuFlat`, `IContextMenu2Flat` and
+  `IContextMenu3Flat` are three *independent* interfaces with their own IID — a server can
+  implement all three so `QueryInterface` succeeds along any of the three paths.
+- **Every slot is `[PreserveSig]`.** Without it the CLR translates a failure `HRESULT` into a
+  `COMException` and drops the return value; shell callbacks return `HRESULT`s (and
+  `QueryContextMenu` returns an item count in the low word) that the caller inspects.
+- **IIDs are the real ones.** A flattened `IContextMenu3` must declare
+  `bcfce0a0-ec17-11d0-8d10-00a0c90f2719`; `000214e4-…` is `IContextMenu` and would be returned by
+  `QueryInterface` for the *wrong* shape.
+- **Structs use natural alignment — no `Pack`.** The Win32 headers use default alignment;
+  `Pack = 4` (a common copy/paste) mistranslates `FORMATETC`, `STGMEDIUM`, `MENUITEMINFO` on x64.
+  Sizes are pinned by test instead (x64 / x86): `FORMATETC` 32/20, `STGMEDIUM` 24/12,
+  `CMINVOKECOMMANDINFO` 64/40, `…INFOEX` 104/64, `MENUITEMINFO` 80/48, `PROPERTYKEY` 20/20.
+- **Callers use the raw vtable** (`ComObject`: read `vtable + slot * IntPtr.Size`, then
+  `Marshal.GetDelegateForFunctionPointer`). Never `Marshal.ReleaseComObject` a pointer the shell
+  handed us through `IShellExtInit.Initialize` — that releases the shell's own reference.
+- **`RtlGetVersion` is the only trustworthy build source.** Without a manifest
+  `Environment.OSVersion` reports 6.2 on Windows 10/11; `ntdll!RtlGetVersion` returns the real
+  build (this machine: 19045).
+
+`Interop\ComLayout.cs` holds the contract table (13 interfaces × vtable slot names, 8 structs ×
+sizes/offsets) and `Verify()` returns a human-readable violation list; `InteropLayoutTests`
+asserts it is empty and additionally pins every IID, every slot order and `PreserveSig`.
+
+#### 5.5.2 The registrar (`Registration\`)
+
+`ShellRegistrar.Register(RegistrationScope, string dllPath, RegistrationOptions)` and
+`Unregister(scope, options)` write the same keys `regasm /codebase` does (CLSID root default =
+ProgID, `InprocServer32` with `mscoree.dll` + `Class` + `Assembly` + `RuntimeVersion` +
+`ThreadingModel=Both` + `CodeBase`, the version sub-key, `ProgId`, and the class's `ProgID`
+plus its `CLSID` sub-key), then the association slots from `ShellGuids.AppliesTo` (icon for all
+eight extensions, info tip and context menu except `.aab`, thumbnail only `.apk`), and the
+`DefaultIcon` placeholder with the `SharpShell_Backup_DefaultIcon` backup semantics of
+`install_user.bat` (back up once, never over an existing backup, never back up `%1` itself).
+`ShellGuids.cs` is the single source of truth for the four CLSIDs, the four ProgIDs, the eight
+extensions and every key/value name; the `.bat` files still carry their own copies until S3.
+
+- **Scopes.** `Machine` = `HKLM\SOFTWARE\Classes` (plus `SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved`,
+  only for a real machine install); `User` = `HKCU\Software\Classes`.
+- **Per-user needs both registry views.** Every write is mirrored into the `Wow6432Node` tree
+  (`HKCU\Software\Classes\Wow6432Node\Classes\…`, `HKLM\SOFTWARE\WOW6432Node\Classes\…`), because
+  a 32-bit host that resolves a per-user CLSID reads the 32-bit view only — without the mirror
+  `CoCreateInstance` fails with `0x80040154` (measured; the real per-user install on `D:` was
+  missing exactly this). The registrar always opens `RegistryView.Registry64` and writes the
+  32-bit tree through its explicit `Wow6432Node` path, so behaviour is the same in a 32-bit and a
+  64-bit host.
+- **Windows 11 commands are gated on the real build.** `ExplorerCommandHandler` (the
+  `IExplorerCommand` value under the class's `ShellEx`) is written only when
+  `RtlGetVersion().BuildNumber >= 22621`; `RegistrationOptions.BuildNumber` /
+  `ExplorerCommandBuildThreshold` exist so tests can exercise both sides of the gate on any
+  machine. The CLSID it points at is still a placeholder marked S4/S2 in `ShellGuids`.
+- **Idempotent and symmetric.** A second `Register` produces a byte-identical tree (only the
+  keys it still needs to create are reported in `RegistrationReport.KeysWritten`); `Unregister`
+  removes exactly what `Register` wrote, and restores a `DefaultIcon` it had displaced.
+  Stale version sub-keys under `InprocServer32` are pruned on every `Register` (current-version
+  only, matching the existing `CustomRegisterFunction`). The four CLSIDs are also removed from
+  the three `Shell Extensions\Blocked` lists on `Register`; a per-user run silently skips the
+  machine lists it cannot open.
+- **`RegistrationTarget` isolates the registry.** `RegistryTarget.ForScope` returns the real
+  roots; `RegistryTarget.Sandbox(rootPath)` returns the same shape under `HKCU\Software\<root>`,
+  which is how `ShellRegistrarTests` and the equivalence harness run without touching a real
+  install.
+
+Equivalence was checked by materialising `regasm /codebase /regfile` into a sandbox root,
+replaying the `install_user.bat` association loop there, and diffing that tree against
+`ShellRegistrar.Register(User, dll)` under a second sandbox root: 103 value records on each side,
+zero differences after normalising `CodeBase`/`Assembly`, and the `Wow6432Node` mirror is a
+faithful copy of the 64-bit tree (the reference tree has no mirror at all).
+
+#### 5.5.3 Relation to the `.bat` installers
+
+`install.bat`, `install_user.bat`, `uninstall*.bat` and `update.bat` are **unchanged** and still
+do the `regasm` + association work; they take over the registrar only in S3, when the handlers
+move off SharpShell. Two deliberate differences from `uninstall_user.bat`'s sweep are documented
+above: `Unregister` does not run the global `sweepzoo`/`:cleancls` cleanup (it only reverses
+`Register`), and it deletes an installer-invented `\<ext>.1` class only when nothing but the
+default value remains under it.
+
 ## 6. Build the main project
 
 ### Route A — dotnet CLI (development output only — do not install this output into Explorer, §8)
