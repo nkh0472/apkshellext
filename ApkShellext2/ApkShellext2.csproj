@@ -86,6 +86,9 @@
          into apkshellextTest (stripped from the shell dll in 3.4.4). -->
     <Compile Include="*.cs" />
     <Compile Include="Formats\**\*.cs" Exclude="Formats\ApkChunk.cs" />
+    <!-- Imaging\: the zip-container abstraction (IArchive/SafeArchive), the icon
+         source chain and the vector-drawable rasterizer. -->
+    <Compile Include="Imaging\**\*.cs" />
     <!-- Diagnostics\ holds the default-on error log (ErrorLog.cs), kept in its own folder
          so the optional verbose channel (DbgLog.cs) stays untouched at the root. -->
     <Compile Include="Diagnostics\**\*.cs" />
