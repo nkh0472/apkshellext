@@ -97,6 +97,9 @@
     <!-- Interop\: the hand written COM declarations and P/Invokes that replace the vendored
          SharpShell interop layer (stage 4), plus the layout contract in ComLayout.cs. -->
     <Compile Include="Interop\**\*.cs" />
+    <!-- Registration\: the self contained shell registrar that will replace the SharpShell
+         registration hooks (stage 4); see compile_guidance.md "Interop and the registrar". -->
+    <Compile Include="Registration\**\*.cs" />
     <!-- Preferences\: the WinForms settings form and its designer file; the .resx stays
          at the project root so its embedded resource name is unchanged. -->
     <Compile Include="Preferences\**\*.cs" />

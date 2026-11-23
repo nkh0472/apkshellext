@@ -1,0 +1,60 @@
+using System;
+
+namespace ApkShellext2.Registration {
+    /// <summary>
+    /// The Windows 11 side of the registration: the <c>ExplorerCommandHandler</c> value that points a
+    /// file class at an <c>IExplorerCommand</c> implementation. Windows 11 22H2 (build 22621) is the
+    /// first build whose context menu uses it; older builds ignore the value, so writing it there is
+    /// pointless but harmless.
+    ///
+    /// The gate is a build number from <c>RtlGetVersion</c> (see <see cref="WindowsVersion"/>), never
+    /// <c>Environment.OSVersion</c>, and it is parameterised so tests can evaluate both sides of
+    /// 22621 without a Windows 11 machine.
+    /// </summary>
+    internal static class Win11CommandRegistration {
+        /// <summary>
+        /// The CLSID written today. A placeholder until S4 lands the <c>IExplorerCommand</c> class
+        /// (plan §6): the shell will fail to activate it and fall back to the classic context menu
+        /// handlers, which is exactly the stage 1 behaviour we want.
+        /// </summary>
+        internal const string PlaceholderClsid = ShellGuids.ExplorerCommandClsid;
+
+        /// <summary>
+        /// True when the Windows 11 command handler should be registered for a host of
+        /// <paramref name="buildNumber"/> with the given threshold. Build 0 means "the build could not
+        /// be read" and keeps the classic registration only.
+        /// </summary>
+        internal static bool ShouldRegister(int buildNumber, int threshold) {
+            return buildNumber > 0 && buildNumber >= threshold;
+        }
+
+        /// <summary>Writes <c>{class}\ShellEx\ExplorerCommandHandler</c> for one file class.</summary>
+        internal static void Write(RegistryWriter writer, string classesRoot, string className, RegistrationReport report) {
+            if (writer == null) {
+                throw new ArgumentNullException(nameof(writer));
+            }
+            if (string.IsNullOrEmpty(className)) {
+                throw new ArgumentException("A file class name is required.", nameof(className));
+            }
+            string shellEx = classesRoot + "\\" + className + "\\" + ShellGuids.ShellExKey;
+            writer.SetValue(shellEx, ShellGuids.ExplorerCommandHandlerValue, PlaceholderClsid);
+            report.AddKey(shellEx);
+        }
+
+        /// <summary>
+        /// Removes the value, but only when it still points at our CLSID - another application's
+        /// command handler on the same file class must survive an uninstall.
+        /// </summary>
+        internal static void Remove(RegistryWriter writer, string classesRoot, string className, RegistrationReport report) {
+            if (writer == null || string.IsNullOrEmpty(className)) {
+                return;
+            }
+            string shellEx = classesRoot + "\\" + className + "\\" + ShellGuids.ShellExKey;
+            string current = writer.GetValue(shellEx, ShellGuids.ExplorerCommandHandlerValue);
+            if (string.Equals(current, PlaceholderClsid, StringComparison.OrdinalIgnoreCase)) {
+                writer.DeleteValue(shellEx, ShellGuids.ExplorerCommandHandlerValue);
+                report.AddKey(shellEx);
+            }
+        }
+    }
+}
