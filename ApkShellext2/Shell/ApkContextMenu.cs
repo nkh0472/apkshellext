@@ -1,29 +1,24 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
 using ApkQuickReader;
 using ApkShellext2.Diagnostics;
-using ApkShellext2.Properties;
+using ApkShellext2.Shell.Commands;
 using Microsoft.Win32;
 using SharpShell.Attributes;
 using SharpShell.Diagnostics;
 using SharpShell.Extensions;
 using SharpShell.ServerRegistration;
 using SharpShell.SharpContextMenu;
-using System;
-using System.Drawing;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
-using System.Text.RegularExpressions;
-using System.Windows.Forms;
-using System.Net;
-using System.Web;
-using System.Collections.Specialized;
-using System.Globalization;
-using System.Diagnostics;
-using System.Xml;
-using Microsoft.VisualBasic;
 
 namespace ApkShellext2 {
+    /// <summary>
+    /// The WinForms face of the shell context menu. It renders the model built by
+    /// <see cref="CommandCatalog"/> and forwards every click back to the model, so the menu
+    /// content and the command ids live in one place.
+    /// </summary>
     [Guid("dcb629fc-f86f-456f-8e24-98b9b2643a9b")]
     [ComVisible(true)]
     [ClassInterface(ClassInterfaceType.None)]
@@ -50,200 +45,15 @@ namespace ApkShellext2 {
         /// </summary>
         /// <returns>The context menu for the shell context menu.</returns>
         protected override ContextMenuStrip CreateMenu() {
-            Utility.Localize();
+            CommandModel model = CommandCatalog.Build(SelectedItemPaths);
 
             var menu = new ContextMenuStrip();
+            var mainMenu = new ToolStripMenuItem(model.Root.Text);
 
-            string newVerAvai = "";
-            if (Utility.NewVersionAvailible() && Utility.GetSetting("ShowNewVersion", "True") == "True")
-                newVerAvai = " (" + string.Format(Resources.strNewVersionAvailible, Utility.GetSetting("LatestVersion")) + ")";
-            var mainMenu = new ToolStripMenuItem {
-                Text = Properties.Resources.menuMain + newVerAvai
-            };
-
+            // the icon edge length follows the item height, as every image in this menu does
             int size = mainMenu.Height + 1;
-
-            bool hasapk = false, hasipa = false, hasappx = false, hasappxbundle = false;
-            foreach (var p in SelectedItemPaths) {
-                if (p.EndsWith(AppPackageReader.extAPK))
-                    hasapk = true;
-                if (p.EndsWith(AppPackageReader.extIPA))
-                    hasipa = true;
-                if (p.EndsWith(AppPackageReader.extAPPX))
-                    hasappx = true;
-                if (p.EndsWith(AppPackageReader.extAPPXBUNDLE))
-                    hasappxbundle = true;
-            };
-
-            bool singleSelected = SelectedItemPaths.Count() == 1;
-            string appname = "";
-            string singleNewName = "";
-            if (singleSelected) {
-                // one parse feeds both the app name and the rename preview
-                using (IPackageReader reader = PackageReaderFactory.Create(SelectedItemPaths.ElementAt(0))) {
-                    appname = reader.AppName;
-                    singleNewName = getNewFileName(SelectedItemPaths.ElementAt(0), reader);
-                }
-            }
-
-            #region Rename Menu
-            ToolStripMenuItem renameMenu = new ToolStripMenuItem() {
-                Image = Utility.ResizeBitmap(Properties.NonLocalizeResources.iconRename, size)
-            };
-
-            if (singleSelected) {
-                if (singleNewName != "") {
-                    renameMenu.Text = string.Format(Resources.menuRenameAs, Path.GetFileName(singleNewName));
-                } else {
-                    renameMenu.Text = Resources.strReadFileFailed;
-                    renameMenu.Enabled = false;
-                }
-            } else {
-                string renamePattern = Utility.GetSetting("RenamePattern", NonLocalizeResources.strRenamePatternDefault);
-                renameMenu.Text = string.Format(Resources.menuRenameAs, renamePattern);
-            }
-
-            renameMenu.Click += (sender, args) => renameWithVersion();
-            mainMenu.DropDownItems.Add(renameMenu);
-            
-            #endregion
-
-            #region Dump menu
-            if (hasapk) {
-                var dumpMenu = new ToolStripMenuItem {
-                    Text = Resources.menuDump,
-                    Image = Utility.ResizeBitmap(NonLocalizeResources.output, size),
-                };
-                var manifestMenu = new ToolStripMenuItem {
-                    Text = Resources.menuDumpManifest,
-                };
-                var dumpotherMenu = new ToolStripMenuItem {
-                    Text = Resources.menuDumpOthers,
-                };
-                dumpMenu.DropDownItems.Add(manifestMenu);
-                dumpMenu.DropDownItems.Add(dumpotherMenu);
-                manifestMenu.Click += (sender, args) => dumpManifest();
-                dumpotherMenu.Click += (sender, args) => dumpXML();
-                mainMenu.DropDownItems.Add(dumpMenu);
-            }
-            #endregion
-
-            mainMenu.DropDownItems.Add("-");
-
-            if (hasapk) {
-                #region APK Menu
-                ToolStripMenuItem storeMenu = new ToolStripMenuItem {
-                    Text = Resources.strSearchStore,
-                    Image = Utility.ResizeBitmap(NonLocalizeResources.iconGooglePlay, size)
-                };
-
-                ToolStripMenuItem subMenu = null;
-                appname = singleSelected ? appname : AppPackageReader.extAPK;
-
-                if (Utility.GetSetting("ShowGooglePlay", "True") == "True") {
-                    subMenu = new ToolStripMenuItem {
-                        Text = string.Format(Resources.menuGotoGooglePlay, appname),
-                        Image = Utility.ResizeBitmap(NonLocalizeResources.iconGooglePlay, size)
-                    };
-
-                    subMenu.Click += (sender, args) => gotoGooglePlay();
-                    storeMenu.DropDownItems.Add(subMenu);
-                    subMenu.Enabled = singleSelected || (Utility.GetSetting("ShowAppStoreWhenMultiSelected", "True") == "True");
-
-                }
-
-                if (Utility.GetSetting("ShowAmazonStore", "True") == "True") {
-                    subMenu = new ToolStripMenuItem {
-                        Text = string.Format(Resources.menuGotoAmazonAppStore, appname),
-                        Image = Utility.ResizeBitmap(NonLocalizeResources.iconAmazonStore, size)
-                    };
-
-                    subMenu.Click += (sender, args) => gotoAmazonAppStore();
-                    storeMenu.DropDownItems.Add(subMenu);
-                    subMenu.Enabled = singleSelected || Utility.GetSetting("ShowAppStoreWhenMultiSelected", "True") == "True";
-                }
-
-                if (Utility.GetSetting("ShowApkMirror", "False") == "True") {
-                    subMenu = new ToolStripMenuItem {
-                        Text = string.Format(Resources.menuGotoApkMirror, appname),
-                        Image = Utility.ResizeBitmap(NonLocalizeResources.iconApkMirror, size)
-                    };
-                    subMenu.Click += (sender, args) => gotoApkMirror();
-                    storeMenu.DropDownItems.Add(subMenu);
-                    subMenu.Enabled = (singleSelected || Utility.GetSetting("ShowAppStoreWhenMultiSelected", "True") == "True");
-                }
-
-                if (storeMenu.DropDownItems.Count > 0) {
-                    mainMenu.DropDownItems.Add(storeMenu);
-                }
-                #endregion
-            }
-            if (hasipa && Utility.GetSetting("ShowAppleStore", "True") == "True") {
-                #region AppleStore Menu
-                appname = singleSelected ? appname : AppPackageReader.extIPA;
-                var appleMenu = new ToolStripMenuItem {
-                    Text = string.Format(Resources.menuGotoAppleAppStore, appname),
-                    Image = Utility.ResizeBitmap(NonLocalizeResources.iconAppStore, size)
-                };
-                appleMenu.Click += (sender, args) => gotoAppleStore();
-                mainMenu.DropDownItems.Add(appleMenu);
-                appleMenu.Enabled = singleSelected ||
-                Utility.GetSetting("ShowAppStoreWhenMultiSelected", "True") == "True";
-                #endregion
-            }
-
-            if ((hasappx || hasappxbundle) && Utility.GetSetting("ShowMSStore", "True") == "True") {
-                #region MS Store Menu
-                appname = singleSelected ? appname :
-                    (AppPackageReader.extAPPX + @"/" + AppPackageReader.extAPPXBUNDLE);
-                var msMenu = new ToolStripMenuItem {
-                    Text = string.Format(Resources.menuGotoMicrosoftStore, appname),
-                    Image = Utility.ResizeBitmap(NonLocalizeResources.iconMSStore, size)
-                };
-                msMenu.Click += (sender, args) => gotoMicrosoftStore();
-                mainMenu.DropDownItems.Add(msMenu);
-                msMenu.Enabled = singleSelected ||
-                Utility.GetSetting("ShowAppStoreWhenMultiSelected", "True") == "True";
-                #endregion
-            }
-
-            #region Preferences Menu
-            var settingsMenu = new ToolStripMenuItem {
-                Text = Resources.menuPreferences,
-                Image = Utility.ResizeBitmap(Properties.NonLocalizeResources.logo, size)
-            };
-            if (mainMenu.DropDownItems.Count > 1) {
-                mainMenu.DropDownItems.Add("-");
-            }
-            settingsMenu.Click += (sender, args) => showSettings();
-            mainMenu.DropDownItems.Add(settingsMenu);
-            #endregion
-
-            #region Mainmenu Icon
-            if (Utility.GetSetting("ShowMenuIcon","True")=="True") {
-                // if choose multiple files, will create a icon with upto 3 icons together
-                try { // draw multiple icons
-                    int totalIconToDraw = (SelectedItemPaths.Count() > 3) ? 3 : SelectedItemPaths.Count();
-                    Bitmap b = new Bitmap(size, size);
-                    for (int i = 0; i < totalIconToDraw; i++) {
-                        using (IPackageReader reader = PackageReaderFactory.Create(SelectedItemPaths.ElementAt(totalIconToDraw - i - 1)))
-                        using (Graphics g = Graphics.FromImage((Image)b)) {
-                            reader.setFlag("ImageSize", size);
-                            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-                            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-                            g.DrawImage(reader.Icon, i * 3, i * 3, size - 2 * totalIconToDraw, size - 2 * totalIconToDraw);
-                        }
-                    }
-                    mainMenu.Image = b;
-                } catch (Exception ex) {
-                    mainMenu.Image = Utility.ResizeBitmap(Properties.NonLocalizeResources.logo, size);
-                    ErrorLog.Warn(this.GetType().Name, "Error happens during extracting icon", ex);
-                }
-            } else {
-                mainMenu.Image = Utility.ResizeBitmap(Properties.NonLocalizeResources.logo, size);
-            }
-            #endregion
+            mainMenu.Image = CommandIconResolver.Resolve(model.Root.Icon, size, model.SelectedPaths);
+            AddChildren(mainMenu, model.Root, model, size);
 
             menu.Items.Add(mainMenu);
 
@@ -251,226 +61,32 @@ namespace ApkShellext2 {
             return menu;
         }
 
+        private static void AddChildren(ToolStripMenuItem parent, CommandItem node, CommandModel model, int size) {
+            foreach (var child in node.Children) {
+                if (child.IsSeparator) {
+                    parent.DropDownItems.Add("-");
+                    continue;
+                }
+                var item = new ToolStripMenuItem(child.Text) {
+                    Enabled = child.Enabled
+                };
+                if (child.Icon != CommandIcon.None) {
+                    item.Image = CommandIconResolver.Resolve(child.Icon, size, model.SelectedPaths);
+                }
+                AddChildren(item, child, model, size);
+                var command = child;
+                if (command.IsCommand) {
+                    item.Click += (sender, args) => model.Invoke(command);
+                }
+                parent.DropDownItems.Add(item);
+            }
+        }
+
         /// <summary>
-        /// get the new filename for renaming function
+        /// Expands the <c>%variable%</c> tokens of a name pattern for a parsed package.
         /// </summary>
-        /// <returns></returns>
-        private string getNewFileName(string path, IPackageReader reader = null) {
-            //bool key_RenameWithVersionCode = Settings.DefaultRenameWithVersionCode) == 1);
-            string suffix = Path.GetExtension(path);
-            string newFileName = "";
-            string renamePattern = Utility.GetSetting("RenamePattern", NonLocalizeResources.strRenamePatternDefault);
-            bool isapk = SelectedItemPaths.ElementAt(0).EndsWith(".apk", StringComparison.OrdinalIgnoreCase);
-            bool isipa = SelectedItemPaths.ElementAt(0).EndsWith(".ipa", StringComparison.OrdinalIgnoreCase);
-
-            try {
-                if (reader != null) {
-                    // menu build already holds a parsed reader; reuse it
-                    newFileName = ReplaceVariables(renamePattern, reader);
-                } else {
-                    using (IPackageReader ownReader = PackageReaderFactory.Create(path)) {
-                        newFileName = ReplaceVariables(renamePattern, ownReader);
-                    }
-                }
-
-                newFileName = Regex.Replace(newFileName, @"[\\/:*?""<>|-]+", ""); // remove invalid chars (incl. backslash: File.Move below)
-                if (Utility.GetSetting("ReplaceSpace")=="True") {
-                    newFileName = Regex.Replace(newFileName, @"\s+", "_");
-                }
-                string oldFileName = Path.GetFileName(path);
-                string folderPath = Path.GetDirectoryName(path);
-                // GetFileName: belt-and-braces, the rename target stays in the
-                // package's own folder no matter what the pattern produced
-                string tmpFileName = Path.GetFileName(newFileName) + suffix;
-
-                int i = 0;
-                while (File.Exists(folderPath + @"\" + tmpFileName) &&
-                    (tmpFileName != oldFileName)) {
-                    i++;
-                    tmpFileName = newFileName + "_(" + i.ToString() + ")" + suffix;
-                }
-                newFileName = folderPath + @"\" + tmpFileName;
-            } catch {
-                newFileName = "";
-            }
-            return newFileName;
-        }
-
-        private void dumpXML() {
-            string xml = Interaction.InputBox(Resources.strDumpXMLPrompt, Resources.strDumpXML);
-            foreach (var path in SelectedItemPaths) {
-                dumpXML(path, xml);
-            }
-        }
-
-        private void dumpXML(string apk, string xml) {
-            using (ApkReader reader = PackageReaderFactory.Create(apk) as ApkReader) {
-                if (reader == null) {
-                    // mixed selection contained a non-apk (ipa/appx):
-                    // dump only works on android binary xml, skip quietly
-                    Log("Not an apk, skipping dump: " + apk);
-                    return;
-                }
-                try {
-                    XmlDocument doc = reader.ExtractCompressedXml(xml);
-                    string filepath = apk + "." + Path.GetFileName(Regex.Replace(xml, @"[\\/:*?""<>|-]+", "_")); // attribute name, kept next to the apk
-                    XmlWriterSettings setting = new XmlWriterSettings();
-                    setting.Indent = true;
-                    XmlWriter writer = XmlWriter.Create(filepath,setting);
-                    doc.WriteTo(writer);
-                    writer.Close();
-                } catch (Exception ex) {
-                    ErrorLog.Warn(this.GetType().Name, "Error happens during extracting " + xml + " in " + apk, ex);
-                }
-            }
-        }
-
-        private void dumpManifest() {
-            foreach (var path in SelectedItemPaths) {
-                dumpXML(path, "androidmanifest.xml");
-            }
-        }
-
         public static string ReplaceVariables(string ori, IPackageReader reader) {
-            string[] tokens = ori.Split(new char[] { '%' });
-            string newstr = "";
-            bool inpattern = false;
-            foreach(string t in tokens) {
-                if (!inpattern) {
-                    newstr = newstr + t;
-                } else {
-                    string replacement = "";
-                    if (t == NonLocalizeResources.varAppName)
-                        replacement = reader.AppName;
-                    else if (t == NonLocalizeResources.varPackage)
-                        replacement = reader.PackageName;
-                    else if (t == NonLocalizeResources.varPublisher)
-                        replacement = reader.Publisher;
-                    else if (t == NonLocalizeResources.varVersion)
-                        replacement = reader.Version;
-                    else if (t == NonLocalizeResources.varRevision)
-                        replacement = reader.Revision;
-                    else if (t == NonLocalizeResources.varFileSize)
-                        replacement = Utility.getFileSize(reader.FileName);
-                    else if (t == NonLocalizeResources.varOS)
-                        replacement = (reader.Type == AppPackageReader.AppType.AndroidApp ? "Android"
-                            : (reader.Type == AppPackageReader.AppType.iOSApp ? "iOS"
-                            : "Windows"));
-                    else if (t == NonLocalizeResources.varLastModify)
-                        replacement = File.GetLastWriteTime(reader.FileName).ToString("dd/MM/yy HH:mm:ss");
-                    else if (t == NonLocalizeResources.varDebuggable)
-                        replacement = (reader.Type == AppPackageReader.AppType.AndroidApp) ?
-                            (((ApkReader)reader).Debuggable ? "Debug" : "Release") : "";
-                    else if (reader.Type == AppPackageReader.AppType.AndroidApp) {
-                        try {
-                            var apkreader = reader as ApkReader;
-                            string regstr = NonLocalizeResources.varAttribute;
-                            Regex rx = new Regex(regstr);
-                            Match m = rx.Match(t);
-                            if (m.Success) {
-                                string tag = m.Groups[1].Value;
-                                string attr = m.Groups[2].Value;
-                                replacement = apkreader.QuickSearchManifestXml(tag, attr);
-                            }
-                        } catch (Exception ex) {
-                            Utility.Log(null, "Replace variables", ex.Message + "\nError happens during replacing " + NonLocalizeResources.varAttribute);
-                        }
-                    }
-                    newstr = newstr + replacement;
-                }
-                inpattern = !inpattern;
-            }
-            if (inpattern) {
-                Utility.Log(null, "Replace variable", "% is not in pair.");
-            }
-            return newstr;
-        }
-
-        private void renameWithVersion() {
-            foreach (var path in SelectedItemPaths) {
-                try {
-                    string newFilename = getNewFileName(path);
-                    File.Move(path, newFilename);
-                } catch (Exception e) {
-                    ErrorLog.Warn(this.GetType().Name, "Exception happens during rename: " + path, e);
-                }
-            }
-        }
-
-        private void gotoGooglePlay() {
-            foreach (var p in SelectedItemPaths) {
-                using (ApkReader reader = new ApkReader(p)) {
-                    string package = reader.PackageName;
-                    Process.Start(string.Format(Properties.NonLocalizeResources.urlGooglePlay, package));
-                }
-            }
-        }
-
-        private void gotoAmazonAppStore() {
-            foreach (var p in SelectedItemPaths) {
-                using (ApkReader reader = new ApkReader(p)) {
-                    string package = reader.PackageName;
-                    Process.Start(string.Format(Properties.NonLocalizeResources.urlAmazonAppStore, package));
-                }
-            }
-        }
-
-        private void gotoApkMirror() {
-            foreach (var p in SelectedItemPaths) {
-                using (ApkReader reader = new ApkReader(p)) {
-                    string package = reader.PackageName;
-                    Process.Start(string.Format(Properties.NonLocalizeResources.urlApkMirror, reader.Publisher, package));
-                }
-            }
-        }
-
-        private void gotoAppleStore() {
-            foreach (var p in SelectedItemPaths) {
-                if (p.EndsWith(AppPackageReader.extIPA)) {
-                    using (IpaReader reader = PackageReaderFactory.Create(p) as IpaReader) {
-                        try {
-                            Process.Start(string.Format(Properties.NonLocalizeResources.urlAppleStore, reader.AppID));
-                        } catch (Exception ex) {
-                            Log(Path.GetFileName(p) + ex.Message + Environment.NewLine + "Cannot get appid.");
-                        }
-                    }
-                }
-            }
-        }
-
-        private void gotoMicrosoftStore() {
-            foreach (var p in SelectedItemPaths) {
-                if (p.EndsWith(AppPackageReader.extAPPX) || p.EndsWith(AppPackageReader.extAPPXBUNDLE)) {
-                    using (IPackageReader reader = PackageReaderFactory.Create(p)) {
-                        string package = reader.PackageName;
-                        CultureInfo ci = System.Threading.Thread.CurrentThread.CurrentCulture;
-                        Process.Start(string.Format(Properties.NonLocalizeResources.urlMicrosoftStore,reader.AppID));
-                    }
-                }
-            }
-        }
-
-        // modeless settings window (kkguo/apkshellext: ShowDialog() froze the Explorer window that
-        // opened it — a modal dialog in the shell process blocks that folder view until closed)
-        private static Preferences settingFormInstance = null;
-
-        private void showSettings() {
-            try {
-                if (settingFormInstance == null || settingFormInstance.IsDisposed) {
-                    settingFormInstance = new Preferences();
-                    settingFormInstance.FormClosed += (s, e) => settingFormInstance = null;
-                    settingFormInstance.currentFile = SelectedItemPaths.ElementAt(0);
-                    settingFormInstance.Show();
-                } else {
-                    settingFormInstance.currentFile = SelectedItemPaths.ElementAt(0);
-                    if (settingFormInstance.WindowState == FormWindowState.Minimized)
-                        settingFormInstance.WindowState = FormWindowState.Normal;
-                    settingFormInstance.Activate();
-                    settingFormInstance.BringToFront();
-                }
-            } catch (Exception ex) {
-                ErrorLog.Warn(this.GetType().Name, "Error happens during showSettings", ex);
-            }
+            return CommandRename.ReplaceVariables(ori, reader);
         }
 
         [CustomRegisterFunction]
@@ -499,7 +115,7 @@ namespace ApkShellext2 {
         }
 
         protected override void Log(string message) {
-            string s = (SelectedItemPaths.Count() >0) ?Path.GetFileName(SelectedItemPaths.ElementAt(0)): "";
+            string s = (SelectedItemPaths.Count() > 0) ? Path.GetFileName(SelectedItemPaths.ElementAt(0)) : "";
             Utility.Log(this, s, message);
         }
 
