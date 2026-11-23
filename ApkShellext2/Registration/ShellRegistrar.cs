@@ -7,16 +7,16 @@ using Microsoft.Win32;
 
 namespace ApkShellext2.Registration {
     /// <summary>
-    /// The registrar: replaces <c>regasm /codebase</c> plus SharpShell's
-    /// <c>ComRegisterFunction</c> hooks with one idempotent, symmetric implementation.
+    /// The registrar: one idempotent, symmetric implementation of what <c>regasm /codebase</c> and a
+    /// <c>ComRegisterFunction</c> hook would otherwise write and remove.
     ///
     /// What one <see cref="Register"/> writes, in both class roots (the 64 bit view and its
     /// <c>Wow6432Node</c> mirror):
     /// <list type="number">
     /// <item>the four COM servers - <c>CLSID\{guid}</c> with <c>InprocServer32</c>, the version
     /// subkey, <c>ProgId</c>, <c>Implemented Categories</c>, and the <c>&lt;ProgID&gt;</c> key with its
-    /// <c>CLSID</c> subkey - in the exact shape regasm produces (see
-    /// <c>X:\apks-s1\equiv\ref.reg</c>);</item>
+    /// <c>CLSID</c> subkey - in the exact shape regasm produces, which
+    /// <c>RegistrationTests</c> pins;</item>
     /// <item>the eight file associations, on the file class each extension points at;</item>
     /// <item>the <c>DefaultIcon</c> value with a one time backup of the previous icon;</item>
     /// <item>on a Windows 11 22H2+ host, <c>ExplorerCommandHandler</c> on the classes that received a
@@ -27,8 +27,8 @@ namespace ApkShellext2.Registration {
     /// silently disable the freshly registered handlers.
     ///
     /// <see cref="Unregister"/> removes exactly that, and only where the values still belong to us.
-    /// It does not run the installers' whole registry sweep; <c>install*.bat</c> and
-    /// <c>uninstall*.bat</c> keep their own logic until S3 takes over the install path.
+    /// It does not run the installers' whole registry sweep: <c>install*.bat</c> and
+    /// <c>uninstall*.bat</c> keep their own logic.
     /// </summary>
     internal static class ShellRegistrar {
         /// <summary>
@@ -104,7 +104,7 @@ namespace ApkShellext2.Registration {
         }
 
         //  -------------------------------------------------------------------------------------
-        //  COM server registration (what regasm /codebase used to do)
+        //  COM server registration (the regasm /codebase shape)
         //  -------------------------------------------------------------------------------------
 
         private static void WriteServerRegistration(RegistryWriter writer, string classRoot, string assemblyFullName, string version, string codeBase, RegistrationReport report) {
@@ -123,7 +123,7 @@ namespace ApkShellext2.Registration {
 
                 // regasm also writes the assembly version subkey (mscoree reads it when several
                 // versions of a server are installed). It carries the same four values but neither a
-                // default value nor ThreadingModel - X:\apks-s1\equiv\ref.reg, 28 keys total.
+                // default value nor ThreadingModel - 28 keys for the four handlers in total.
                 string versionKey = inprocKey + "\\" + version;
                 writer.SetValue(versionKey, ShellGuids.ValueClass, handler.ClassName);
                 writer.SetValue(versionKey, ShellGuids.ValueAssembly, assemblyFullName);

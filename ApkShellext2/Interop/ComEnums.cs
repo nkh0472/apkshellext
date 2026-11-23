@@ -1,10 +1,10 @@
 using System;
 
 namespace ApkShellext2.Interop {
-    //  Flag and enum types shared by the stage 4 COM declarations. Values are copied from the
-    //  Windows headers (and cross-checked against the vendored SharpShell declarations, see the
-    //  per-type remarks); the underlying type follows the Win32 typedef so that a member declared
-    //  as UINT stays 4 bytes wide and unsigned.
+    //  Flag and enum types shared by the COM declarations in this directory. Values are copied
+    //  from the Windows headers (and cross-checked against the vendored SharpShell declarations,
+    //  see the per-type remarks); the underlying type follows the Win32 typedef so that a member
+    //  declared as UINT stays 4 bytes wide and unsigned.
 
     /// <summary>IContextMenu.QueryContextMenu flags (<c>CMF_*</c>, winuser.h).</summary>
     [Flags]

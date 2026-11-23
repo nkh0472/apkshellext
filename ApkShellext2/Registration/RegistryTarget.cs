@@ -32,7 +32,7 @@ namespace ApkShellext2.Registration {
     /// The hive and class root paths one registration writes. Every registration writes <b>two</b>
     /// class roots: the 64 bit view and its <c>Wow6432Node</c> mirror.
     ///
-    /// Measured (plan §5.1.1): a per user registration that only writes
+    /// A per user registration that only writes
     /// <c>HKCU\Software\Classes\CLSID</c> is invisible to 32 bit processes - a 32 bit
     /// <c>CoCreateInstance</c> returns <c>0x80040154</c> (REGDB_E_CLASSNOTREG) because such a process
     /// looks at <c>HKCU\Software\Classes\Wow6432Node\CLSID</c>. The 32 bit mirror therefore has to be

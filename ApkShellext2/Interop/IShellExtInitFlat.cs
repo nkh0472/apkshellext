@@ -16,7 +16,7 @@ namespace ApkShellext2.Interop {
     /// <paramref name="pDataObj"/> is a raw <c>IDataObject*</c> owned by the shell (query it for
     /// <c>CF_HDROP</c>); do not Release it, and do not pass it to
     /// <c>Marshal.ReleaseComObject</c> - that premature release is the
-    /// ShellExtInitServer.cs:52 defect described in plan §3.2.
+    /// <c>ShellExtInitServer.cs:52</c> crash.
     /// </remarks>
     [ComImport]
     [Guid("000214e8-0000-0000-c000-000000000046")]

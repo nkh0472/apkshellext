@@ -53,8 +53,8 @@ namespace ApkShellext2.Registration {
     ///
     /// These values are duplicates of what the command line installers still hard code -
     /// <c>Resources\install.bat</c>, <c>Resources\install_user.bat</c>,
-    /// <c>Resources\uninstall.bat</c> and <c>Resources\uninstall_user.bat</c> keep their own copies
-    /// until S3 converges them onto this class. When changing a value here, change it there too, and
+    /// <c>Resources\uninstall.bat</c> and <c>Resources\uninstall_user.bat</c> keep their own copies.
+    /// When changing a value here, change it there too, and
     /// update the CLSID/GUID mapping in <c>ApkShellext2\Shell\*.cs</c> (the <c>[Guid]</c> attributes
     /// are the source of truth: the registrar only repeats them).
     /// </summary>
@@ -65,8 +65,8 @@ namespace ApkShellext2.Registration {
         //    Shell\ApkIconHandler.cs:23      1F869CEE-4FDA-35D9-896F-43975A87D1F6
         //    Shell\ApkInfoTipHandler.cs:17   946435a5-fe96-416d-99db-e94ee9fb46c8
         //    Shell\ApkThumbnailHandler.cs:18 d747c5a7-2f66-4b7d-8301-8531838e4ed3
-        //  The migration from SharpShell to the stage 4 handlers keeps these CLSIDs (plan §8 R7),
-        //  so a user update does not need to re-register the file associations.
+        //  These CLSIDs survive handler rewrites on purpose: an update of the installed extension
+        //  must never force a re-registration of the file associations.
         //  ------------------------------------------------------------------------------------
         internal const string ContextMenuClsid = "{DCB629FC-F86F-456F-8E24-98B9B2643A9B}";
         internal const string IconHandlerClsid = "{1F869CEE-4FDA-35D9-896F-43975A87D1F6}";
@@ -74,9 +74,9 @@ namespace ApkShellext2.Registration {
         internal const string ThumbnailClsid = "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}";
 
         /// <summary>
-        /// CLSID used for the Windows 11 <c>ExplorerCommandHandler</c> registration. A placeholder
-        /// until S4 lands the <c>IExplorerCommand</c> class (plan §6); on a Windows 11 host the shell
-        /// tries to activate it, finds no registration, and keeps using the classic verbs.
+        /// CLSID used for the Windows 11 <c>ExplorerCommandHandler</c> registration. It is a
+        /// placeholder: on a Windows 11 host the shell tries to activate it, finds no registration,
+        /// and keeps using the classic verbs.
         /// </summary>
         internal const string ExplorerCommandClsid = "{7C2F1A44-3D51-4E8B-9C0A-5B6D2E3F4A11}";
 
@@ -142,7 +142,8 @@ namespace ApkShellext2.Registration {
         internal const string DefaultIconValue = "%1";
 
         /// <summary>
-        /// Value name SharpShell (and the installers) used to remember a pre-existing DefaultIcon.
+        /// Value name under which a pre-existing DefaultIcon is remembered. The spelling is historical -
+        /// existing installations already carry it, so renaming the value would orphan their backup.
         /// Never overwrite an existing backup: it holds the icon of whatever application owned the
         /// extension before this shell extension was installed.
         /// </summary>

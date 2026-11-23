@@ -10,12 +10,12 @@ namespace ApkShellext2.Interop {
     /// passing us <c>IShellFolder</c>, <c>IDataObject</c> or an <c>IStream</c> - is the fragile
     /// direction: casting those pointers to a <c>[ComImport]</c> interface builds an RCW, and an
     /// RCW wants to be released with <c>Marshal.ReleaseComObject</c>, which drops a reference the
-    /// shell still owns. Plan §3.2 documents the crash this caused in
-    /// <c>ShellExtInitServer.cs:52</c>.
+    /// shell still owns - the premature release behind the <c>ShellExtInitServer.cs:52</c> crash.
     ///
-    /// The alternative used from stage 4 on: read the function pointer out of the vtable by slot
-    /// number and call it through a delegate. No RCW, no reference counted identity, no hidden
-    /// AddRef, and the slot number is checked against the declaration by <see cref="ComLayout"/>.
+    /// This class reads the function pointer out of the vtable by slot number and calls it through
+    /// a delegate instead. No RCW, no reference counted identity, no hidden AddRef, and the slot
+    /// number is checked against the declaration by <see cref="ComLayout"/> (InteropLayoutTests
+    /// pins the slot numbers themselves).
     /// </summary>
     internal static class ComObject {
         //  IUnknown occupies slots 0..2 of every COM vtable, the first interface method is slot 3.

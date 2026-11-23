@@ -9,11 +9,11 @@ namespace ApkShellext2.Interop {
     /// 10 <c>EnumSubCommands</c>.
     /// </summary>
     /// <remarks>
-    /// Nothing in stage 4 implements this yet: the registrar only writes the
+    /// No handler implements this interface: the registrar only writes the
     /// <c>ExplorerCommandHandler</c> registration when <c>RtlGetVersion</c> reports Windows 11
-    /// 22H2 (build 22621) or newer, and that value points at a placeholder CLSID until S4 lands
-    /// the real handler. The declaration exists now so the registration shape is fixed and pinned
-    /// by InteropLayoutTests.
+    /// 22H2 (build 22621) or newer, and that value points at the placeholder CLSID in
+    /// <c>Win11CommandRegistration.PlaceholderClsid</c>. The declaration fixes the registration
+    /// shape, which InteropLayoutTests pins.
     ///
     /// The <c>LPWSTR*</c> out parameters stay <see cref="IntPtr"/> on purpose: the implementation
     /// has to hand back <c>CoTaskMemAlloc</c> strings, and a marshalled <c>out string</c> would

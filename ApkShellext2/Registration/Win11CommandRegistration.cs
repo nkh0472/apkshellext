@@ -13,9 +13,9 @@ namespace ApkShellext2.Registration {
     /// </summary>
     internal static class Win11CommandRegistration {
         /// <summary>
-        /// The CLSID written today. A placeholder until S4 lands the <c>IExplorerCommand</c> class
-        /// (plan §6): the shell will fail to activate it and fall back to the classic context menu
-        /// handlers, which is exactly the stage 1 behaviour we want.
+        /// The CLSID the registrar writes. No <c>IExplorerCommand</c> class is registered under it,
+        /// so the shell fails to activate it and falls back to the classic context menu handlers -
+        /// the intended behaviour on a Windows 11 host.
         /// </summary>
         internal const string PlaceholderClsid = ShellGuids.ExplorerCommandClsid;
 

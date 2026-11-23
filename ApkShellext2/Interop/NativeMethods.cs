@@ -4,7 +4,7 @@ using System.Text;
 
 namespace ApkShellext2.Interop {
     /// <summary>
-    /// The Win32 entry points stage 4 needs, one region per DLL.
+    /// The Win32 entry points this layer needs, one region per DLL.
     ///
     /// Conventions (house style, keep them when adding a declaration):
     /// <list type="bullet">
@@ -61,8 +61,8 @@ namespace ApkShellext2.Interop {
         #region shell32.dll
 
         /// <summary>
-        /// <c>IShellItem</c> from a file system path. The intended consumer is the S3 thumbnail /
-        /// icon path resolver, which needs an item for <c>IShellItemImageFactory</c>.
+        /// <c>IShellItem</c> from a file system path. The thumbnail/icon path resolver needs such an
+        /// item to reach <c>IShellItemImageFactory</c>.
         /// </summary>
         [DllImport("shell32.dll", CharSet = CharSet.Unicode, EntryPoint = "SHCreateItemFromParsingName", SetLastError = true)]
         internal static extern int SHCreateItemFromParsingName([MarshalAs(UnmanagedType.LPWStr)] string pszPath, IntPtr pbc, ref Guid riid, out IntPtr ppv);
@@ -128,8 +128,8 @@ namespace ApkShellext2.Interop {
 
         /// <summary>
         /// Module handle by name (or of the current module when <paramref name="lpModuleName"/> is
-        /// null). Intended consumer: the S3 icon path, which needs the module that owns our icon
-        /// resources to build an <c>@{path},-id</c> icon location.
+        /// null). An <c>@{path},-id</c> icon location names a module that owns the icon resources,
+        /// so the icon path resolver needs the handle of this module.
         /// </summary>
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetModuleHandleExW", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -150,7 +150,7 @@ namespace ApkShellext2.Interop {
         /// <summary>
         /// The only truthful source for the OS build number: <c>Environment.OSVersion</c> reports
         /// 6.2 on Windows 10+ unless the process has a manifest that opts into the newer version
-        /// lies, and the stage 4 registrar may run from an unmanifested host. Returns an NTSTATUS
+        /// lies, and the registrar may run from an unmanifested host. Returns an NTSTATUS
         /// (0 = STATUS_SUCCESS).
         /// </summary>
         [DllImport("ntdll.dll", ExactSpelling = true, SetLastError = false)]

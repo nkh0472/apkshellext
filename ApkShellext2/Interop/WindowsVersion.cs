@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace ApkShellext2.Interop {
     /// <summary>
-    /// The Windows build number from <c>RtlGetVersion</c>, plus the thresholds stage 4 gates on.
+    /// The Windows build number from <c>RtlGetVersion</c>, plus the thresholds the registrar gates on.
     ///
     /// Why not <c>Environment.OSVersion</c>: on Windows 8.1 and later that API reports
     /// <c>6.2.9200</c> to any process whose executable has no compatibility manifest, which is

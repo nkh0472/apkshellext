@@ -2,8 +2,8 @@ using System;
 
 namespace ApkShellext2.Interop {
     /// <summary>
-    /// The HRESULT values used by the stage 4 shell handlers, plus the two packing helpers
-    /// the shell contract needs.
+    /// The HRESULT values used by the shell handlers, plus the two packing helpers the shell
+    /// contract needs.
     ///
     /// Every COM method declared in <c>Interop\</c> is <c>[PreserveSig]</c>, so a failure is
     /// returned as a negative value instead of being translated into an exception by the CLR.

@@ -8,14 +8,14 @@ namespace ApkShellext2.Registration {
     ///
     /// The associations belong to the <b>file class</b> an extension points at (for example
     /// <c>apk.1</c>), not to the extension key and not to our ProgIDs. Writing
-    /// <c>.apk\shellex\...</c> instead is the classic mistake: measured in plan §5.1, that location
-    /// is never loaded. The class resolution below is the same one <c>install_user.bat</c> [3/5]
-    /// performs: read the extension's default value, and if there is none, invent
+    /// <c>.apk\shellex\...</c> instead is the classic mistake: the shell never loads it. The class
+    /// resolution below is the same one <c>install_user.bat</c> performs: read the extension's
+    /// default value, and if there is none, invent
     /// <c>&lt;ext&gt;.1</c> with the display name <c>&lt;ext&gt; Application</c> and use it.
     ///
     /// Everything here is idempotent: registering twice produces the same tree, and a second
     /// <c>DefaultIcon</c> pass never overwrites the backup of the icon that belonged to the previous
-    /// application (SharpShell's own implementation did, that is the defect this replaces).
+    /// application, because that backup is the only record of what owned the extension before.
     /// </summary>
     internal sealed class AssociationRegistrar {
         private readonly RegistryWriter _writer;
@@ -68,9 +68,9 @@ namespace ApkShellext2.Registration {
         /// only a DefaultIcon backup we created, and only a file class that is provably ours and now
         /// unused. Another application's slots, icon and verbs survive.
         ///
-        /// This is deliberately narrower than <c>uninstall_user.bat</c>'s sweep (no <c>reg query</c>
-        /// over the whole CLSID tree, no <c>Classes\Record</c> cleanup): the registrar removes what it
-        /// wrote. The installers keep their own sweep until S3 retires them.
+        /// This is narrower than <c>uninstall_user.bat</c>'s sweep (no <c>reg query</c> over the whole
+        /// CLSID tree, no <c>Classes\Record</c> cleanup): the registrar removes what it wrote, and the
+        /// installers keep their own sweep.
         /// </summary>
         internal void Unregister() {
             foreach (ExtensionClass item in ResolveAll(create: false)) {

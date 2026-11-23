@@ -44,7 +44,7 @@ namespace ApkShellext2.Interop {
     /// SharpShell has no declaration for this interface (it uses the BCL
     /// <c>System.Runtime.InteropServices.ComTypes.IPersistFile</c>), so the slot list comes from
     /// the objidl.h definition. Handlers that need the file path are initialised through this
-    /// interface, that is why it belongs to the stage 4 interop surface.
+    /// interface, which is why it is declared here.
     /// </remarks>
     [ComImport]
     [Guid("0000010b-0000-0000-c000-000000000046")]

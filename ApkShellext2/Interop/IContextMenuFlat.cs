@@ -6,8 +6,8 @@ namespace ApkShellext2.Interop {
     //  The context menu interfaces are declared FLAT: one interface per shell version, each one
     //  carrying its *complete* method list and inheriting nothing but IUnknown (which the CLR
     //  provides). Interface inheritance is what makes a CLR generated vtable put the derived
-    //  methods before the base methods, which shifts every slot and crashes the shell when it
-    //  calls HandleMenuMsg2 (see plan §3.1, measured 0xC0000005).
+    //  methods before the base methods, which shifts every slot and makes the shell crash with
+    //  0xC0000005 when it calls HandleMenuMsg2.
     //
     //  Vtable layout, identical to the native interfaces:
     //    slot 0 QueryInterface, 1 AddRef, 2 Release   <- IUnknown, supplied by the CLR

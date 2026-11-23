@@ -11,11 +11,11 @@ namespace ApkShellext2.Interop {
     /// returns the list of mismatches (empty means "the declarations are what the shell expects").
     ///
     /// This exists because a wrong slot or a wrong field offset does not fail at compile time - it
-    /// corrupts the call at run time. In the vendored SharpShell the failure mode was an access
-    /// violation in the shell process when Explorer called <c>HandleMenuMsg2</c>; with 64 bit
-    /// <c>FORMATETC</c>/<c>STGMEDIUM</c> a wrong size makes <c>ReleaseStgMedium</c> free the wrong
-    /// pointer. <c>InteropLayoutTests</c> asserts that this returns nothing, which turns both classes
-    /// of defect into a test failure.
+    /// corrupts the call at run time: a slot error is an access violation in the shell process when
+    /// Explorer calls <c>HandleMenuMsg2</c>, and a wrong struct size with 64 bit
+    /// <c>FORMATETC</c>/<c>STGMEDIUM</c> makes <c>ReleaseStgMedium</c> free the wrong pointer.
+    /// <c>InteropLayoutTests</c> asserts that this returns nothing, which turns both classes of
+    /// defect into a test failure.
     /// </summary>
     internal static class ComLayout {
         private sealed class InterfaceContract {
@@ -59,7 +59,7 @@ namespace ApkShellext2.Interop {
 
         /// <summary>
         /// Vtable contract per declaration. The IID strings are the Win32 literals (the comment in
-        /// each declaration names the SharpShell file it was copied from).
+        /// each declaration names the SharpShell file it corresponds to).
         /// </summary>
         private static readonly InterfaceContract[] InterfaceContracts = {
             new InterfaceContract(typeof(IContextMenuFlat), "000214e4-0000-0000-c000-000000000046",

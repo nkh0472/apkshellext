@@ -13,7 +13,7 @@ namespace ApkShellext2.Interop {
     /// <remarks>
     /// Mirrors <c>ApkShellext2\SharpShell\SharpShell\SharpShell\Interop\IShellFolder.cs</c>
     /// (:10 guid, method comments at :24 onward) - the vendored file also declares the optional
-    /// IShellFolder2 extension, which stage 4 does not need. PIDLs stay <see cref="IntPtr"/>: the
+    /// IShellFolder2 extension, which this code does not need. PIDLs stay <see cref="IntPtr"/>: the
     /// shell frees them with <c>ILFree</c>, the handler never owns them.
     /// </remarks>
     [ComImport]
@@ -58,8 +58,8 @@ namespace ApkShellext2.Interop {
     /// </summary>
     /// <remarks>
     /// Not part of the shipping registration shape: <c>mscoree.dll</c> is the in-proc server and it
-    /// creates the managed class factory itself (plan §3.5). The declaration is here because the
-    /// stage 4 tests create instances through it instead of depending on the shell.
+    /// creates the managed class factory itself. The declaration is here because the tests create
+    /// instances through it instead of depending on the shell.
     /// </remarks>
     [ComImport]
     [Guid("00000001-0000-0000-c000-000000000046")]
