@@ -80,6 +80,14 @@ namespace ApkShellext2.Registration {
         /// </summary>
         internal const string ExplorerCommandClsid = "{7C2F1A44-3D51-4E8B-9C0A-5B6D2E3F4A11}";
 
+        /// <summary>
+        /// CLSID of the native menu handler (<c>Shell\Native\ContextMenuHandler</c>). It is not part of
+        /// the file associations: every extension still activates <see cref="ContextMenuClsid"/>, and
+        /// this identifier exists so a harness can activate the native class on its own and compare its
+        /// menu with the one the registered handler produces. Nothing in the registrar writes it.
+        /// </summary>
+        internal const string NativeMenuClsid = "{A8D3F2E1-6C4B-4D9A-B7F5-2E1D0C9B8A76}";
+
         internal const string ContextMenuProgId = "ApkShellext2.ApkContextMenu";
         internal const string IconHandlerProgId = "ApkShellext2.ApkIconHandler";
         internal const string InfoTipProgId = "ApkShellext2.ApkInfoTipHandler";
