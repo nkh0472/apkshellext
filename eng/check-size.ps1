@@ -7,8 +7,9 @@
 # (`check-layout.ps1`) is what actually fails CI.
 #
 # Reference point (VS route, clean Release): dll 1,181,184 B, 7z ~752,500 B (archive
-# timestamps vary), tree 2,360,097 B / 27 files. The budgets in the param block sit
-# above that point and are only used to label a line OVER, never to fail.
+# timestamps vary), tree 2,360,097 B across the 9 manifest files and the 19 satellites.
+# The budgets in the param block sit above that point and are only used to label a line
+# OVER, never to fail.
 param(
     [string]$OutputDir = 'ApkShellext2\bin\Release',
 

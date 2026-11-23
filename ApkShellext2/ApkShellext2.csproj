@@ -36,7 +36,7 @@
     <!-- Svg 3.5.0 is source-embedded and needs modern language features on net48 -->
     <LangVersion>10.0</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- legacy: Debug/Debug2 full pdb + no opt; Release pdbonly + opt (unchanged) -->
+    <!-- Debug/Debug2: full pdb + no opt; Release: pdbonly + opt -->
     <DebugType Condition="'$(Configuration)' != 'Release'">full</DebugType>
     <DebugType Condition="'$(Configuration)' == 'Release'">pdbonly</DebugType>
     <Optimize Condition="'$(Configuration)' == 'Release'">true</Optimize>
@@ -44,7 +44,7 @@
          stated here so a future property override cannot silently change dll bytes
          behind the size gate -->
     <Deterministic>true</Deterministic>
-    <!-- Debug2 is the legacy signed-local-debug config: behaves like Debug -->
+    <!-- Debug2 is the signed-local-debug config: behaves like Debug -->
     <DefineConstants Condition="'$(Configuration)' == 'Debug2'">$(DefineConstants);DEBUG</DefineConstants>
     <!-- NETFULL drives the net-framework code paths in Svg 3.5.0 sources.
          NETFRAMEWORK/NET48/NET462_OR_GREATER are auto-defined by the SDK for net48. -->
@@ -67,7 +67,7 @@
          builds each do the right thing with zero extra flags. -->
     <GenerateResourceUsePreserializedResources Condition="'$(MSBuildRuntimeType)' == 'Core'">true</GenerateResourceUsePreserializedResources>
 
-    <!-- Submodule/legacy trees contain sources we deliberately do not compile;
+    <!-- Vendored trees contain sources that must not be compiled;
          keep item globs explicit and let the repo layout drive them. -->
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
@@ -80,12 +80,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- main sources, split by responsibility (T-Q, roadmap section 3): Formats\ holds
+    <!-- main sources, split by responsibility: Formats\ holds
          the package readers and the shared AXML/ARSC parsers; Utility.cs stays at the
-         project root because every layer uses it. ApkChunk.cs is dev tooling compiled only
-         into apkshellextTest (stripped from the shell dll in 3.4.4). -->
+         project root because every layer uses it. -->
     <Compile Include="*.cs" />
-    <Compile Include="Formats\**\*.cs" Exclude="Formats\ApkChunk.cs" />
+    <Compile Include="Formats\**\*.cs" />
     <!-- Imaging\: the zip-container abstraction (IArchive/SafeArchive), the icon
          source chain and the vector-drawable rasterizer. -->
     <Compile Include="Imaging\**\*.cs" />
@@ -95,10 +94,10 @@
     <!-- Shell\: the four COM handlers (context menu, icon, info tip, thumbnail). -->
     <Compile Include="Shell\**\*.cs" />
     <!-- Interop\: the hand written COM declarations and P/Invokes that replace the vendored
-         SharpShell interop layer (stage 4), plus the layout contract in ComLayout.cs. -->
+         SharpShell interop layer, plus the layout contract in ComLayout.cs. -->
     <Compile Include="Interop\**\*.cs" />
     <!-- Registration\: the self contained shell registrar that will replace the SharpShell
-         registration hooks (stage 4); see compile_guidance.md "Interop and the registrar". -->
+         registration hooks; see compile_guidance.md "Interop and the registrar". -->
     <Compile Include="Registration\**\*.cs" />
     <!-- Preferences\: the WinForms settings form and its designer file; the .resx stays
          at the project root so its embedded resource name is unchanged. -->
@@ -134,22 +133,21 @@
     <Compile Include="PNGDecrush\PNGDecrush\*.cs" />
     <Compile Include="WebP-wrapper\WebPWrapper.cs" />
 
-    <!-- Svg 3.5.0 (v3.5.0 tag, source-embedded). Generated\ is the legacy pregen output
-         folder - always excluded now that Svg.Generators runs as an analyzer below. -->
+    <!-- Svg 3.5.0 (v3.5.0 tag, source-embedded). Generated\ is the pregen output folder,
+         always excluded because Svg.Generators runs as an analyzer below. -->
     <Compile Include="SVG\Source\**\*.cs" />
     <Compile Remove="SVG\Source\Properties\**\*.cs" />
     <Compile Remove="SVG\Source\Generated\**\*.cs" />
-    <!-- the ASP.NET request handler is dead weight in a shell extension and the tree's only
-         System.Web consumer; it also calls an obsolete SvgDocument.Open overload upstream
-         never migrated (its csproj Reference to System.Web dropped together with it) -->
+    <!-- the ASP.NET request handler has no place in a shell extension and is the tree's only
+         System.Web consumer; it also calls an obsolete SvgDocument.Open overload with no
+         successor API (its csproj Reference to System.Web goes with it) -->
     <Compile Remove="SVG\Source\Web\**\*.cs" />
 
-    <!-- SharpShell 2.7.1 (vendored sources). Excluded beyond the old compile list:
-         RegAsm.cs + Properties\AssemblyInfo.cs + SharpDeskBand\ (never compiled before
-         either). NativeBridge\, SharpPropertySheet\ and the SharpShellNativeBridge\
-         native project were physically deleted (dead property-sheet host needing the
-         SharpShellNativeBridge32/64.dll binaries that upstream removed; no compiled
-         file referenced those namespaces). -->
+    <!-- SharpShell 2.7.1 (vendored sources). Excluded: RegAsm.cs + Properties\AssemblyInfo.cs
+         + SharpDeskBand\. Nothing compiles against the property-sheet host
+         (NativeBridge\, SharpPropertySheet\) or the SharpShellNativeBridge\ native project,
+         so none of them is in the tree and the SharpShellNativeBridge32/64.dll binaries
+         they need are not shipped. -->
     <Compile Include="SharpShell\SharpShell\SharpShell\**\*.cs" />
     <Compile Remove="SharpShell\SharpShell\SharpShell\Properties\AssemblyInfo.cs" />
     <Compile Remove="SharpShell\SharpShell\SharpShell\Helpers\RegAsm.cs" />
@@ -161,9 +159,9 @@
       <SubType>Form</SubType>
     </Compile>
 
-    <!-- SharpZipLib is gone (T-J): zip containers are read with ZipArchive (see
-         SafeArchive.cs) and the three SharpZipLib types the pinned PNGDecrush source
-         still names come from the System.IO.Compression-based shim (SharpZipLibShim.cs). -->
+    <!-- zip containers are read with ZipArchive (see SafeArchive.cs) and the three
+         SharpZipLib types the pinned PNGDecrush source still names come from the
+         System.IO.Compression-based shim (SharpZipLibShim.cs). -->
   </ItemGroup>
 
   <ItemGroup>
@@ -252,15 +250,14 @@
 
   <ItemGroup>
     <!-- No facade packages: System.Memory / System.Buffers /
-         System.Runtime.CompilerServices.Unsafe / System.Numerics.Vectors are gone.
-         The SVG parser used to need System.Memory for its buffer slices on net48, and
-         because COM hosts (explorer/dllhost) only probe the app base and the GAC, those
-         facades had to be deployed app-local next to the dll - where a version mismatch
-         with the host's binding redirect silently killed vector-icon rendering (3.4.6).
-         T-K rewrote that parsing against plain strings (Svg\Source\Helpers\TextSlice.cs),
-         so the dll now binds to framework assemblies only. Re-adding any of them also
-         means re-adding the AssemblyResolve redirect that used to live in FacadeResolver.cs
-         AND the dll names to the deployment manifest in Resources\postbuild.cmd. -->
+         System.Runtime.CompilerServices.Unsafe / System.Numerics.Vectors must not be
+         referenced. The SVG parsing works on plain strings (Svg\Source\Helpers\TextSlice.cs),
+         so the dll binds to framework assemblies only. That matters because COM hosts
+         (explorer/dllhost) probe the app base and the GAC and nothing else: an app-local
+         facade would have to be deployed next to the dll, and a version mismatch against the
+         host's binding redirect silently kills vector-icon rendering. Re-adding one also means
+         re-adding the AssemblyResolve redirect in FacadeResolver.cs AND the dll name to the
+         deployment manifest in Resources\postbuild.cmd. -->
     <!-- Only the dotnet-CLI resource path needs this (see
          GenerateResourceUsePreserializedResources above); the VS route / the shipped assembly
          never loads it from a COM host. It drags System.Memory 4.5.4 ->
@@ -298,8 +295,7 @@
     </Content>
   </ItemGroup>
 
-  <!-- Publish layout assembled by MSBuild (used to be copy commands at the top
-       of Resources\postbuild.cmd; that script now only does 7z packaging).
+  <!-- Publish layout assembled by MSBuild: the script does 7z packaging only.
        Content items are copied by CopyFilesToOutputDirectory during the build,
        before PostBuildEvent runs, so the output folder is already complete.
        TargetPath flattens each file to the output root - without it the
@@ -337,10 +333,10 @@
     </Content>
   </ItemGroup>
 
-  <!-- 7z packaging step (Resources\postbuild.cmd). NOTE: implemented as an
-       AfterBuild target, not the legacy <PostBuildEvent> property - in an SDK-style
+  <!-- 7z packaging step (Resources\postbuild.cmd). NOTE: it must stay an
+       AfterBuild target, never a <PostBuildEvent> property - in an SDK-style
        project a property assignment expands its macros at EVALUATION time, when
-       $(ProjectDir)/$(TargetDir) are not defined yet, so the old one-liner would
+       $(ProjectDir)/$(TargetDir) are not defined yet, so the command would
        bake into `call "Resources\postbuild.cmd" "" ""`. Task parameters inside a
        target expand at execution time, when everything is known.
        The script exits 0 quickly when 7-Zip is absent; it only packages, never
