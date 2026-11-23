@@ -76,7 +76,7 @@ jobs:
       # The FullFramework route needs an SDK the runner's MSBuild 17.14 can
       # load; ci.yml pins the same version for the same reason.
       - name: Set up .NET SDK 9 (MSBuild 17.14 compatible)
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 9.0.x
 
