@@ -263,7 +263,7 @@
          System.Resources.Extensions at runtime, so the assets cannot be excluded here).
          Those copies are NOT part of the deployment: the VS route - the only publishable one -
          references nothing, and Resources\postbuild.cmd only packs the 8-file manifest. -->
-    <PackageReference Include="System.Resources.Extensions" Version="6.0.0"
+    <PackageReference Include="System.Resources.Extensions" Version="11.0.0"
                       Condition="'$(GenerateResourceUsePreserializedResources)' == 'true'" />
   </ItemGroup>
 
