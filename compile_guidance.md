@@ -41,7 +41,7 @@ Consequence: any reasonably modern MSBuild can build them — no Visual Studio r
 The compiled IL is the same, but the resource serialization format differs by route and
 that is not cosmetic: only the VS-route output is safe to install into Explorer.
 Ship from Route B, use Route A for development — packaging converges to one identical
-27-file archive either way (§8).
+28-file archive either way (§8).
 
 Reference environment for the example paths below (adjust to your machine):
 Windows x64, repo at `E:\src\apkshellext`, toolchain at `E:\src\apkshellext-dep`,
@@ -316,7 +316,7 @@ routes now build with `0 warnings / 0 errors`:
 The 29 sources that used to sit at the project root are grouped by responsibility
 (roadmap §3). Everything else keeps its path: the vendored trees, `Properties\`,
 `Resources\`, `Preferences.resx`, the `LibWebP\` natives and the signing keys.
-`eng\check-layout.ps1` (8 root files + 19 language folders) is untouched and
+`eng\check-layout.ps1` (9 root files + 19 language folders) is untouched and
 `eng\check-size.ps1` only reports against its reference budgets — the publish folder stays flat.
 
 ```
@@ -397,13 +397,13 @@ the FullFramework resource pipeline, not for the compiler version.
 & .\eng\check-size.ps1
 ```
 
-Always exits 0 and prints how `ApkShellext2.dll`, the 7z package and the 27-file
+Always exits 0 and prints how `ApkShellext2.dll`, the 7z package and the 28-file
 deployment tree compare with the reference budgets (currently 1,260,000 / 1,000,000 /
 2,500,000 B; the post-T-R baseline is 1,181,184 / ~752,500 / 2,360,097 B). A line above
 its number is labelled `OVER (guidance only)` — package size is guidance, not a merge
 contract, so a dependency bump or a new feature does not need a budget edit and never
 turns CI red. The functional contract is `check-layout.ps1`, which fails on a missing or
-unexpected deployment file. The tree is counted from the 8 manifest files plus the 19
+unexpected deployment file. The tree is counted from the 9 manifest files plus the 19
 satellites, never from a directory glob, so stray pdb or log files in `bin\Release`
 cannot affect it. The budgets are parameters (`-MaxDllBytes` …); lowering one renders a
 tighter report without editing the script.
@@ -475,7 +475,8 @@ analyzer suggestion can never turn into a red build.
 **The layout is assembled by MSBuild — postbuild only packages.**
 
 - **MSBuild side** (`ApkShellext2.csproj`): `install.bat`, `install_user.bat`,
-  `uninstall.bat`, `uninstall_user.bat`, `restart_explorer.bat` and both `libwebp_*.dll`
+  `uninstall.bat`, `uninstall_user.bat`, `restart_explorer.bat`, `update.bat` and both
+  `libwebp_*.dll`
   are `Content` items with `CopyToOutputDirectory=PreserveNewest`; `debug.bat` likewise
   under `Condition="'$(Configuration)'=='Debug'"`. `CopyFilesToOutputDirectory` copies
   them before any packaging runs, so `bin\Release` is already a complete publish folder.
@@ -494,7 +495,7 @@ analyzer suggestion can never turn into a red build.
   the same rule `check-layout.ps1`/`check-size.ps1` dot-source), deletes stale
   `*.7z` (the old unversioned name and any package from a previous version),
   then packs the new name
-  from an **explicit manifest** — the eight root files (`ApkShellext2.dll`, the five
+  from an **explicit manifest** — the nine root files (`ApkShellext2.dll`, the six
   bats, the two `libwebp_*` binaries) plus every
   locale folder that exists (`ar-SA` … `zh-TW`). A missing manifest entry **fails the
   build**, so a short archive cannot ship silently. The four System.Memory facade dlls
@@ -538,6 +539,19 @@ Deployment (on the target machine, as the user who owns the shell extension): ex
 `install.bat` (elevated, machine-wide) or `install_user.bat` (per-user;
 both register via regasm and NGEN the assembly — 3.4.5 fixed NGEN in these scripts).
 `restart_explorer.bat` reloads the shell. Uninstall with the matching `uninstall*.bat`.
+
+**Upgrading an existing installation:** extract the new package anywhere and run
+`update.bat` from it (optional `/quiet` for scripting, `/ngen` to refresh native images).
+It reads the registered install folder from the COM `CodeBase` (HKLM 64-bit view, then
+WOW6432Node, then HKCU — machine wins), stages the new files, moves the eight product
+files to `backup-<oldversion>-<timestamp>\`, copies the new files in and repairs the same
+registration scope in place. If the package folder *is* the registered folder the files
+are swapped in place; otherwise they are copied into the registered folder and `CodeBase`
+is left pointing there. It never overwrites an existing `SharpShell_Backup_DefaultIcon`,
+and it clears the Windows blocked list for all four CLSIDs. `/rollback` restores the
+newest backup and restarts Explorer; a failed step also moves the backup back and
+restarts Explorer. `update.bat` itself is not backed up (Windows holds a running .bat
+open), so a rollback restores the product files only.
 Because the local snk differs from upstream's, never mix DLLs from a local build with an
 official package in the same GAC/registration state.
 
@@ -568,11 +582,11 @@ official package in the same GAC/registration state.
    $rm.GetString('btnOK', [cultureinfo]::InvariantCulture)   # → OK     (neutral, inside main dll)
    ```
 
-4. **Complete publish layout in `bin\Release`:** the eight manifest files —
-   `ApkShellext2.dll(.pdb)`, the five bats, `libwebp_x86/x64.dll` —
+4. **Complete publish layout in `bin\Release`:** the nine manifest files —
+   `ApkShellext2.dll(.pdb)`, the six bats, `libwebp_x86/x64.dll` —
    plus the nineteen culture folders and — when 7-Zip was found —
-   `ApkShellext2-3.5.1.7z` (~750 KB). `7z l` must list **exactly 27 files on both routes**:
-   the 8 root entries (no `System.Resources.Extensions.dll` — packaging
+   `ApkShellext2-3.5.1.7z` (~750 KB). `7z l` must list **exactly 28 files on both routes**:
+   the 9 root entries (no `System.Resources.Extensions.dll` — packaging
    exclusion even when a dotnet-CLI build left it in the folder — and no
    `System.Memory/System.Buffers/System.Runtime.CompilerServices.Unsafe/System.Numerics.Vectors`
    either: the VS route never copies them, and a dotnet-CLI build that copies them
@@ -764,10 +778,10 @@ Set-Location $R
 & $msb ApkShellext2.sln -p:Configuration=Release              -nologo -v:m; if ($LASTEXITCODE) { throw 'build failed' }
 
 # verify the VS-route specifics: no facade dll, NO System.Resources.Extensions.dll in
-# the output, archive = 27 files (8 manifest items + 19 satellites)
+# the output, archive = 28 files (9 manifest items + 19 satellites)
 Test-Path "$R\ApkShellext2\bin\Release\System.Resources.Extensions.dll"   # expect False
 Test-Path "$R\ApkShellext2\bin\Release\System.Memory.dll"                 # expect False
-& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # expect 27 files (adjust 7z path)
+& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # expect 28 files (adjust 7z path)
 ```
 
 ---

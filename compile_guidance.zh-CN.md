@@ -36,7 +36,7 @@
 
 两条路线编译出的 IL 相同,但资源序列化格式因路线而异,这不是表面差异:只有 VS
 路线的产物才能安全装进 Explorer。出货用路线 B,路线 A 只用于开发 —— 两条路线的
-打包最终收敛为同一个 27 文件的包(§8)。
+打包最终收敛为同一个 28 文件的包(§8)。
 
 下文示例路径的参考环境(按你的机器调整):Windows x64;仓库在
 `E:\src\apkshellext`,工具链在 `E:\src\apkshellext-dep`;7-Zip 装在非标准路径
@@ -281,7 +281,7 @@ csproj 重写为 **SDK 式**,从根上消掉这三件事 —— 这就是 §6–
 
 原先散在工程根的 29 个源文件按职责分目录(路线图第三章)。其余一律保持原路径:vendored 树、
 `Properties\`、`Resources\`、`Preferences.resx`、`LibWebP\` 原生库与签名密钥。
-`eng\check-layout.ps1`(发布布局 8 个根文件 + 19 个语言目录)未改;`eng\check-size.ps1`
+`eng\check-layout.ps1`(发布布局 9 个根文件 + 19 个语言目录)未改;`eng\check-size.ps1`
 只按参考预算出报告(不拦 CI)—— 发布目录依旧是平铺的。
 
 ```
@@ -358,11 +358,11 @@ CI(GitHub Actions,`.github/workflows/ci.yml`)对两个 job 故意用不同 SDK:
 & .\eng\check-size.ps1
 ```
 
-脚本**总是 exit 0**,只打印 `ApkShellext2.dll`、7z 包与 27 文件部署树相对参考预算的位置
+脚本**总是 exit 0**,只打印 `ApkShellext2.dll`、7z 包与 28 文件部署树相对参考预算的位置
 (参考值 1,260,000 / 1,000,000 / 2,500,000 B;post-T-R 基线 1,181,184 / ~752,500 / 2,360,097 B)。
 超过参考值的那一行标 `OVER (guidance only)` —— 体积只是指导,不是合并契约,升依赖或加功能
 都不必改预算,也永远不会让 CI 变红;真正的功能契约是 `check-layout.ps1`(缺文件/多文件才失败)。
-部署树只按 8 个清单文件 + 19 个卫星资源集计,不扫目录,所以 `bin\Release` 里多出的
+部署树只按 9 个清单文件 + 19 个卫星资源集计,不扫目录,所以 `bin\Release` 里多出的
 pdb/日志不影响数字。预算都是参数(`-MaxDllBytes` 等),调小只是渲染一份更紧的报告。
 
 ## 7. 编译测试工程
@@ -424,7 +424,8 @@ CI:`.github\workflows\ci.yml` 的 `dotnet-build` job,**Run unit tests** 一步 �
 **布局由 MSBuild 组装 —— postbuild 只负责打包。**
 
 - **MSBuild 侧**(`ApkShellext2.csproj`):`install.bat`、`install_user.bat`、
-  `uninstall.bat`、`uninstall_user.bat`、`restart_explorer.bat` 和两个 `libwebp_*.dll`
+  `uninstall.bat`、`uninstall_user.bat`、`restart_explorer.bat`、`update.bat` 和两个
+  `libwebp_*.dll`
   都是 `CopyToOutputDirectory=PreserveNewest` 的 `Content` 项;`debug.bat` 同理但带
   `Condition="'$(Configuration)'=='Debug'"`。`CopyFilesToOutputDirectory` 在任何打包
   之前就把它们复制到位,所以 `bin\Release` 本身就是完整发布目录。每个项都带
@@ -438,8 +439,8 @@ CI:`.github\workflows\ci.yml` 的 `dotnet-build` job,**Run unit tests** 一步 �
 - **`Resources\postbuild.cmd`**(仅 Release 干活;Debug 直接退出):删残留 `debug.bat`,
   定位 `7z.exe`(§4.3),用 `eng\package-name.ps1` 从 `version.txt` 算包名
   (`3.5.1.0` → `ApkShellext2-3.5.1.7z`;`check-layout.ps1`/`check-size.ps1` dot-source
-  的是同一条规则),删残留 `*.7z`(旧无版本名 + 上一版本留下的包),然后按**显式清单**打新包 —— 8 个
-  根文件(`ApkShellext2.dll`、五个 bat、两个 `libwebp_*` 二进制)加上磁盘上存在的
+  的是同一条规则),删残留 `*.7z`(旧无版本名 + 上一版本留下的包),然后按**显式清单**打新包 —— 9 个
+  根文件(`ApkShellext2.dll`、六个 bat、两个 `libwebp_*` 二进制)加上磁盘上存在的
   全部语言目录(`ar-SA` … `zh-TW`)。
   清单条目缺失会**让编译失败**,短包不可能静默出货。
   四个 System.Memory facade dll(`System.Memory.dll`、`System.Buffers.dll`、
@@ -476,6 +477,15 @@ dotnet CLI 产物只留作开发。** `postbuild.cmd` 把该包 dll 列为注名
 NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat`。本地 snk 与
 上游不同,别把本地编译的 DLL 和官方包混在同一注册/GAC 状态里。
 
+**已有安装的升级:** 把新包解压到任意位置,在包目录里运行 `update.bat`(可选 `/quiet`
+供脚本调用、`/ngen` 刷新原生映像)。它从 COM 的 `CodeBase` 读已注册目录(HKLM 64 位
+视图 → WOW6432Node → HKCU,机器级优先),先把新文件暂存,再把 8 个产品文件移进
+`backup-<旧版本>-<时间戳>\`,复制新文件并**就地修复同一注册作用域**。包目录就是已注册
+目录时就地换文件;否则复制进已注册目录,`CodeBase` 保持指向它。它不会覆盖已有的
+`SharpShell_Backup_DefaultIcon`,并清掉四个 CLSID 在 Windows 阻止列表里的项。`/rollback`
+还原最近一份备份并重启资源管理器;任何一步失败也会把备份移回并重启。`update.bat` 本身
+不备份(Windows 占着正在运行的 .bat),所以回滚只还原产品文件。
+
 ## 9. 编译结果验证
 
 1. **卫星目录:** `bin\Release` 必须有全部 19 个语言目录
@@ -502,10 +512,10 @@ NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat
    $rm.GetString('btnOK', [cultureinfo]::InvariantCulture)   # → OK     (中性资源,在主 DLL 内)
    ```
 
-4. **`bin\Release` 完整发布布局:** 8 个清单项 —— `ApkShellext2.dll(.pdb)`、五个 bat、
+4. **`bin\Release` 完整发布布局:** 9 个清单项 —— `ApkShellext2.dll(.pdb)`、六个 bat、
    `libwebp_x86/x64.dll`,
    再加上 19 个语言目录,以及 —— 找到 7-Zip 时 —— `ApkShellext2-3.5.1.7z`(约 750 KB)。
-   `7z l` 必须在**两条路线上都恰好共 27 个文件**:8 个根条目(没有
+   `7z l` 必须在**两条路线上都恰好共 28 个文件**:9 个根条目(没有
    `System.Resources.Extensions.dll` —— 即便 dotnet CLI 编译把它留在了目录里,
    打包也照常排除;也没有
    `System.Memory/System.Buffers/System.Runtime.CompilerServices.Unsafe/System.Numerics.Vectors`
@@ -675,11 +685,11 @@ Set-Location $R
 & $msb ApkShellext2.sln -p:Configuration=Release              -nologo -v:m; if ($LASTEXITCODE) { throw '编译失败' }
 
 # 验证 VS 路线特有项:输出里没有 facade dll、没有 System.Resources.Extensions.dll;
-# 包应为 27 文件(8 根文件 + 19 条卫星资源),不含
+# 包应为 28 文件(9 根文件 + 19 条卫星资源),不含
 #  System.Resources.Extensions.dll(§8 打包清单排除)
 Test-Path "$R\ApkShellext2\bin\Release\System.Resources.Extensions.dll"   # 应为 False
 Test-Path "$R\ApkShellext2\bin\Release\System.Memory.dll"                 # 应为 False
-& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # 应为 27 文件(7z 路径按机器调整)
+& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # 应为 28 文件(7z 路径按机器调整)
 ```
 
 ---

@@ -39,6 +39,8 @@ A Windows shell extension that shows the real app icon, package info tip and a m
 2. Run `install.bat` **as administrator** — it registers the extension for both 64-bit and 32-bit Explorer hosts and generates NGEN native images (faster first icons after boot). No admin rights? Run `install_user.bat` instead: per-user registration under `HKCU`, no UAC prompt (remove again with `uninstall_user.bat`); it skips NGEN by design, so only the very first icons after each boot JIT-compile slightly slower. A machine-wide registration always takes precedence over the per-user one. Note: `install.bat` refuses folders that ordinary users can write to (that would let any local account replace the DLL every other user's Explorer loads) — move the extracted folder to `%ProgramFiles%`, or just use `install_user.bat`.
 3. If icons do not refresh, run `restart_explorer.bat`.
 
+**Upgrade:** extract the new archive anywhere and run `update.bat` from it (optional `/quiet` for scripting; `/ngen` also refreshes native images). It reuses the folder already recorded in the COM `CodeBase`, leaves that registry path unchanged, backs up the old files, and can be undone with `update.bat /rollback` from that folder.
+
 **Uninstall:** run `uninstall.bat` as administrator — it unregisters both 64-bit and 32-bit views, sweeps the registration even if the DLL was already deleted (safe to run from any install folder of this version), and removes the legacy COM entries left by pre-3.4.2 builds. If file icons persist afterwards, the leftover is the Windows icon cache (`IconCache.db` / `thumbcache_*.db`), not the extension; delete it and restart Explorer.
 
 ## Settings
