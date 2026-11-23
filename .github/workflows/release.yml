@@ -136,7 +136,7 @@ jobs:
         run: |
           & .\eng\check-layout.ps1 -Route vs
 
-      - name: Check package size
+      - name: Report package size
         shell: pwsh
         run: |
           & .\eng\check-size.ps1

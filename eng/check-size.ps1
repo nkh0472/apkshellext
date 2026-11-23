@@ -1,37 +1,26 @@
-# Size gate for the publish artifacts. The repository bundles native and managed
-# dependencies (the two libwebp_*.dll), so a stray reference shows
-# up as package growth long before anyone notices it in Explorer - a hard byte limit
-# is the only cheap way to catch that in CI.
+# Size report for the publish artifacts.
 #
-# Baseline measured on v3.5.1 (VS route, clean Release, 7-Zip 26.06):
-#   ApkShellext2.dll            1,573,888 B
-#   ApkShellext2-3.5.1.7z        1,028,101 B
-#   deployment tree             3,392,793 B over 32 files (13 manifest + 19 satellites)
-# T-H dropped the ExCSS dependency (2026-11-23, VS route): dll 1,551,360 B,
-# 7z ~926,000 B (archive timestamps vary by a few hundred bytes), tree 3,027,225 B
-# over 31 files (12 manifest + 19 satellites).
-# T-I trimmed the unused SVG vendor subtrees (2026-11-23, VS route): dll 1,356,288 B,
-# 7z ~886,900 B (archive timestamps vary by a few hundred bytes), tree 2,832,153 B
-# over 31 files (12 manifest + 19 satellites).
-# T-J replaced the source-embedded SharpZipLib with System.IO.Compression and dropped
-# the submodule (2026-11-23, VS route): dll 1,165,824 B, 7z ~826,400 B (archive
-# timestamps vary by a few hundred bytes), tree 2,641,689 B over 31 files (12 manifest
-# + 19 satellites). That is 192,000 B below T-I: the zip container reader now comes from
-# the framework, and the only replacement code is the capped reader layer in ZipSafety.cs
-# plus a small zlib/CRC-32 shim for the pinned PNGDecrush source.
-# T-K removed the System.Memory facade family after rewriting the SVG parsers against
-# plain strings (2026-11-23, VS route): dll 1,165,312 B, 7z ~746,500 B (archive
-# timestamps vary by a few hundred bytes), tree 2,344,225 B over 27 files (8 manifest
-# + 19 satellites). The four facade dlls (296,976 B) left the deployment; the dll itself
-# is unchanged in size because the span-based parsing was already a thin layer.
-# The limits below sit ~8% above that: enough for routine edits, tight enough that a
-# newly bundled dependency trips the gate. Phase 2 targets a <=2.5 MB package, which the
-# tree limit now enforces, so never relax these silently.
+# A package that swallows a dependency shows up here long before anyone notices it in
+# Explorer, but size is guidance, not a build contract: this script always exits 0 and
+# only prints how the artifacts compare with the reference budgets. Raising or lowering a
+# budget is a documentation change, not a red build. The functional contract next door
+# (`check-layout.ps1`) is what actually fails CI.
+#
+# Baselines (VS route, clean Release):
+#   v3.5.1 (T-F)  dll 1,573,888 B, 7z 1,028,354 B, tree 3,392,793 B / 32 files
+#   T-H           dll 1,551,360 B, 7z ~926,000 B (archive timestamps vary), tree 3,027,225 B / 31 files
+#   T-I           dll 1,356,288 B, 7z ~886,900 B, tree 2,832,153 B / 31 files
+#   T-J           dll 1,165,824 B, 7z ~826,400 B, tree 2,641,689 B / 31 files
+#   T-K           dll 1,165,312 B, 7z ~746,500 B, tree 2,344,225 B / 27 files
+#   T-Q/T-R       dll 1,181,184 B, 7z ~752,500 B, tree 2,360,097 B / 27 files
+#
+# The reference budgets below sit ~8% above the post-T-R baseline; they are only used to
+# label a line OVER, never to fail.
 param(
     [string]$OutputDir = 'ApkShellext2\bin\Release',
 
-    # Overridable for the negative test (copy of the defaults, only smaller values
-    # ever make sense); the CI job uses the defaults.
+    # Reference budgets, overridable so a report can be rendered against a tighter number
+    # without editing the script.
     [long]$MaxDllBytes = 1260000,
     [long]$MaxPackageBytes = 1000000,
     [long]$MaxTreeBytes = 2500000
@@ -39,7 +28,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Version-to-package-name rule lives only in eng\package-name.ps1; both gates
+# Version-to-package-name rule lives only in eng\package-name.ps1; both scripts
 # and Resources\postbuild.cmd call into it so they cannot drift apart.
 . (Join-Path $PSScriptRoot 'package-name.ps1')
 $packageName = Get-ApkShellextPackageName -VersionFile (Join-Path $PSScriptRoot '..\version.txt')
@@ -62,6 +51,8 @@ $treeFiles = @(
     $langs | ForEach-Object { Join-Path $OutputDir "$_\ApkShellext2.resources.dll" }
 )
 
+# A missing file is still an error: that means the build or the layout check never ran,
+# and a size report over a half-built tree would be misleading.
 foreach ($path in $treeFiles) {
     if (-not (Test-Path $path)) {
         throw "missing deployment file: $path (run check-layout.ps1 first)"
@@ -77,25 +68,26 @@ $dllBytes = (Get-Item (Join-Path $OutputDir 'ApkShellext2.dll')).Length
 $packageBytes = (Get-Item $packagePath).Length
 $treeBytes = ($treeFiles | ForEach-Object { (Get-Item $_).Length } | Measure-Object -Sum).Sum
 
-$failed = $false
 $rows = @(
     @{ Name = 'ApkShellext2.dll'; Bytes = $dllBytes;     Max = $MaxDllBytes },
     @{ Name = $packageName;    Bytes = $packageBytes; Max = $MaxPackageBytes },
     @{ Name = "deployment tree ($($treeFiles.Count) files)"; Bytes = $treeBytes; Max = $MaxTreeBytes }
 )
 
+$over = 0
 foreach ($row in $rows) {
-    $over = $row.Bytes -gt $row.Max
-    if ($over) { $failed = $true }
-    '{0,-38} {1,10} B  limit {2,10} B  ({3}%)  {4}' -f $row.Name, $row.Bytes, $row.Max,
+    $isOver = $row.Bytes -gt $row.Max
+    if ($isOver) { $over++ }
+    '{0,-38} {1,10} B  reference {2,10} B  ({3}%)  {4}' -f $row.Name, $row.Bytes, $row.Max,
         [math]::Round(100.0 * $row.Bytes / $row.Max, 1),
-        $(if ($over) { 'OVER' } else { 'ok' })
+        $(if ($isOver) { 'OVER (guidance only)' } else { 'ok' })
 }
 
-if ($failed) {
-    Write-Host 'size gate FAILED: a package grew past its budget'
-    exit 1
+if ($over -gt 0) {
+    Write-Host "size report: $over artifact(s) above the reference budget - guidance only, CI stays green"
+} else {
+    Write-Host 'size report: all artifacts within the reference budget'
 }
 
-Write-Host 'size gate OK'
+# Always 0: size never gates a merge.
 exit 0

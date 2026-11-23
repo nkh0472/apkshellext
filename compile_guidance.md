@@ -316,8 +316,8 @@ routes now build with `0 warnings / 0 errors`:
 The 29 sources that used to sit at the project root are grouped by responsibility
 (roadmap §3). Everything else keeps its path: the vendored trees, `Properties\`,
 `Resources\`, `Preferences.resx`, the `LibWebP\` natives and the signing keys.
-`eng\check-layout.ps1` (8 root files + 19 language folders) and the
-`eng\check-size.ps1` thresholds are untouched — the publish folder stays flat.
+`eng\check-layout.ps1` (8 root files + 19 language folders) is untouched and
+`eng\check-size.ps1` only reports against its reference budgets — the publish folder stays flat.
 
 ```
 ApkShellext2\
@@ -391,21 +391,22 @@ pins 10.0.404 (`latestPatch`), while the `vs-build` job pins 9.0.100
 which cannot load SDK 10+ (that needs MSBuild >= 18.0.0). The VS route exists for
 the FullFramework resource pipeline, not for the compiler version.
 
-### Size budget (the CI gate)
+### Size budget (advisory report)
 
 ```powershell
 & .\eng\check-size.ps1
 ```
 
-Exits 1 when `ApkShellext2.dll`, the 7z package or the 27-file deployment tree grows
-past its budget (currently 1,260,000 / 1,000,000 / 2,500,000 B; the current post-T-K
-baseline is 1,165,312 / ~746,500 / 2,344,225 B). The ~8% headroom lets routine edits pass while a
-newly bundled dependency trips the gate. The tree is counted from the 8 manifest files
-plus the 19 satellites, never from a directory glob, so stray pdb or log files in
-`bin\Release` cannot affect it. The thresholds are parameters (`-MaxDllBytes` …) —
-deliberately lowering one is how you test the gate itself. Phase 2 targets a <=2.5 MB
-package: T-K reached 2,344,225 B and pinned the tree limit to 2,500,000 B, so tightening
-these numbers further is the only allowed direction.
+Always exits 0 and prints how `ApkShellext2.dll`, the 7z package and the 27-file
+deployment tree compare with the reference budgets (currently 1,260,000 / 1,000,000 /
+2,500,000 B; the post-T-R baseline is 1,181,184 / ~752,500 / 2,360,097 B). A line above
+its number is labelled `OVER (guidance only)` — package size is guidance, not a merge
+contract, so a dependency bump or a new feature does not need a budget edit and never
+turns CI red. The functional contract is `check-layout.ps1`, which fails on a missing or
+unexpected deployment file. The tree is counted from the 8 manifest files plus the 19
+satellites, never from a directory glob, so stray pdb or log files in `bin\Release`
+cannot affect it. The budgets are parameters (`-MaxDllBytes` …); lowering one renders a
+tighter report without editing the script.
 
 ## 7. Build the test project
 

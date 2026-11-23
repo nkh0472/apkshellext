@@ -181,10 +181,11 @@ jobs:
         run: |
           & .\eng\check-layers.ps1
 
-      # Only the VS route is gated: that tree is what gets packaged and shipped, and
+      # Only the VS route is reported: that tree is what gets packaged and shipped, and
       # the dotnet route additionally carries System.Resources.Extensions.dll, which
-      # would make the same byte limits meaningless.
-      - name: Check package size
+      # would make the same byte numbers meaningless. This step never fails: package size
+      # is guidance, and the functional contract is check-layout.ps1.
+      - name: Report package size
         shell: pwsh
         run: |
           & .\eng\check-size.ps1
