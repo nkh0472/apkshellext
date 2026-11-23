@@ -1,7 +1,7 @@
 # Dependency updates. Every generated PR runs the full CI workflow - both
-# toolchains with warnings as errors, the layout gate and the package size gate -
-# so an update that breaks the net48 build, drops the satellite resources or
-# bloats the package cannot merge unnoticed.
+# toolchains with warnings as errors, the layout gate and the test suite - so an
+# update that breaks the net48 build or drops the satellite resources cannot
+# merge unnoticed. Package size is reported, not gated.
 version: 2
 updates:
   - package-ecosystem: nuget
@@ -36,9 +36,12 @@ updates:
         applies-to: version-updates
         update-types: [minor, patch]
 
-  # The three submodules are vendored at deliberate revisions (PNGDecrush is a
-  # fork), so they move monthly at most and stay ungrouped: even with a green CI
-  # run a renderer bump deserves a human look at the diff.
+  # PNGDecrush is our fork pinned at a revision the icon pipeline was verified
+  # against, so an automatic bump is exactly the change we do not want: adopting
+  # a new upstream commit is a deliberate port with a 87-sample pixel baseline,
+  # not a dependency refresh. Review upstream manually instead. The block stays
+  # for any future submodule (SharpZipLib, SVG and WebP-wrapper were absorbed
+  # into the repository in phase 2).
   - package-ecosystem: gitsubmodule
     directory: "/"
     schedule:
@@ -46,3 +49,5 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: deps(submodule)
+    ignore:
+      - dependency-name: "ApkShellext2/PNGDecrush"
