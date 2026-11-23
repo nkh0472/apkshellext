@@ -56,7 +56,7 @@ jobs:
           }
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # A dispatch builds the requested tag, or the rehearsal ref of a dry
           # run; a tag push builds the pushed tag.
