@@ -80,9 +80,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- main sources (project root). ApkChunk.cs is dev tooling compiled only into
-         apkshellextTest (stripped from the shell dll in 3.4.4). -->
-    <Compile Include="*.cs" Exclude="ApkChunk.cs" />
+    <!-- main sources, split by responsibility (T-Q, roadmap section 3): Formats\ holds
+         the package readers and the shared AXML/ARSC parsers; Utility.cs stays at the
+         project root because every layer uses it. ApkChunk.cs is dev tooling compiled only
+         into apkshellextTest (stripped from the shell dll in 3.4.4). -->
+    <Compile Include="*.cs" />
+    <Compile Include="Formats\**\*.cs" Exclude="Formats\ApkChunk.cs" />
     <!-- Diagnostics\ holds the default-on error log (ErrorLog.cs), kept in its own folder
          so the optional verbose channel (DbgLog.cs) stays untouched at the root. -->
     <Compile Include="Diagnostics\**\*.cs" />
