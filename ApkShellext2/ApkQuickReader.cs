@@ -1120,7 +1120,7 @@ namespace ApkQuickReader
         unsupported         
     }
 
-    public class ApkReader : AppPackageReader
+    public class ApkReader : AppPackageReader, IManifestIconLookup, IVectorIconRenderer
     {
         private IArchive zip;
         private byte[] resources;
@@ -1242,64 +1242,90 @@ namespace ApkQuickReader
                 setFlag("Density", 1);
             }
             // B4 icon chain: QuickSearchManifestXml already resolves a TYPE_REFERENCE by its
-            // exact id (that is what convertData does), so the value we get here is the
-            // exact-id answer when there is one. Take the raw typed value from the same walk
-            // and let the shared parser apply the rest of the rules: name fallback when the
-            // id resolves to nothing, "android:" refusal, "res/" path shortcut and the
-            // smallest-id choice for duplicated names. A value it cannot improve comes back
-            // unchanged, so the failure path below stays exactly what it was.
-            AxmlParser iconParser = NewAxmlParser();
-            DATA_TYPE iconType;
-            uint iconData;
-            string path = iconParser.QuickSearchCompressedXmlTyped(manifest, tag, attr, false, out iconType, out iconData);
-            uint iconReference = (iconType == DATA_TYPE.TYPE_REFERENCE) ? iconData : 0;
-            path = iconParser.ResolveIconValue(path, iconReference);
-            ApkShellext2.DbgLog.W("GETIMG tag " + tag + "." + attr + " size=" + size.Width + " type=" + iconType +
-                " id=0x" + iconData.ToString("X8") + " -> " + path);
-            if (path == "") {
+            // exact id (that is what convertData does), so the value the manifest source
+            // gets here is the exact-id answer when there is one. The source takes the raw
+            // typed value from the same walk and lets the shared parser apply the rest of
+            // the rules: name fallback when the id resolves to nothing, "android:" refusal,
+            // "res/" path shortcut and the smallest-id choice for duplicated names. A value
+            // it cannot improve comes back unchanged, so the failure path below stays
+            // exactly what it was.
+            //
+            // Every icon lookup runs through one source chain (manifest reference, package
+            // entry, xml drawable). Sources never throw, so a decode failure is a null
+            // unless the manifest itself names no icon at all.
+            ManifestIconReferenceSource reference = new ManifestIconReferenceSource();
+            IconSourceChain chain = new IconSourceChain(Log)
+                .Add(reference)
+                .Add(new ArchiveImageIconSource())
+                .Add(new VectorDrawableIconSource());
+            IconRequest request = new IconRequest(size, zip) {
+                Reader = IconReaderKind.Apk,
+                Lookup = IconLookupKind.ReferenceAttribute,
+                Tag = tag,
+                Attr = attr,
+                ManifestLookup = this,
+                Renderer = this,
+                Log = Log
+            };
+            Bitmap extracted;
+            if (chain.TryGetIcon(request, out extracted)) {
+                return extracted;
+            }
+
+            if (reference.Attempted && reference.ResolvedPath == "") {
                 Log("Cannot find image for <" + tag + ">.<" + attr + ">");
                 throw new Exception("Cannot find image for <" + tag + ">.<" + attr + ">");
             }
 
-            try {
-                if (path != "") {
-                    Bitmap extracted = getImage(path, size);
-                    if (extracted != null) {
-                        return extracted;
-                    }
-                }
-                throw new Exception("Cannot found image " + tag + "@" + attr);
-            } catch (Exception ex) {
-                Log("Image path : " + path);
-                Log("Error happens during extracting image, " + ex.Message);
-                ApkShellext2.DbgLog.W("GETIMG tag " + attr + " FAIL " + ex.Message.Split('\n')[0]);
-                // adaptive/anydpi drawables may use constructs we cannot render (widget
-                // layouts as drawable, unsupported gradients...). Android itself falls back
-                // to the legacy bitmap density for such apps - do the same instead of
-                // giving up with a null icon: re-resolve the attribute ignoring xml entries.
-                if (path.EndsWith(".xml")) {
-                    try {
-                        _ignoreXmlDensity = true;
-                        string legacy = QuickSearchManifestXml(tag, attr);
-                        if (legacy != "" && legacy != path) {
-                            Bitmap fallbackImg = getImage(legacy, size);
-                            if (fallbackImg != null) {
-                                Log("xml drawable failed, fell back to " + legacy);
-                                return fallbackImg;
-                            }
+            string path = reference.ResolvedPath;
+            Log("Image path : " + path);
+            Log("Error happens during extracting image");
+            ApkShellext2.DbgLog.W("GETIMG tag " + attr + " FAIL");
+            // adaptive/anydpi drawables may use constructs we cannot render (widget
+            // layouts as drawable, unsupported gradients...). Android itself falls back
+            // to the legacy bitmap density for such apps - do the same instead of
+            // giving up with a null icon: re-resolve the attribute ignoring xml entries.
+            if (path.EndsWith(".xml")) {
+                try {
+                    _ignoreXmlDensity = true;
+                    string legacy = QuickSearchManifestXml(tag, attr);
+                    if (legacy != "" && legacy != path) {
+                        Bitmap fallbackImg = getImage(legacy, size);
+                        if (fallbackImg != null) {
+                            Log("xml drawable failed, fell back to " + legacy);
+                            return fallbackImg;
                         }
-                    } catch (Exception ex2) {
-                        Log("legacy icon fallback failed, " + ex2.Message.Split('\n')[0]);
-                        ApkShellext2.DbgLog.W("GETIMG legacy fallback FAIL " + ex2.Message.Split('\n')[0]);
-                    } finally {
-                        _ignoreXmlDensity = false;
                     }
+                } catch (Exception ex2) {
+                    Log("legacy icon fallback failed, " + ex2.Message.Split('\n')[0]);
+                    ApkShellext2.DbgLog.W("GETIMG legacy fallback FAIL " + ex2.Message.Split('\n')[0]);
+                } finally {
+                    _ignoreXmlDensity = false;
                 }
-                return null;
             }
+            return null;
+        }
+
+        /// <summary>
+        /// The manifest half of the icon chain: the shared AxmlParser rules that turn the
+        /// icon attribute into an archive path (see <see cref="IManifestIconLookup"/>).
+        /// </summary>
+        string IManifestIconLookup.ResolveIconPath(string tag, string attr, out uint referenceId, out int dataType) {
+            AxmlParser iconParser = NewAxmlParser();
+            DATA_TYPE iconType;
+            uint iconData;
+            string path = iconParser.QuickSearchCompressedXmlTyped(manifest, tag, attr, false, out iconType, out iconData);
+            referenceId = (iconType == DATA_TYPE.TYPE_REFERENCE) ? iconData : 0;
+            dataType = (int)iconType;
+            return iconParser.ResolveIconValue(path, referenceId);
+        }
+
+        string IManifestIconLookup.ResolveLegacyIconPath(string tag, string attr) {
+            return QuickSearchManifestXml(tag, attr);
         }
 
         private bool _ignoreXmlDensity = false;
+        private IconSourceChain imageDecodeChain;
 
         /// <summary>
         /// return the bitmap of a image file path located in apk zip
@@ -1308,54 +1334,66 @@ namespace ApkQuickReader
         /// <param name="path">png or xml file within apk zip</param>
         /// <returns>Bitmap or </returns>
         public Bitmap getImage(string path, Size size) {
-            IArchiveEntry iconz;
-            if (zip.Contains(path)) {
-                iconz = zip.GetEntryExact(path);
-                // case-insensitive extension dispatch, see kkguo/apkshellext#99 (res/drawable/Icon.PNG matched no branch)
-                string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
-                if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
-                    ext == ".gif" || ext == ".tif" || ext == ".tiff") {
-                    // fully buffer before decoding: GDI+ scaled DrawImage silently renders BLANK pixels
-                    // from non-seekable zip entry streams (the BCL entry stream is non-seekable too);
-                    // bounded read: attacker-declared Size must never drive allocation or (int) cast
-                    byte[] raw = zip.ReadEntryBounded(iconz, SafeArchive.MAX_ICON, "image " + path);
-                    using (MemoryStream ms = new MemoryStream(raw, 0, raw.Length, false, false)) {
-                        return Utility.ResizeBitmap((Bitmap)Image.FromStream(ms), size);
-                    }
-                } else if (ext == ".webp") {
-                    WebP webp = new WebP();
-                    byte[] bytes = zip.ReadEntryBounded(iconz, SafeArchive.MAX_ICON, "webp " + path);
-                    //webp.Decode(bytes).Save(FileName+".webp");
-                    return Utility.ResizeBitmap(webp.Decode(bytes),size);
-                } else if (ext == ".xml") {
-                    // self/mutually-referencing drawables (adaptive layer -> itself) would
-                    // recurse until StackOverflow (uncatchable, kills explorer) — bound depth
-                    if (++_xmlDepth > 8) {
-                        _xmlDepth--;
-                        throw new Exception("drawable xml reference nesting too deep at " + path);
-                    }
-                    try {
-                    XmlDocument doc = ExtractCompressedXml(path);
-                    ApkShellext2.DbgLog.W("GETIMG xml " + path + " kind=" + doc.FirstChild.Name);
-                    if (doc.FirstChild.Name == "adaptive-icon") {
-                        return parseAdaptiveIcon(doc, size);
-                    } else if (doc.FirstChild.Name == "vector") { // this is a vectordrawable
-                        return parseVectorDrawable(doc, size);
-                    } else if (doc.FirstChild.Name == "shape") {
-                        return parseShape(doc, size);
-                    } else if (doc.FirstChild.Name == "layer-list") {
-                        return parseLayerDrawable(doc, size);
-                    } else if (doc.FirstChild.Name == "bitmap") {
-                        return parseBitmapDrawable(doc, size);
-                    } else {
-                        throw new Exception("unsupported image file " + path + " with tag " + doc.FirstChild.Name);
-                    }
-                    } finally {
-                        _xmlDepth--;
-                    }
-                }
+            IconSourceChain chain = ImageDecodeChain();
+            IconRequest request = new IconRequest(size, zip) {
+                Reader = IconReaderKind.Apk,
+                Lookup = IconLookupKind.ArchivePath,
+                Path = path,
+                Renderer = this,
+                Log = Log
+            };
+            Bitmap icon;
+            return chain.TryGetIcon(request, out icon) ? icon : null;
+        }
+
+        /// <summary>
+        /// Decode half of the icon chain: package entries (png/jpeg/gif/webp) and Android
+        /// XML drawables. Nested drawable references (adaptive layer, layer-list item,
+        /// bitmap src) call getImage(path, size) again and re-enter this same chain.
+        /// </summary>
+        private IconSourceChain ImageDecodeChain() {
+            if (imageDecodeChain == null) {
+                imageDecodeChain = new IconSourceChain(Log)
+                    .Add(new ArchiveImageIconSource())
+                    .Add(new VectorDrawableIconSource());
             }
-            return null;
+            return imageDecodeChain;
+        }
+
+        Bitmap IVectorIconRenderer.RenderXmlDrawable(IconRequest request, string path) {
+            return renderXmlDrawable(path, request.Size);
+        }
+
+        /// <summary>
+        /// Renders one Android XML drawable entry. The depth guard lives here (not in the
+        /// source) because only a renderer recurses: an adaptive icon layer may reference
+        /// another xml drawable, and a self/mutually-referencing drawable would otherwise
+        /// recurse until StackOverflow - uncatchable, and it kills Explorer.
+        /// </summary>
+        private Bitmap renderXmlDrawable(string path, Size size) {
+            if (++_xmlDepth > 8) {
+                _xmlDepth--;
+                throw new Exception("drawable xml reference nesting too deep at " + path);
+            }
+            try {
+                XmlDocument doc = ExtractCompressedXml(path);
+                ApkShellext2.DbgLog.W("GETIMG xml " + path + " kind=" + doc.FirstChild.Name);
+                if (doc.FirstChild.Name == "adaptive-icon") {
+                    return parseAdaptiveIcon(doc, size);
+                } else if (doc.FirstChild.Name == "vector") { // this is a vectordrawable
+                    return parseVectorDrawable(doc, size);
+                } else if (doc.FirstChild.Name == "shape") {
+                    return parseShape(doc, size);
+                } else if (doc.FirstChild.Name == "layer-list") {
+                    return parseLayerDrawable(doc, size);
+                } else if (doc.FirstChild.Name == "bitmap") {
+                    return parseBitmapDrawable(doc, size);
+                } else {
+                    throw new Exception("unsupported image file " + path + " with tag " + doc.FirstChild.Name);
+                }
+            } finally {
+                _xmlDepth--;
+            }
         }
 
         // recursion guard for xml drawable references (adaptive/layer -> getImage -> xml…)

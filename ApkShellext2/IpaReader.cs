@@ -21,7 +21,7 @@ using ApkQuickReader;
 
 namespace ApkShellext2
 {
-    public class IpaReader : AppPackageReader
+    public class IpaReader : AppPackageReader, IPlistIconLookup
     {
         private string strAppRoot;
         private Dictionary<string, object> infoPlistDic;
@@ -101,42 +101,46 @@ namespace ApkShellext2
         }
 
         public Bitmap getImage(string[] keys) {
-            string[] images = getStrings(infoPlistDic, keys);
-            if (images.Count() > 0) {
-                return getImage(images[0]);
-            }
-            return null;
+            IconRequest request = new IconRequest(new Size(64, 64), zip) {
+                Reader = IconReaderKind.Ipa,
+                Lookup = IconLookupKind.PListKeys,
+                Keys = keys,
+                RootPrefix = strAppRoot,
+                PlistLookup = this,
+                Log = Log
+            };
+            Bitmap icon;
+            return IconChain().TryGetIcon(request, out icon) ? icon : null;
         }
 
         public Bitmap getImage(string name) {
-            string fullname = name;
-            IArchiveEntry image;
-            if (!name.EndsWith(".png")) {                
-                fullname = name + @"@3x" + ".png";
-                image = zip.GetEntry(strAppRoot + fullname);
-                if (image == null) {
-                    fullname = name + @"@2x" + ".png";
-                    image = zip.GetEntry(strAppRoot + fullname);
-                }
-                if (image == null) {
-                    fullname = name + ".png";
-                    image = zip.GetEntry(strAppRoot + fullname);
-                }
-            } else {
-                image = zip.GetEntry(strAppRoot + name);
-            }
+            IconRequest request = new IconRequest(new Size(64, 64), zip) {
+                Reader = IconReaderKind.Ipa,
+                Lookup = IconLookupKind.ArchivePath,
+                Path = name,
+                RootPrefix = strAppRoot,
+                Log = Log
+            };
+            Bitmap icon;
+            return IconChain().TryGetIcon(request, out icon) ? icon : null;
+        }
 
-            if (image == null) {
-                return null;
+        /// <summary>The one source this reader needs: iOS Info.plist icons (crushed PNG).</summary>
+        private IconSourceChain IconChain() {
+            if (iconChain == null) {
+                iconChain = new IconSourceChain(Log).Add(new IpaPlistIconSource());
             }
-            byte[] imageBytes = zip.ReadEntryBounded(image, SafeArchive.MAX_ICON, "icon " + name);
-            try {
-                MemoryStream imageOut = new MemoryStream();
-                PNGDecrusher.Decrush(new MemoryStream(imageBytes), imageOut);
-                return new Bitmap(imageOut);
-            } catch (InvalidDataException) { // image is not crushed
-                return new Bitmap(new MemoryStream(imageBytes));
+            return iconChain;
+        }
+
+        private IconSourceChain iconChain;
+
+        string IPlistIconLookup.FindIconName(string[] keys) {
+            string[] images = getStrings(infoPlistDic, keys);
+            if (images.Count() > 0) {
+                return images[0];
             }
+            return "";
         }
 
         public override AppPackageReader.AppType Type {

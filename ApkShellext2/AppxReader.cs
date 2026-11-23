@@ -121,35 +121,30 @@ namespace ApkShellext2 {
             get {
                 if (iconPath == "")
                     throw new Exception("Cannot find logo path");
-                int dot = iconPath.LastIndexOf(".");
-                string name = iconPath.Substring(0, dot);
-                string extension = iconPath.Substring(dot + 1);
-                IArchiveEntry logo = null;
-                int scale = -1;
-                foreach (IArchiveEntry en in zip.Entries) {
-                    Match m = Regex.Match(en.FullName, name + @"(\.scale\-(\d+))?" + @"\." + extension);
-                    if (m.Success) {
-                        if (m.Groups[1].Value == "") { // exactly matching, no scale
-                            logo = en;
-                            break;
-                        } else { // find the biggest scale
-                            int newScale = int.Parse(m.Groups[2].Value);                            if (newScale > scale) {
-                                logo = en;
-                                scale = newScale;
-                            }
-                        }
-                    }
+                // The manifest logo (and its scale-qualified variants) is one source in
+                // the shared chain; a missing file still throws the legacy exception so
+                // the shell keeps drawing its default icon.
+                IconRequest request = new IconRequest(new Size(0, 0), zip) {
+                    Reader = IconReaderKind.Appx,
+                    Lookup = IconLookupKind.ManifestLogo,
+                    LogoPath = iconPath,
+                    Log = Log
+                };
+                Bitmap icon;
+                if (IconChain().TryGetIcon(request, out icon)) {
+                    return icon;
                 }
-                if (logo != null) {
-                    // buffer fully: a Bitmap over the live zip stream decodes lazily and turns blank once
-                    // the reader/stream is disposed (shell draws later); the BCL entry stream is
-                    // non-seekable too, so GDI+ cannot recover.
-                    byte[] imageBytes = zip.ReadEntryBounded(logo, SafeArchive.MAX_ICON, "logo " + iconPath);
-                    return new Bitmap(new MemoryStream(imageBytes, 0, imageBytes.Length, false, false));
-                } else {
-                    throw new EntryPointNotFoundException("Cannot find Logo file: " + iconPath);
-                }
+                throw new EntryPointNotFoundException("Cannot find Logo file: " + iconPath);
             }
+        }
+
+        private IconSourceChain iconChain;
+
+        private IconSourceChain IconChain() {
+            if (iconChain == null) {
+                iconChain = new IconSourceChain(Log).Add(new AppxManifestLogoIconSource());
+            }
+            return iconChain;
         }
 
         private bool disposed = false;

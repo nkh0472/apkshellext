@@ -20,7 +20,7 @@ namespace ApkShellext2
     /// A Android App Bundler Reader
     /// Not implemented yet
     /// </summary>
-    public class AabReader: AppPackageReader
+    public class AabReader: AppPackageReader, IVectorIconRenderer
     {
         private IArchive zip;
         private byte[] manifest;
@@ -106,31 +106,27 @@ namespace ApkShellext2
         public Bitmap getImage(string tag, string attr, Size size)
         {
             Log(tag+ "..." + attr + "..." + size.ToString());
-            //if (getFlag("Density") == null)
-            //{
-            //    setFlag("Density", 1);
-            //}
-            //string path = QuickSearchManifestXml(tag, attr);
-            //if (path == "")
-            //{
-            //    Log("Cannot find image for <" + tag + ">.<" + attr + ">");
-            //    throw new Exception("Cannot find image for <" + tag + ">.<" + attr + ">");
-            //}
-            string path = "ic_launcher.png";
-            try
+            // The aab icon path is still the fixed resource name the previous hardcoded
+            // implementation used: the manifest reference rules are not wired into this
+            // reader yet, and T-P must not change a single pixel. The lookup itself goes
+            // through the one source chain like every other reader.
+            IconSourceChain chain = ImageDecodeChain();
+            IconRequest request = new IconRequest(size, zip)
             {
-                if (path != "")
-                {
-                    return getImage(path, size);
-                }
-                throw new Exception("Cannot found image " + tag + "@" + attr);
-            }
-            catch (Exception ex)
+                Reader = IconReaderKind.Aab,
+                Lookup = IconLookupKind.ArchivePath,
+                Path = "ic_launcher.png",
+                Renderer = this,
+                Log = Log
+            };
+            Bitmap icon;
+            if (chain.TryGetIcon(request, out icon))
             {
-                Log("Image path : " + path);
-                Log("Error happens during extracting image, " + ex.Message);
-                return null;
+                return icon;
             }
+            Log("Image path : ic_launcher.png");
+            Log("Error happens during extracting image");
+            return null;
         }
 
         /// <summary>
@@ -141,54 +137,60 @@ namespace ApkShellext2
         /// <returns>Bitmap or </returns>
         public Bitmap getImage(string path, Size size)
         {
-            IArchiveEntry iconz;
-            if (zip.Contains(path))
+            IconSourceChain chain = ImageDecodeChain();
+            IconRequest request = new IconRequest(size, zip)
             {
-                iconz = zip.GetEntryExact(path);
-                // case-insensitive extension dispatch, see kkguo/apkshellext#99
-                string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
-                if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
-                    ext == ".gif" || ext == ".tif" || ext == ".tiff")
-                {
-                    // fully buffer before decoding: GDI+ decodes PNG lazily and renders BLANK pixels when
-                    // scaled from a non-seekable zip entry stream after it is closed
-                    byte[] imgBytes = zip.ReadEntryBounded(iconz, SafeArchive.MAX_ICON, "image " + path);
-                    using (MemoryStream ms = new MemoryStream(imgBytes, 0, imgBytes.Length, false, false))
-                        return Utility.ResizeBitmap((Bitmap)Image.FromStream(ms), size);
-                }
-                else if (ext == ".webp")
-                {
-                    WebP webp = new WebP();
-                    byte[] bytes = zip.ReadEntryBounded(iconz, SafeArchive.MAX_ICON, "webp " + path);
-                    //webp.Decode(bytes).Save(FileName+".webp");
-                    return Utility.ResizeBitmap(webp.Decode(bytes), size);
-                }
-                else if (ext == ".xml")
-                {
-                    XmlDocument doc = ExtractCompressedXml(path);
-                    if (doc.FirstChild.Name == "adaptive-icon")
-                    {
-                        return parseAdaptiveIcon(doc, size);
-                    }
-                    else if (doc.FirstChild.Name == "vector")
-                    { // this is a vectordrawable
-                        return parseVectorDrawable(doc, size);
-                    }
-                    else if (doc.FirstChild.Name == "shape")
-                    {
-                        return parseShape(doc, size);
-                    }
-                    else if (doc.FirstChild.Name == "layer-list")
-                    {
-                        return parseLayerDrawable(doc, size);
-                    }
-                    else
-                    {
-                        throw new Exception("unsupported image file " + path + " with tag " + doc.FirstChild.Name);
-                    }
-                }
+                Reader = IconReaderKind.Aab,
+                Lookup = IconLookupKind.ArchivePath,
+                Path = path,
+                Renderer = this,
+                Log = Log
+            };
+            Bitmap icon;
+            return chain.TryGetIcon(request, out icon) ? icon : null;
+        }
+
+        private IconSourceChain imageDecodeChain;
+
+        /// <summary>
+        /// Decode half of the icon chain: package entries (png/jpeg/webp) and the XML
+        /// drawables this reader can render. An aab carries no resources.arsc, so its
+        /// renderer walks the drawable xml directly.
+        /// </summary>
+        private IconSourceChain ImageDecodeChain()
+        {
+            if (imageDecodeChain == null)
+            {
+                imageDecodeChain = new IconSourceChain(Log)
+                    .Add(new ArchiveImageIconSource())
+                    .Add(new VectorDrawableIconSource());
             }
-            return null;
+            return imageDecodeChain;
+        }
+
+        Bitmap IVectorIconRenderer.RenderXmlDrawable(IconRequest request, string path)
+        {
+            XmlDocument doc = ExtractCompressedXml(path);
+            if (doc.FirstChild.Name == "adaptive-icon")
+            {
+                return parseAdaptiveIcon(doc, request.Size);
+            }
+            else if (doc.FirstChild.Name == "vector")
+            { // this is a vectordrawable
+                return parseVectorDrawable(doc, request.Size);
+            }
+            else if (doc.FirstChild.Name == "shape")
+            {
+                return parseShape(doc, request.Size);
+            }
+            else if (doc.FirstChild.Name == "layer-list")
+            {
+                return parseLayerDrawable(doc, request.Size);
+            }
+            else
+            {
+                throw new Exception("unsupported image file " + path + " with tag " + doc.FirstChild.Name);
+            }
         }
 
         private Bitmap parseLayerDrawable(XmlNode node, Size size)

@@ -174,46 +174,41 @@ namespace ApkQuickReader {
         }
 
         // Root-level icon.png shipped by APKMirror/APKPure — the cheap, high-quality path.
+        // It is one source in the shared chain; the base apk reader covers everything else.
         public override Bitmap Icon {
             get {
-                Bitmap b = readRootIcon();
-                if (b != null) return b;
+                Bitmap b;
+                if (TryGetRootIcon(out b)) return b;
                 EnsureInner();
                 return inner.Icon;
             }
         }
 
         public override Bitmap getIcon(Size size) {
-            Bitmap b = readRootIcon();
-            if (b == null) {
-                EnsureInner();
-                return inner.getIcon(size);
+            Bitmap b;
+            if (TryGetRootIcon(out b)) {
+                using (b) return Utility.ResizeBitmap(b, size);
             }
-            using (b) return Utility.ResizeBitmap(b, size);
+            EnsureInner();
+            return inner.getIcon(size);
         }
 
-        private Bitmap readRootIcon() {
-            IArchiveEntry best = null;
-            foreach (IArchiveEntry e in outer.Entries) {
-                if (!outer.IsFile(e)) continue;
-                string leaf = e.FullName;
-                int slash = leaf.LastIndexOf('/');
-                if (slash >= 0) continue; // root only
-                if (!leaf.StartsWith("icon", StringComparison.OrdinalIgnoreCase)) continue;
-                if (!leaf.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) continue;
-                if (best == null || SizeOf(e) > SizeOf(best)) best = e; // prefer largest variant
+        private bool TryGetRootIcon(out Bitmap icon) {
+            IconRequest request = new IconRequest(new Size(0, 0), outer) {
+                Reader = IconReaderKind.SplitApk,
+                Lookup = IconLookupKind.BundleRootIcon,
+                Log = Log
+            };
+            return RootIconChain().TryGetIcon(request, out icon);
+        }
+
+        private IconSourceChain rootIconChain;
+
+        private IconSourceChain RootIconChain() {
+            if (rootIconChain == null) {
+                rootIconChain = new IconSourceChain(Log).Add(new BundleRootIconSource());
             }
-            if (best == null) return null;
-            try {
-                byte[] raw = outer.ReadEntryBounded(best, SafeArchive.MAX_ICON, "root icon " + best.FullName);
-                using (MemoryStream ms = new MemoryStream(raw, 0, raw.Length, false, false)) {
-                    // full buffer before FromStream: GDI+ lazy decode + non-seekable zip stream
-                    return new Bitmap(ms, true);
-                }
-            } catch (Exception e) {
-                Log("root icon.png decode failed: " + e.Message);
-                return null;
-            }
+            return rootIconChain;
         }
 
         protected override void Dispose(bool disposing) {
