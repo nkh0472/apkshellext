@@ -380,11 +380,15 @@ E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe build apkshellextTest\apkshellex
 
 ### 7.1 自动化单元测试(NUnit)
 
-`tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj` 存放无人值守的测试,把阶段 0 的几道
-安全闸钉住:版本单一来源、WebP 解码尺寸上限、ZipSafety 条目字节上限、binary plist 深度限制、
-以及 plist 解析器的每次调用独立状态。net48 + NUnit 3(NUnit3TestAdapter + Microsoft.NET.Test.Sdk)。
-它和产品唯一的联系是一条 ProjectReference,并传了 `Skip7zPackage=true`,因此跑测试会重新编译
-产品,但绝不触发 postbuild 的 7-Zip 打包 —— 没装 7-Zip 的机器也能跑。
+`tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj` 存放无人值守的测试,把阶段 0 的
+安全闸钉住(T-A…T-E)。写入本文时共 238 个用例:版本单一来源;arsc 的 config / package /
+entry / reference 上限;binary 与 XML plist 的深度限制、索引边界和每次调用独立状态;
+archive 的条目数、压缩比和累计字节预算;WebP 与 PNG 解码尺寸上限;Appx / Appxbundle / Ipa
+reader 的边界(manifest 大小、包数、文件名长度、嵌套容器读取);ComStream 的 seek/dispose;
+以及 ErrorLog 的滚动、4 KiB 单行和跨进程互斥契约。net48 + NUnit 3(NUnit3TestAdapter +
+Microsoft.NET.Test.Sdk)。它和产品唯一的联系是一条 ProjectReference,并传了
+`Skip7zPackage=true`,因此跑测试会重新编译产品,但绝不触发 postbuild 的 7-Zip 打包 ——
+没装 7-Zip 的机器也能跑。
 
 ```powershell
 # 全量(测试工程目标框架是 net48,所以必须在 Windows 上跑):
@@ -403,9 +407,12 @@ E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe test tests\ApkShellext2.Tests\Ap
 签名机和未签名机上都能跑。测试产物落在 `tests\ApkShellext2.Tests\bin\<Configuration>\net48`,
 不会混进 §8 和 `eng\check-layout.ps1` 所描述的 `bin\Release` 发布布局。
 
-所有夹具都在测试内部现造(zip 用 `System.IO.Compression`,binary plist 用
-`TestSupport\BinaryPlistBuilder.cs` 里的小写入器),因此测试是自足的:不读 `F:\Backups\apks\`
-样本库,也不联网。
+所有夹具要么在测试内部现造(zip 用 `System.IO.Compression`,binary plist 用
+`TestSupport\BinaryPlistBuilder.cs` 里的小写入器,appx/appxbundle 包用
+`TestSupport\AppxFixtures.cs`),要么是 `tests\ApkShellext2.Tests\fixtures\` 下提交的真实
+字节切片(Spectroid 的 `resources.arsc` / `AndroidManifest.xml`,由
+`X:\apks-tn\fixtures\make-fixtures.ps1` 重新生成)。因此测试是自足的:不读
+`F:\Backups\apks\` 样本库,也不联网。
 
 CI:`.github\workflows\ci.yml` 的 `dotnet-build` job,**Run unit tests** 一步 —— 位于
 **Build Release (warnings as errors)** 和 **Check publish layout** 之后、上传产物之前。
@@ -538,6 +545,10 @@ pwsh -File eng\check-layers.ps1    # "layers OK: 19 C# files ...",exit 0
 阶段 3 清理了门禁查出的两处死引用(不改运行行为、不改 IL):`Formats\IpaReader.cs` 的
 6 行未使用 `using SharpShell.*`,以及 `Formats\ApkQuickReader.cs` 的未使用
 `using Media = System.Windows.Media;` 别名。
+
+这道门和 §7.1 的单元测试是一对:那些测试在普通 NUnit 进程里直接加载 parser、`SafeArchive`
+和图标链,而这只在门禁成立时才行。若 `Formats\` 或 `Imaging\` 里需要用 shell 类型,门禁会
+先拦住,而不是等测试(以及打包后的 handler)崩掉。
 
 ## 10. 坑清单
 
