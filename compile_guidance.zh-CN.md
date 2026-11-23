@@ -507,6 +507,38 @@ NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat
    `Resources\`/`LibWebP\` 子目录。
 5. **Debug 布局:** `bin\Debug` 根有 `debug.bat` + bat + libwebp,且**没有 `.7z`**。
 
+### 可测性门(Testability gate,阶段 3)
+
+`eng\check-layers.ps1` 保证解析层不依赖外壳宿主。两个 CI job 都在 "Check publish layout"
+之后、较慢的测试之前运行它;本地也用同一个脚本。它扫描 `ApkShellext2\Formats\` 与
+`ApkShellext2\Imaging\` 下的全部 `.cs`(整行注释跳过),命中以下任何一项即失败:
+
+- `System.Windows.*` —— WinForms / WPF 命名空间(`System.Windows.Forms`、
+  `System.Windows.Media` 等);
+- `SharpShell` 及其辅助类(`ShellExtInitServer`、`ServerRegistration`);
+- 外壳 COM 接口 `IContextMenu*`、`IShellExtInit`、`IQueryInfo`、`IThumbnailProvider`、
+  `IExtractIconW`、`IExplorerCommand`;
+- `[ComImport]`、`ComVisible`、`[Guid(...)]`。
+
+允许的是 BCL、`System.Drawing`、根 `Utility.cs`、`Diagnostics\`、`Vendor\`,以及这些文件
+本就使用的工程内解析/图标辅助类型。COM 与外壳注册代码属于 `Shell\`、`Preferences\`、
+`SharpShell\` —— 它们可以引用解析层,反向不允许。只有这样,NUnit 或普通控制台进程才能
+在不启动 explorer 的情况下加载 reader、parser、`SafeArchive`、图标链;阶段 3 新增的
+`tests\ApkShellext2.Tests` 测试正依赖这一点。
+
+负例验证(预期 `exit 1`,还原后重新变绿 —— 门禁本身也要被验证):
+
+```powershell
+Add-Content ApkShellext2\Formats\AppxReader.cs 'using System.Windows.Forms;'
+pwsh -File eng\check-layers.ps1    # 打印 "Formats\AppxReader.cs:<行号>: ...",exit 1
+git checkout -- ApkShellext2\Formats\AppxReader.cs
+pwsh -File eng\check-layers.ps1    # "layers OK: 19 C# files ...",exit 0
+```
+
+阶段 3 清理了门禁查出的两处死引用(不改运行行为、不改 IL):`Formats\IpaReader.cs` 的
+6 行未使用 `using SharpShell.*`,以及 `Formats\ApkQuickReader.cs` 的未使用
+`using Media = System.Windows.Media;` 别名。
+
 ## 10. 坑清单
 
 1. **restore 报 NU1100** → 机器**一个 NuGet 源都没有**(用户 `NuGet.Config` 里的空

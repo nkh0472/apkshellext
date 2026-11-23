@@ -4,7 +4,6 @@ using System;
 using System.Collections;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using Media = System.Windows.Media;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;

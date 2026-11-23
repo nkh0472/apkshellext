@@ -573,6 +573,41 @@ official package in the same GAC/registration state.
    `bin\Release`.
 5. **Debug layout:** `bin\Debug` root has `debug.bat` + bats + libwebp and **no `.7z`**.
 
+### Testability gate (stage 3)
+
+`eng\check-layers.ps1` enforces that the parsing layer stays independent of the shell host.
+Both CI jobs run it right after "Check publish layout" (before the slower tests), and it is
+the same script locally. It scans every `.cs` under `ApkShellext2\Formats\` and
+`ApkShellext2\Imaging\` (whole-line comments are skipped) and fails on:
+
+- `System.Windows.*` — the WinForms and WPF namespaces (`System.Windows.Forms`,
+  `System.Windows.Media`, …);
+- `SharpShell` and its helpers (`ShellExtInitServer`, `ServerRegistration`);
+- the shell COM interfaces `IContextMenu*`, `IShellExtInit`, `IQueryInfo`,
+  `IThumbnailProvider`, `IExtractIconW`, `IExplorerCommand`;
+- `[ComImport]`, `ComVisible`, `[Guid(...)]`.
+
+Allowed are the BCL, `System.Drawing`, the root `Utility.cs`, `Diagnostics\`, `Vendor\` and the
+project-local parser/icon helpers those files already use. COM plumbing and shell
+registration belong in `Shell\`, `Preferences\` and `SharpShell\`, which may reference the
+parsing layer but never the other way around. That is what lets an NUnit run or a plain
+console process load a reader, a parser, `SafeArchive` or the icon chain without explorer;
+the stage 3 tests in `tests\ApkShellext2.Tests` rely on exactly this.
+
+Negative test (expected `exit 1`, then back to green — this is how the gate itself is
+verified, not just how a violation looks):
+
+```powershell
+Add-Content ApkShellext2\Formats\AppxReader.cs 'using System.Windows.Forms;'
+pwsh -File eng\check-layers.ps1    # prints "Formats\AppxReader.cs:<line>: ...", exits 1
+git checkout -- ApkShellext2\Formats\AppxReader.cs
+pwsh -File eng\check-layers.ps1    # "layers OK: 19 C# files ...", exits 0
+```
+
+The stage 3 cleanup removed two dead imports the gate surfaced (no runtime behaviour
+change, no IL difference): six unused `using SharpShell.*` lines in `Formats\IpaReader.cs`
+and the unused `using Media = System.Windows.Media;` alias in `Formats\ApkQuickReader.cs`.
+
 ## 10. Gotchas checklist
 
 1. **NU1100 on restore** → the machine has **zero NuGet sources** (an empty

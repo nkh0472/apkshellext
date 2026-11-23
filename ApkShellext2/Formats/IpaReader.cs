@@ -1,11 +1,5 @@
 using PlistCS;
 using PNGDecrush;
-using SharpShell.Attributes;
-using SharpShell.Extensions;
-using SharpShell.Diagnostics;
-using SharpShell.Exceptions;
-using SharpShell.ServerRegistration;
-using SharpShell.SharpIconHandler;
 using System;
 using System.Collections.Generic;
 using System.Drawing;

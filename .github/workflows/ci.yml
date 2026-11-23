@@ -74,6 +74,14 @@ jobs:
         run: |
           & .\eng\check-layout.ps1 -Route dotnet
 
+      # The parsing layer (Formats\ + Imaging\) must stay loadable and testable without
+      # explorer: no shell/COM/WinForms/WPF references. Text scan, so it fails fast
+      # (compile_guidance.md section 9, "Testability gate").
+      - name: Check parsing layer dependencies
+        shell: pwsh
+        run: |
+          & .\eng\check-layers.ps1
+
       # The unit tests build the product again through a ProjectReference that sets
       # Skip7zPackage=true, so this step neither repackages nor needs 7-Zip, and it
       # must forward the signing switch exactly like the build step above.
@@ -165,6 +173,13 @@ jobs:
         shell: pwsh
         run: |
           & .\eng\check-layout.ps1 -Route vs
+
+      # Same gate as the dotnet job: both routes are built from one source tree, and a
+      # source-level dependency leak would break the layer on either route.
+      - name: Check parsing layer dependencies
+        shell: pwsh
+        run: |
+          & .\eng\check-layers.ps1
 
       # Only the VS route is gated: that tree is what gets packaged and shipped, and
       # the dotnet route additionally carries System.Resources.Extensions.dll, which
