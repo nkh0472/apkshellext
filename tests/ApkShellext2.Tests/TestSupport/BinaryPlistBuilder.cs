@@ -67,16 +67,63 @@ namespace ApkShellext2.Tests
             return new byte[] { 0x10, value };
         }
 
-        /// <summary>An ASCII string object (literal, so the tests stay readable).</summary>
+        /// <summary>An ASCII string object (literal, so the tests stay readable). Uses the
+        /// extended-length form (0x5F followed by an integer object) past 14 bytes.</summary>
         public static byte[] StringObject(string value)
         {
             if (value == null) throw new ArgumentNullException("value");
             byte[] text = Encoding.ASCII.GetBytes(value);
-            if (text.Length > 14) throw new ArgumentOutOfRangeException("value", "the builder only emits the inline-count form");
             List<byte> bytes = new List<byte>();
-            bytes.Add((byte)(0x50 | text.Length));
+            if (text.Length <= 14)
+            {
+                bytes.Add((byte)(0x50 | text.Length));
+            }
+            else
+            {
+                bytes.Add(0x5F);
+                bytes.AddRange(LengthObject(text.Length));
+            }
             bytes.AddRange(text);
             return bytes.ToArray();
+        }
+
+        /// <summary>
+        /// A dictionary object. References arrive in key/value pairs; the binary
+        /// format stores all key references first, then all value references.
+        /// </summary>
+        public static byte[] DictionaryObject(params byte[] keyValueRefs)
+        {
+            if (keyValueRefs == null) throw new ArgumentNullException("keyValueRefs");
+            if (keyValueRefs.Length % 2 != 0) throw new ArgumentException("dictionary references must come in key/value pairs", "keyValueRefs");
+            int pairs = keyValueRefs.Length / 2;
+            List<byte> bytes = new List<byte>();
+            if (pairs < 15)
+            {
+                bytes.Add((byte)(0xD0 | pairs));
+            }
+            else
+            {
+                // The reader computes the reference offset as marker + 2 + one length byte,
+                // so the extended form must stay under 256 pairs.
+                if (pairs > byte.MaxValue) throw new ArgumentOutOfRangeException("keyValueRefs", "the builder emits a one-byte extended count");
+                bytes.Add(0xDF);
+                bytes.AddRange(IntObject((byte)pairs));
+            }
+            for (int i = 0; i < keyValueRefs.Length; i += 2) bytes.Add(keyValueRefs[i]);
+            for (int i = 1; i < keyValueRefs.Length; i += 2) bytes.Add(keyValueRefs[i]);
+            return bytes.ToArray();
+        }
+
+        /// <summary>Integer object holding <paramref name="value"/> in the shortest form.</summary>
+        public static byte[] LengthObject(int value)
+        {
+            if (value < 0) throw new ArgumentOutOfRangeException("value");
+            if (value <= byte.MaxValue) return IntObject((byte)value);
+            if (value <= ushort.MaxValue)
+            {
+                return new byte[] { 0x11, (byte)(value >> 8), (byte)value };
+            }
+            return new byte[] { 0x12, (byte)(value >> 24), (byte)(value >> 16), (byte)(value >> 8), (byte)value };
         }
 
         private static int BytesNeeded(int value)

@@ -46,6 +46,41 @@ namespace ApkShellext2.Tests
         }
 
         [Test]
+        public void Parses32NestedArraysFromAnXmlPlist()
+        {
+            // The XML reader has its own depth budget (MaxXmlPlistDepth); both formats
+            // must accept real files at 32 levels.
+            object parsed = Plist.readPlist(BuildXmlNestedArrays(32));
+            object cursor = parsed;
+            for (int level = 0; level < 32; level++)
+            {
+                Assert.That(cursor, Is.InstanceOf<IList<object>>(), "nesting level " + level + " is not an array");
+                IList<object> array = (IList<object>)cursor;
+                Assert.That(array, Has.Count.EqualTo(1));
+                cursor = array[0];
+            }
+            Assert.That(cursor, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void Rejects33NestedArraysFromAnXmlPlist()
+        {
+            PlistFormatException ex = Assert.Throws<PlistFormatException>(() => Plist.readPlist(BuildXmlNestedArrays(33)));
+            Assert.That(ex.Message, Does.Contain("nesting exceeds 32"),
+                "the XML guard must name its limit; the message was: " + ex.Message);
+        }
+
+        private static byte[] BuildXmlNestedArrays(int levels)
+        {
+            StringBuilder xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\">");
+            for (int i = 0; i < levels; i++) xml.Append("<array>");
+            xml.Append("<integer>1</integer>");
+            for (int i = 0; i < levels; i++) xml.Append("</array>");
+            xml.Append("</plist>");
+            return Encoding.UTF8.GetBytes(xml.ToString());
+        }
+
+        [Test]
         [Timeout(10000)]
         public void RejectsASelfReferencingArray_WithoutRecursingForever()
         {

@@ -36,6 +36,11 @@ namespace ApkShellext2.Tests
             /// zip64 extra field: a container that hides its sizes.</summary>
             public bool SentinelSizes;
 
+            /// <summary>Uncompressed size to declare in both headers; -1 declares
+            /// <see cref="Data"/>.Length. A larger declared size lets a test exercise a
+            /// declared-length gate without materialising (or deflating) that payload.</summary>
+            public long DeclaredUncompressedSize = -1;
+
             public byte[] Data = new byte[0];
         }
 
@@ -71,11 +76,14 @@ namespace ApkShellext2.Tests
                         method = DeflateMethod;
                     }
                     uint crc = data.Length == 0 ? 0u : Crc32.Compute(data, 0, data.Length);
+                    long declaredLength = entry.DeclaredUncompressedSize >= 0
+                        ? entry.DeclaredUncompressedSize
+                        : data.Length;
 
                     names.Add(name);
                     offsets.Add(buffer.Position);
                     crcs.Add(crc);
-                    sizes.Add(entry.SentinelSizes ? uint.MaxValue : (uint)data.Length);
+                    sizes.Add(entry.SentinelSizes ? uint.MaxValue : (uint)declaredLength);
                     compressed.Add(entry.SentinelSizes ? uint.MaxValue : (uint)payload.Length);
                     flags.Add(entry.Flags);
                     methods.Add(method);
