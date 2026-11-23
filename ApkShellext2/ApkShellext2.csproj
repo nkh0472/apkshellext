@@ -89,14 +89,22 @@
     <!-- Imaging\: the zip-container abstraction (IArchive/SafeArchive), the icon
          source chain and the vector-drawable rasterizer. -->
     <Compile Include="Imaging\**\*.cs" />
-    <!-- Diagnostics\ holds the default-on error log (ErrorLog.cs), kept in its own folder
-         so the optional verbose channel (DbgLog.cs) stays untouched at the root. -->
+    <!-- Diagnostics\: the default-on error log (ErrorLog.cs), the module-load hooks
+         (ModuleInitializer.cs) and the optional verbose channel (DbgLog.cs). -->
     <Compile Include="Diagnostics\**\*.cs" />
+    <!-- Shell\: the four COM handlers (context menu, icon, info tip, thumbnail). -->
+    <Compile Include="Shell\**\*.cs" />
+    <!-- Preferences\: the WinForms settings form and its designer file; the .resx stays
+         at the project root so its embedded resource name is unchanged. -->
+    <Compile Include="Preferences\**\*.cs" />
+    <!-- Vendor\: net48 polyfill helpers (module-initializer attribute, the System.IO.Compression
+         backed SharpZipLib shim). -->
+    <Compile Include="Vendor\**\*.cs" />
     <Compile Include="Properties\**\*.cs" />
-    <Compile Update="Preferences.cs">
+    <Compile Update="Preferences\Preferences.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Update="Preferences.Designer.cs">
+    <Compile Update="Preferences\Preferences.Designer.cs">
       <DependentUpon>Preferences.cs</DependentUpon>
     </Compile>
     <Compile Update="Properties\Resources1.Designer.cs">
@@ -192,8 +200,10 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>NonLocalizeResources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+    <!-- the form moved to Preferences\, the .resx stays here so the embedded resource
+         name (RootNamespace.Preferences.resources) is unchanged; without a resolvable
+         DependentUpon MSBuild derives that name from this item's own path. -->
     <EmbeddedResource Include="Preferences.resx">
-      <DependentUpon>Preferences.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="SharpShell\SharpShell\SharpShell\SharpPreviewHandler\PreviewHandlerHost.resx">
