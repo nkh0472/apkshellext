@@ -1632,6 +1632,9 @@ namespace ApkQuickReader
                 // scale; request layers 1.5x oversized and let drawAdaptiveLayer center
                 // them so the masked area fills the icon like on the phone.
                 Size layerSize = new Size(size.Width + size.Width / 2, size.Height + size.Height / 2);
+                // the layer canvases allocate 1.5x the icon surface: gate them too, not
+                // just the target the chain already checked
+                IconDecodeLimits.ValidateRenderTarget(layerSize, "adaptive icon layer");
                 using (Graphics g = Graphics.FromImage(bmp)) {
                     XmlElement elem = (XmlElement)node.SelectSingleNode("/adaptive-icon/background");
                     if (elem != null && elem.HasAttribute("drawable")) {

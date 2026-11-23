@@ -187,6 +187,12 @@ namespace ApkShellext2
 
             // bounded read: attacker-declared size must never drive allocation or casts
             byte[] raw = archive.ReadEntryBounded(entry, SafeArchive.MAX_ICON, "image " + request.Path);
+            if (ext == ".png")
+            {
+                // a small file may honestly declare an enormous bitmap; refuse it before
+                // GDI+ allocates the surface
+                IconDecodeLimits.ValidatePng(raw, "image " + request.Path);
+            }
             using (MemoryStream ms = new MemoryStream(raw, 0, raw.Length, false, false))
             {
                 icon = Utility.ResizeBitmap((Bitmap)Image.FromStream(ms), request.Size);
@@ -223,6 +229,8 @@ namespace ApkShellext2
             {
                 return false;
             }
+            // the SVG rasteriser allocates the target surface: bound it before it does
+            IconDecodeLimits.ValidateRenderTarget(request.Size, "drawable " + request.Path);
             icon = request.Renderer.RenderXmlDrawable(request, request.Path);
             return icon != null;
         }
@@ -354,6 +362,7 @@ namespace ApkShellext2
                 return false;
             }
             byte[] imageBytes = archive.ReadEntryBounded(image, SafeArchive.MAX_ICON, "icon " + name);
+            IconDecodeLimits.ValidatePng(imageBytes, "icon " + name);
             try
             {
                 MemoryStream imageOut = new MemoryStream();
@@ -433,6 +442,10 @@ namespace ApkShellext2
             // buffer fully: a Bitmap over the live zip stream decodes lazily and turns
             // blank once the reader/stream is disposed (the shell draws later)
             byte[] imageBytes = archive.ReadEntryBounded(logo, SafeArchive.MAX_ICON, "logo " + iconPath);
+            if (string.Equals(extension, "png", StringComparison.OrdinalIgnoreCase))
+            {
+                IconDecodeLimits.ValidatePng(imageBytes, "logo " + iconPath);
+            }
             icon = new Bitmap(new MemoryStream(imageBytes, 0, imageBytes.Length, false, false));
             return icon != null;
         }
@@ -491,6 +504,7 @@ namespace ApkShellext2
             }
 
             byte[] raw = archive.ReadEntryBounded(best, SafeArchive.MAX_ICON, "root icon " + best.FullName);
+            IconDecodeLimits.ValidatePng(raw, "root icon " + best.FullName);
             using (MemoryStream ms = new MemoryStream(raw, 0, raw.Length, false, false))
             {
                 // full buffer before FromStream: GDI+ lazy decode + non-seekable zip stream
