@@ -211,6 +211,16 @@ namespace ApkShellext2.Tests
                 return (long)GetInstanceProperty(entry, "CompressedLength");
             }
 
+            /// <summary>
+            /// The raw internal SafeArchive instance, for callers that must hand the archive to
+            /// another product type taking it as an object (IconRequest.Container): it is the
+            /// only instance implementing ApkQuickReader.IArchive, which stays internal.
+            /// </summary>
+            public object Internal
+            {
+                get { return handle; }
+            }
+
             public void Dispose()
             {
                 CloseArchive(handle);
