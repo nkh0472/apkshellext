@@ -87,10 +87,15 @@ for %%E in (.apk .ipa .aab .appx .appxbundle .apks .apkm .xapk) do (
         reg add "HKCU\SOFTWARE\Classes\!CN!\ShellEx\{e357fccd-a995-4576-b01f-234630154e96}" /ve /d "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}" /f >nul 2>&1
     )
     REM icon handler hijacks the class DefaultIcon; back up whatever was there
-    REM (SharpShell does the same and names the backup value as below)
+    REM (SharpShell does the same and names the backup value as below).
+    REM Never overwrite an existing backup: a repeat install would otherwise
+    REM store our own "%%1" and uninstall would restore that instead of the
+    REM user's original icon.
     set "OLD="
     for /f "tokens=2,*" %%A in ('reg query "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /ve 2^>nul ^| findstr REG_SZ') do set "OLD=%%B"
-    if defined OLD reg add "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /v SharpShell_Backup_DefaultIcon /d "!OLD!" /f >nul 2>&1
+    set "BAK="
+    for /f "tokens=2,*" %%A in ('reg query "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /v SharpShell_Backup_DefaultIcon 2^>nul ^| findstr /i "SharpShell_Backup_DefaultIcon"') do set "BAK=%%B"
+    if defined OLD if not defined BAK reg add "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /v SharpShell_Backup_DefaultIcon /d "!OLD!" /f >nul 2>&1
     reg add "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /ve /d "%%1" /f >nul 2>&1
 )
 EndLocal
