@@ -16,7 +16,7 @@ namespace ApkShellext2.Diagnostics {
     /// ModuleInitializerAttribute in mscorlib, and Roslyn honours a user-declared one with that
     /// exact name). Using that attribute means a second declaration here would be CS0101 - this
     /// file only adds the entry point. Several module initializers per module are allowed; this
-    /// is the assembly's only one now that the facade-closure resolver is gone.
+    /// is the assembly's only one.
     ///
     /// Keep this trivial: the CLR runs it while holding the module lock, so it must not block and
     /// must not throw. EnsureHooks() only subscribes two handlers behind an Interlocked guard.

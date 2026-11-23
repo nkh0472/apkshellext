@@ -10,10 +10,9 @@ namespace ApkQuickReader
     /// <summary>
     /// Shared parser for the binary resource table (resources.arsc).
     ///
-    /// ApkReader and AabReader used to carry a copy of this walk each. AabReader's copy
-    /// was disabled long ago (it has no resources table), so the two had drifted apart:
-    /// only apk side was hardened. Keeping one implementation means the stage-0 hard
-    /// gates below stay in a single place and both readers inherit them.
+    /// Every apk-side reader goes through this one walk; aab/appx/ipa containers carry no
+    /// resources table, so they never reach it. One implementation means the hard gates
+    /// below exist in a single place and every reader inherits them.
     ///
     /// Every length, offset and count read here comes from the file, so each one is
     /// bounded before it is used; malformed input yields the values collected so far
@@ -21,7 +20,7 @@ namespace ApkQuickReader
     /// </summary>
     internal sealed class ArscParser
     {
-        // ---- stage-0 hard gates, kept here (the only place they live) --------------
+        // ---- hard gates on every table read (the only copy) ------------------------
         internal const int MaxResourceConfigSize = 1024;    // ResTable_config is 64 bytes today
         internal const int MaxResourcePackages = 256;       // a real table holds one package
         internal const int MaxResourceEntries = 0x10000;    // entry offset index is 16 bits
@@ -167,9 +166,9 @@ namespace ApkQuickReader
                                         if (dataType == (byte)DATA_TYPE.TYPE_STRING) {
                                             res.Add(conf, readStringPool(table, data));
                                         } else if (dataType == (byte)DATA_TYPE.TYPE_REFERENCE) {
-                                            // B4 规则 2：自引用守卫。这一项指向它自己时，资源表在这条链上
-                                            // 绕圈；searchstack 本来就能挡住死循环，这里额外留一条 debug 痕迹，
-                                            // 否则"图标没出来"会变成没有线索的悬案。
+                                            // self reference: the entry points back at itself and the chain
+                                            // would circle here. searchstack already stops the loop; the log
+                                            // line is what keeps a missing icon diagnosable.
                                             if (data == id) {
                                                 ApkShellext2.DbgLog.W("ARSC self reference 0x" + id.ToString("X8") + " ignored");
                                             } else if (data != 0x00000000 && !searchstack.Contains(data)) {
@@ -197,14 +196,14 @@ namespace ApkQuickReader
         }
 
         /// <summary>
-        /// Look a resource up by name (B4 rule 1 fallback, B4 rule 4).
+        /// Look a resource up by name.
         ///
         /// <paramref name="entryName"/> is the key inside the type (for example
         /// "ic_launcher"); <paramref name="typeName"/> is the parent type ("mipmap").
         /// The same name can appear in several packages, and in several config chunks of
-        /// one type: B4 takes the smallest id of all candidates, which is also what makes
-        /// the choice stable when a table ships duplicated names. Returns 0 when the name
-        /// is not in this table.
+        /// one type: the smallest id of all candidates wins, which is what makes the
+        /// choice stable when a table ships duplicated names. Returns 0 when the name is
+        /// not in this table.
         /// </summary>
         public uint FindResourceId(string typeName, string entryName)
         {
@@ -286,16 +285,16 @@ namespace ApkQuickReader
         }
 
         /// <summary>
-        /// B4 icon reference chain. <paramref name="value"/> is what the manifest attribute
-        /// already rendered to, <paramref name="referenceId"/> is its original
-        /// TYPE_REFERENCE payload (0 when the attribute is not a reference).
+        /// Resolves a manifest icon attribute to an archive path. <paramref name="value"/>
+        /// is what the attribute already rendered to, <paramref name="referenceId"/> is its
+        /// original TYPE_REFERENCE payload (0 when the attribute is not a reference).
         ///
-        /// Rule 5: a value that starts with "res/" is a file path inside the apk - take the
-        ///   file, never consult the table (a table lookup could hand back a different,
-        ///   "nicer" name and change the icon of apps whose resources are simply renamed).
-        /// Rule 1: try the exact id first, fall back to the name.
-        /// Rule 3: "android:" is the framework package, not an app resource - refuse it.
-        /// Rule 2: self references are stopped inside QuickSearchResource().
+        /// A value that starts with "res/" is a file path inside the apk: take the file and
+        /// never consult the table, because a table lookup could hand back a different,
+        /// "nicer" name and change the icon of apps whose resources are renamed.
+        /// An exact reference id is tried before the name.
+        /// "android:" names the framework package, not an app resource, so it is refused.
+        /// Self references are stopped inside QuickSearchResource().
         ///
         /// Returns <paramref name="value"/> unchanged when nothing resolves, so the caller
         /// keeps its original failure path.
@@ -305,21 +304,21 @@ namespace ApkQuickReader
         {
             if (string.IsNullOrEmpty(value)) return value;
 
-            // rule 5: package file path, do not touch the table
+            // a res/ value is a zip entry path, not a resource name
             if (value.StartsWith("res/", StringComparison.OrdinalIgnoreCase)) return value;
             // packers rename the res/ prefix away (r/w/x6.png): anything that looks like a
             // file is a path as well, and looking it up by name would only break it
             if (LooksLikeFilePath(value)) return value;
 
-            // rule 1 (first half): the exact reference id wins over any name
+            // the exact reference id wins over any name
             if (referenceId != 0) {
                 string byId = ResolveIdToValue(referenceId, densityRequested, ignoreXmlDensity);
                 if (!string.IsNullOrEmpty(byId)) return byId;
             }
 
-            // rule 1 (second half) + rule 3: name fallback, refusing foreign packages
+            // name fallback; NormalizeResourceName refuses foreign packages
             string name = NormalizeResourceName(value);
-            if (name == null) return value; // not a "type/name" value: keep the old behaviour
+            if (name == null) return value; // not a "type/name" value: return it verbatim
 
             int slash = name.IndexOf('/');
             uint id = FindResourceId(name.Substring(0, slash), name.Substring(slash + 1));
@@ -367,7 +366,7 @@ namespace ApkQuickReader
         /// Picks the entry whose locale best matches the requested app-name language (localized names
         /// feature, kkguo/apkshellext). Ranking: exact language+region > region-neutral entry of the
         /// same language > same language with a different region > locale-less default config > 0.
-        /// Returns ApplyFilter() when the feature is off so legacy behaviour is untouched.
+        /// Returns ApplyFilter() when the feature is off, so the density-only choice stands.
         /// </summary>
         public int ApplyLocaleFilter(ApkResource r, bool densityRequested, bool ignoreXmlDensity)
         {
@@ -444,7 +443,7 @@ namespace ApkQuickReader
                 long offset;
                 if (sparse) {
                     // a sparse chunk stores the real entry id next to the offset: the
-                    // position in the vector is *not* the entry id (B4 sparse note)
+                    // position in the vector is not the entry id
                     ms.Seek(indexPos + (long)i * 4, SeekOrigin.Begin);
                     entryId = br.ReadUInt16();
                     offset = (long)br.ReadUInt16() * 4; // offsets are in 4-byte units
@@ -469,8 +468,8 @@ namespace ApkQuickReader
                 if (ReadPoolString(keyPoolPos, key) != entryName) continue;
 
                 uint id = (packID << 24) | (typeId << 16) | entryId;
-                // rule 4: the same id may show up in several config chunks, and a name
-                // may exist in several packages - the smallest id is the stable answer
+                // the same id can appear in several config chunks, and a name can exist
+                // in several packages: the smallest id is the stable answer
                 if (best == 0 || id < best) best = id;
             }
         }
@@ -549,7 +548,7 @@ namespace ApkQuickReader
             if (colon >= 0) {
                 string prefix = v.Substring(0, colon);
                 v = v.Substring(colon + 1);
-                // rule 3: "android:" is the framework, never an app resource
+                // "android:" names the framework package, never an app resource
                 if (string.Equals(prefix, "android", StringComparison.OrdinalIgnoreCase)) {
                     ApkShellext2.DbgLog.W("ICON android: reference refused: " + value);
                     return null;

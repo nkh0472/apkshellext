@@ -57,8 +57,7 @@ namespace ApkQuickReader {
             IArchiveEntry baseEntry = outer.GetEntry(baseEntryName);
             // The nested apk must be seekable for ZipArchive; entry streams are
             // not, so buffer the whole entry — under hard caps so a
-            // zip bomb cannot balloon explorer. (STORED-window zero-copy is a
-            // possible later optimisation; correctness and safety first.)
+            // zip bomb cannot balloon explorer.
             byte[] baseBytes = outer.ReadEntryBounded(baseEntry, SafeArchive.MAX_BASE_APK, "base apk " + baseEntryName);
             MemoryStream ms = new MemoryStream(baseBytes, 0, baseBytes.Length, false, false);
             AppPackageReader candidate = new ApkReader(ms);

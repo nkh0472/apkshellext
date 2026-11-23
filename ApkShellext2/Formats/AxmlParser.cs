@@ -7,12 +7,9 @@ namespace ApkQuickReader
 {
     /// <summary>
     /// The binary XML (AXML) walk: string pool, resource map, chunk walker and the
-    /// attribute value renderer. ApkReader and AabReader used to carry one copy each;
-    /// the AabReader copy had already drifted (its chunk walk and string pool lookup
-    /// had no bounds checks), so the hardened walk from ApkReader is the one that
-    /// survives here and both readers now share it.
-    /// The resource table this needs for reference attributes lives in ArscParser,
-    /// which the four stage-0 hard gates were moved into earlier.
+    /// attribute value renderer. Every reader shares this one copy, so its bounds checks
+    /// cover the whole product.
+    /// The resource table this needs for reference attributes lives in ArscParser.
     /// </summary>
     internal sealed class AxmlParser
     {
@@ -26,9 +23,9 @@ namespace ApkQuickReader
         /// <summary>
         /// </summary>
         /// <param name="table">resources.arsc bytes, or null when the container has none</param>
-        /// <param name="resolveReferences">when false a reference attribute keeps the
-        /// pre-merge rendering as a bare number: an aab has no resource table, so there
-        /// is nothing to resolve it against and the numbers must not start changing</param>
+        /// <param name="resolveReferences">when false a reference attribute keeps its bare
+        /// number: an aab has no resource table, so there is nothing to resolve it against
+        /// and the numbers must not start changing</param>
         /// <param name="densityRequested">the reader asked for one density bucket</param>
         /// <param name="ignoreXmlDensity">legacy-icon retry that ignores .xml entries</param>
         /// <param name="log">the owning reader's log sink (keeps its file name in the log)</param>
@@ -70,7 +67,7 @@ namespace ApkQuickReader
         /// <summary>
         /// Same walk as QuickSearchCompressedXml, but it also hands back the raw typed
         /// value. The icon chain needs to know whether the manifest attribute is a
-        /// TYPE_REFERENCE and which id it points at (B4 rule 1), and reading it from the
+        /// TYPE_REFERENCE and which id it points at, and reading it from the
         /// same walk keeps getIcon from walking the manifest twice.
         /// </summary>
         internal string QuickSearchCompressedXmlTyped(byte[] xml, string xpath, string attribute,
@@ -82,8 +79,8 @@ namespace ApkQuickReader
         }
 
         /// <summary>
-        /// B4 icon chain: see ArscParser.ResolveIconValue. The AXML side only forwards,
-        /// because the rules are about the resource table, not about the binary xml.
+        /// Icon attribute resolution: see ArscParser.ResolveIconValue. The AXML side only
+        /// forwards, because the rules are about the resource table, not about the binary xml.
         /// </summary>
         internal string ResolveIconValue(string value, uint referenceId)
         {

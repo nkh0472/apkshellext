@@ -35,8 +35,8 @@ jobs:
     steps:
       # PNGDecrush is the only remaining submodule, and the project compiles its
       # source, so the extraction build cannot succeed without it. The SVG and
-      # SharpShell sources are vendored in-tree; SharpZipLib is gone (T-J reads
-      # zip containers with the BCL reader).
+      # SharpShell sources are vendored in-tree; zip containers are read with the
+      # BCL reader.
       - name: Checkout
         uses: actions/checkout@v7
         with:

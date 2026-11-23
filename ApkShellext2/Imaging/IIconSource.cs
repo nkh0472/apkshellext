@@ -180,8 +180,9 @@ namespace ApkShellext2
     /// <summary>
     /// Renders an Android XML drawable (vector, adaptive-icon, layer-list, shape,
     /// bitmap drawable) that a reader owns. The drawing code stays with the reader
-    /// because the apk and aab renderers deliberately differ; the source only decides
-    /// that the request is an XML drawable this reader can render.
+    /// because each container resolves its drawables differently (an aab has no
+    /// resource table); the source only decides that the request is an XML drawable
+    /// this reader can render.
     /// </summary>
     public interface IVectorIconRenderer
     {
@@ -191,8 +192,9 @@ namespace ApkShellext2
 
     /// <summary>
     /// Resolves the AndroidManifest icon attribute through the shared AxmlParser /
-    /// ArscParser rules (the "B4 icon chain": exact-id reference, name fallback,
-    /// "android:" refusal, res/ shorthand, smallest duplicated id).
+    /// ArscParser rules: an exact-id reference wins, then the name fallback, with
+    /// "android:" refused, the res/ shorthand taken as a path and the smallest of
+    /// duplicated ids chosen.
     /// </summary>
     public interface IManifestIconLookup
     {

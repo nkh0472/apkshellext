@@ -30,15 +30,15 @@ namespace ApkQuickReader {
 
     /// <summary>
     /// Read-only view over one archive container as the package readers need it:
-    /// bounded entry reads plus the name semantics the previous zip reader provided
+    /// bounded entry reads plus the name semantics the readers rely on
     /// (case-insensitive first-hit lookup, ordinal-exact lookup with a fuzzy
     /// fallback, directory detection). SafeArchive is the only implementation; the
     /// readers depend on this interface so the container itself, and with it every
     /// cap, lives in exactly one place.
     ///
-    /// There is deliberately no static "open" on this interface (C# 10 has no
-    /// static abstract members): SafeArchive.Open is the factory and the only way
-    /// a reader obtains an IArchive.
+    /// No static "open" lives on this interface: C# 10 has no static abstract
+    /// members, so SafeArchive.Open is the factory and the only way a reader obtains
+    /// an IArchive.
     /// </summary>
     internal interface IArchive : IDisposable {
         /// <summary>
@@ -53,7 +53,7 @@ namespace ApkQuickReader {
         /// </summary>
         IEnumerable<IArchiveEntry> Entries { get; }
 
-        /// <summary>The legacy fuzzy lookup: first case-insensitive match, else null.</summary>
+        /// <summary>First case-insensitive match, else null.</summary>
         IArchiveEntry GetEntry(string name);
 
         /// <summary>The ordinal-exact lookup, falling back to <see cref="GetEntry"/>.</summary>

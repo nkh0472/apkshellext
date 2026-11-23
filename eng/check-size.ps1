@@ -6,16 +6,9 @@
 # budget is a documentation change, not a red build. The functional contract next door
 # (`check-layout.ps1`) is what actually fails CI.
 #
-# Baselines (VS route, clean Release):
-#   v3.5.1 (T-F)  dll 1,573,888 B, 7z 1,028,354 B, tree 3,392,793 B / 32 files
-#   T-H           dll 1,551,360 B, 7z ~926,000 B (archive timestamps vary), tree 3,027,225 B / 31 files
-#   T-I           dll 1,356,288 B, 7z ~886,900 B, tree 2,832,153 B / 31 files
-#   T-J           dll 1,165,824 B, 7z ~826,400 B, tree 2,641,689 B / 31 files
-#   T-K           dll 1,165,312 B, 7z ~746,500 B, tree 2,344,225 B / 27 files
-#   T-Q/T-R       dll 1,181,184 B, 7z ~752,500 B, tree 2,360,097 B / 27 files
-#
-# The reference budgets below sit ~8% above the post-T-R baseline; they are only used to
-# label a line OVER, never to fail.
+# Reference point (VS route, clean Release): dll 1,181,184 B, 7z ~752,500 B (archive
+# timestamps vary), tree 2,360,097 B / 27 files. The budgets in the param block sit
+# above that point and are only used to label a line OVER, never to fail.
 param(
     [string]$OutputDir = 'ApkShellext2\bin\Release',
 

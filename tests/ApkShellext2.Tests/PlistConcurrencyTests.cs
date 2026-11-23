@@ -11,13 +11,11 @@ using PlistCS;
 namespace ApkShellext2.Tests
 {
     /// <summary>
-    /// Regression pin for the T-C fix: the binary reader used to keep its working
-    /// state in static fields, so two plist reads racing each other could swap
-    /// offsets and return values from the other file (an icon handler parsing
-    /// iTunesMetadata.plist from several preview threads at once). readBinary now
-    /// creates a BinaryPlistReader per call; this test parses two different plists
-    /// from 8 threads and demands that every result matches its single-threaded
-    /// reference, which fails immediately if shared state comes back.
+    /// Pins thread safety of the binary plist reader: readBinary creates a
+    /// BinaryPlistReader per call, so concurrent reads cannot share working state.
+    /// This test parses two different plists from 8 threads and demands that every
+    /// result matches its single-threaded reference, which fails immediately if
+    /// shared state is reintroduced.
     ///
     /// The fixtures are built with Plist.writeBinary single-threaded on purpose:
     /// the *writer* still keeps static state (by design, it is not hot), so building

@@ -95,7 +95,6 @@ namespace ApkShellext2
         {
             Bitmap icon = Utility.AppTypeIcon(AppPackageReader.AppType.AndroidApp);
             return icon;
-            //return getImage(TagApplication, AttrIcon, size);
         }
         /// <summary>
         /// Get a Image object from manifest and resources
@@ -106,10 +105,9 @@ namespace ApkShellext2
         public Bitmap getImage(string tag, string attr, Size size)
         {
             Log(tag+ "..." + attr + "..." + size.ToString());
-            // The aab icon path is still the fixed resource name the previous hardcoded
-            // implementation used: the manifest reference rules are not wired into this
-            // reader yet, and T-P must not change a single pixel. The lookup itself goes
-            // through the one source chain like every other reader.
+            // An aab icon is the fixed resource name "ic_launcher.png": the container has
+            // no resource table, so the manifest reference rules have nothing to resolve
+            // against. The lookup goes through the one source chain like every other reader.
             IconSourceChain chain = ImageDecodeChain();
             IconRequest request = new IconRequest(size, zip)
             {
@@ -237,7 +235,7 @@ namespace ApkShellext2
         {
             // Preferred path: translate the VectorDrawable to SVG and let the vendored
             // Svg.NET renderer do the drawing (transforms, gradients, clips are mature
-            // there). The legacy GDI+ walker remains as fallback for anything the
+            // there). parseVectorDrawableLegacy draws with GDI+ for anything the
             // translator refuses. Mirrors ApkQuickReader.parseVectorDrawable.
             try
             {
@@ -282,11 +280,10 @@ namespace ApkShellext2
                 viewportHeight = GetXmlFloat(vector, "viewportHeight", 0f);
                 if (viewportWidth == 0) viewportWidth = viewportHeight;
                 if (viewportHeight == 0) viewportHeight = viewportWidth;
-                // android:width/android:height and their units are advisory only for the
-                // legacy renderer: the canvas is sized from the clamped viewport below and
-                // resized to the caller's icon size afterwards. (Upstream parsed them into
-                // locals it never read; the dead parse also rejected hostile width values
-                // that the viewport path handles fine.)
+                // android:width/android:height and their units are advisory only here: the
+                // canvas is sized from the clamped viewport below and resized to the
+                // caller's icon size afterwards. Those attributes are not read at all,
+                // because a hostile width value must not reach the parse.
                 // viewport comes from attacker XML: a huge/NaN value would OOM explorer's
                 // process via the intermediate canvas. Real adaptive vectors are ≤ 108dp.
                 Bitmap b = new Bitmap(ClampCanvas(viewportWidth), ClampCanvas(viewportHeight));
@@ -324,9 +321,8 @@ namespace ApkShellext2
         /// <summary>
         /// Fills paths of a &lt;vector&gt; or nested &lt;group&gt;, honouring the group
         /// transforms (scale/rotation about pivot, then translation) defined by Android
-        /// VectorDrawable. Older code read only the paths of one first-level group and
-        /// silently ignored every transform, misplacing artwork such as the adaptive
-        /// foreground of 'Light Start' (drawn upper-left instead of centered).
+        /// VectorDrawable. Ignoring them misplaces artwork: the adaptive foreground of
+        /// 'Light Start', for example, lands upper-left instead of centered.
         /// </summary>
         private void DrawVectorGroup(Graphics g, XmlElement parent, Matrix world)
         {
@@ -550,7 +546,7 @@ namespace ApkShellext2
                     XmlElement corners = (XmlElement)eShape.SelectSingleNode("corners");
                     if (corners != null)
                     {
-                        //ToDo, support round corner
+                        // <corners> is ignored: the rectangle is drawn with square corners
                     }
                     p.AddRectangle(new RectangleF(0, 0, b.Width, b.Height));
                 }
@@ -560,12 +556,12 @@ namespace ApkShellext2
                 }
                 else if (type == shapeType.line)
                 {
-                    // todo: support line
+                    // a <line> has no fill area, so no path is added and nothing is drawn
 
                 }
                 else if (type == shapeType.ring)
                 {
-                    // todo: support ring
+                    // a <ring> has no fill area here, so no path is added and nothing is drawn
                 }
                 else
                 {
@@ -612,9 +608,8 @@ namespace ApkShellext2
 
         /// <summary>
         /// The binary XML walk lives in the shared AxmlParser. An aab carries no
-        /// resources.arsc, so reference attributes keep the bare number rendering they
-        /// had before the parsers were merged instead of resolving through a table that
-        /// does not exist.
+        /// resources.arsc, so reference attributes keep their bare number instead of
+        /// resolving through a table that does not exist.
         /// </summary>
         private AxmlParser NewAxmlParser()
         {
@@ -647,7 +642,6 @@ namespace ApkShellext2
             if (disposed) return;
             if (disposing)
             {
-                // resources = null;
                 manifest = null;
                 if (zip != null)
                     zip.Dispose();

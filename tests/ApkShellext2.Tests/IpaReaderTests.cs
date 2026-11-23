@@ -10,7 +10,7 @@ namespace ApkShellext2.Tests
     /// <summary>
     /// IpaReader: the .ipa path. It is the only reader that parses a binary plist
     /// itself, so these tests both check the metadata mapping and prove that the
-    /// plist depth cap (T-C) is reached through the reader's own constructor instead
+    /// plist depth cap is reached through the reader's own constructor instead
     /// of only through Plist.readPlist.
     /// </summary>
     [TestFixture]

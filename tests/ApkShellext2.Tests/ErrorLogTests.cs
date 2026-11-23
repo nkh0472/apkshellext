@@ -11,7 +11,7 @@ using NUnit.Framework;
 namespace ApkShellext2.Tests
 {
     /// <summary>
-    /// ErrorLog (T-E): the default-on failure log. The type is internal and its paths
+    /// ErrorLog: the default-on failure log. The type is internal and its paths
     /// are static readonly fields pointing at %PUBLIC%, so each test redirects them
     /// (and resets the cached size) to a scratch directory: the assertions then read
     /// the real file the extension would have written.

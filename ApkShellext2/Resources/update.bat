@@ -28,11 +28,9 @@ REM update.bat is never backed up or restored: Windows keeps a running .bat
 REM open, so it cannot be moved. It is a helper, not product content; a rollback
 REM restores the eight product files (dll, five bats, the two libwebp dlls).
 REM
-REM Stage-4 note: from the stage-4 shell rewrite on, registration lives in
-REM Registration\ and install*.bat / update.bat only swap files + call it. This
-REM script still carries its own regasm / HKCU association logic so it stays
-REM byte-for-byte equivalent with install*.bat until that refactor lands; do
-REM not "simplify" it alone before then.
+REM Registration note: install*.bat and this script each carry their own regasm /
+REM HKCU association logic and must stay byte-for-byte equivalent for the same
+REM registration outcome. Never simplify one of them alone.
 
 CD /D "%~dp0"
 set "SCRIPTDIR=%~dp0"
@@ -279,7 +277,7 @@ if /I "%SCOPE%"=="machine" (
 )
 
 REM The blocked list is what makes a menu or icon vanish "for no reason" after
-REM Explorer once crashed in an old build. It survives re-installation, so an
+REM Explorer crashes: it survives re-installation, so an
 REM update that does not clear it looks broken forever. All four CLSIDs, both
 REM machine views and the per-user list.
 ECHO     Clearing the Windows shell-extension block list...
@@ -438,10 +436,10 @@ goto :eof
 
 :register_machine
 REM regasm re-runs SharpShell's own registration, which unconditionally
-REM refreshes SharpShell_Backup_DefaultIcon (vendored product code, fixed in
-REM stage 4). Snapshot the pre-existing backup values for our eight classes in
-REM both registry views and put them back afterwards, so an update can never
-REM lose the original system icon of an extension.
+REM refreshes SharpShell_Backup_DefaultIcon (vendored product code). Snapshot
+REM the pre-existing backup values for our eight classes in both registry views
+REM and put them back afterwards, so an update can never lose the original
+REM system icon of an extension.
 ECHO     Snapshotting the existing DefaultIcon backups...
 set "ICONSNAP=%TEMP%\apks_update_icons_%RANDOM%.json"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$roots=@('HKLM:\SOFTWARE\Classes','HKLM:\SOFTWARE\WOW6432Node\Classes'); $exts=@('.apk','.ipa','.aab','.appx','.appxbundle','.apks','.apkm','.xapk'); $out=@(); foreach($r in $roots){ foreach($e in $exts){ $p=Join-Path $r $e; try{ $cn=(Get-ItemProperty -LiteralPath $p -Name '(default)' -ErrorAction Stop).'(default)' }catch{ continue }; if(-not $cn){ continue }; $di=Join-Path (Join-Path $r $cn) 'DefaultIcon'; try{ $k=Get-Item -LiteralPath $di -ErrorAction Stop }catch{ continue }; $names=@($k.GetValueNames()); $has=($names -contains 'SharpShell_Backup_DefaultIcon'); $bak=$null; if($has){ $bak=$k.GetValue('SharpShell_Backup_DefaultIcon') }; $out += [pscustomobject]@{ root=$r; class=$cn; hasBackup=$has; backup=$bak; default=$k.GetValue('') } } }; @($out) | ConvertTo-Json -Compress | Set-Content -LiteralPath $env:ICONSNAP -Encoding UTF8" >nul 2>&1

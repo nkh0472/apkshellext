@@ -8,9 +8,9 @@ using PNGDecrush;
 namespace ApkShellext2.Tests
 {
     /// <summary>
-    /// T-J removed the source-embedded SharpZipLib. The pinned PNGDecrush submodule still
-    /// names three SharpZipLib types (a zlib compressor and an incremental CRC-32), which
-    /// SharpZipLibShim.cs now provides on System.IO.Compression. These tests pin the parts
+    /// The pinned PNGDecrush submodule names three SharpZipLib types (a zlib compressor
+    /// and an incremental CRC-32), which SharpZipLibShim.cs provides on
+    /// System.IO.Compression. These tests pin the parts
     /// the decrushing path actually depends on, because a broken shim would silently
     /// corrupt every crushed iOS PNG instead of failing loudly.
     /// </summary>

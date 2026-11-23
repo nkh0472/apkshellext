@@ -9,12 +9,10 @@ namespace ApkShellext2
     /// Converts Android VectorDrawable path-data ("android:pathData") into a
     /// GDI+ GraphicsPath via the vendored Svg.NET path parser.
     ///
-    /// Historical note: this class used to be a hand-rolled VectorDrawable
-    /// renderer (instance state, own tokenizer behind the never-defined
-    /// USE_NATIVE_SVG_PARSER flag, first-level-group-only drawing). Full
-    /// VectorDrawable rendering now goes through VectorDrawableToSvg +
-    /// SvgDocument.Draw in ApkQuickReader; only this path converter is left
-    /// because the AAB reader and the GDI+ fallback walker still draw with it.
+    /// Only the path conversion lives here. Full VectorDrawable rendering goes through
+    /// VectorDrawableToSvg + SvgDocument.Draw in ApkQuickReader; the AAB reader and the
+    /// GDI+ fallback walker still draw with this converter because they rasterise
+    /// through GDI+ themselves.
     /// </summary>
     public class VectorDrawableRender
     {

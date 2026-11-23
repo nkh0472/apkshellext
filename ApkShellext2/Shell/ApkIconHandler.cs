@@ -126,10 +126,6 @@ namespace ApkShellext2 {
         public static void postDoRegister(Type type, RegistrationType registrationType) {
             Console.WriteLine("Registering " + type.FullName + " Version " + type.Assembly.GetName().Version.ToString());
 
-            // Todo: clean other icon handler as they were integrated
-            //"d5ff6172-1ae5-4c4a-a207-5a2dd100891e"
-            //"a0ac4758-12d3-4dcf-9d12-03faaa3c0a9d"
-
             #region Clean up apkshellext registry
             try {
                 string oldVersionClassName = @"KKHomeProj.ApkShellExt.ApkShellExt";
@@ -183,25 +179,9 @@ namespace ApkShellext2 {
 
             #endregion
 
-            #region restore the old settings from registry
-            // This is not possible as at this time, the user is admin, which is different when running explorer, so comment this out for now.
-            //Settings.Default.ShowAppStoreWhenMultiSelected = Utility.getRegistrySetting(Utility.keyMultiSelectShowStore) == 1;
-            //Settings.Default.ShowGooglePlay = Utility.getRegistrySetting(Utility.keyShowGooglePlay) == 1;
-            //Settings.Default.ShowOverLayIcon = Utility.getRegistrySetting(Utility.keyShowOverlay) == 1;
-            //Settings.Default.ShowIpaIcon = Utility.getRegistrySetting(Utility.keyShowIpaIcon) == 1;
-            //Settings.Default.ShowAppxIcon = Utility.getRegistrySetting(Utility.keyShowAppxIcon) == 1;
-            //Settings.Default.ShowMenuIcon = Utility.getRegistrySetting(Utility.keyShowMenuIcon) == 1;
-
-            //if (Utility.getRegistrySetting(Utility.keyRenameWithVersionCode) == 1) {
-            //    Settings.Default.RenamePattern = Resources.strRenamePatternDefault + "_" + Resources.varRevision;
-            //}
-
-            //int lang = Utility.getRegistrySetting(Utility.keyLanguage, -1);
-            //if (lang != -1) {
-            //    Settings.Default.Language = lang;
-            //}
-            //Settings.Default.Save();
-            #endregion
+            // Registration runs elevated (installer); Explorer loads the handler as the
+            // interactive user. Reading HKCU at this point would read the wrong hive, so
+            // no settings are restored here.
 
             #region Enable debug log
 #if DEBUG

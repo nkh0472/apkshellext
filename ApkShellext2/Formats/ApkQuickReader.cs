@@ -1240,14 +1240,13 @@ namespace ApkQuickReader
             if (getFlag("Density") == null) {
                 setFlag("Density", 1);
             }
-            // B4 icon chain: QuickSearchManifestXml already resolves a TYPE_REFERENCE by its
-            // exact id (that is what convertData does), so the value the manifest source
-            // gets here is the exact-id answer when there is one. The source takes the raw
-            // typed value from the same walk and lets the shared parser apply the rest of
-            // the rules: name fallback when the id resolves to nothing, "android:" refusal,
-            // "res/" path shortcut and the smallest-id choice for duplicated names. A value
-            // it cannot improve comes back unchanged, so the failure path below stays
-            // exactly what it was.
+            // QuickSearchManifestXml already resolves a TYPE_REFERENCE by its exact id
+            // (that is what convertData does), so the value the manifest source gets here
+            // is the exact-id answer when there is one. The source takes the raw typed
+            // value from the same walk and lets the shared parser handle the name fallback
+            // when the id resolves to nothing, the "android:" refusal, the "res/" path
+            // shortcut and the smallest-id choice for duplicated names. A value it cannot
+            // improve comes back unchanged, so the failure path below is untouched.
             //
             // Every icon lookup runs through one source chain (manifest reference, package
             // entry, xml drawable). Sources never throw, so a decode failure is a null
@@ -1464,8 +1463,7 @@ namespace ApkQuickReader
         private Bitmap parseVectorDrawable(XmlNode node, Size size) {
             // Preferred path: translate the VectorDrawable to SVG and let the vendored
             // Svg.NET renderer do the drawing (transforms, gradients, clips are mature
-            // there). The legacy GDI+ walker remains as fallback for anything the
-            // translator refuses.
+            // there). The GDI+ walker below draws anything the translator refuses.
             try {
                 XmlElement vec = node as XmlElement;
                 if (vec == null) vec = node.SelectSingleNode("/vector") as XmlElement;
@@ -1518,11 +1516,10 @@ namespace ApkQuickReader
                 viewportHeight = GetXmlFloat(vector, "viewportHeight", 0f);
                 if (viewportWidth == 0) viewportWidth = viewportHeight;
                 if (viewportHeight == 0) viewportHeight = viewportWidth;
-                // android:width/android:height and their units are advisory only for the
-                // legacy renderer: the canvas is sized from the clamped viewport below and
-                // resized to the caller's icon size afterwards. (Upstream parsed them into
-                // locals it never read; the dead parse also rejected hostile width values
-                // that the viewport path handles fine.)
+                // android:width/android:height and their units are advisory only here: the
+                // canvas is sized from the clamped viewport below and resized to the
+                // caller's icon size afterwards. Those attributes are not read at all,
+                // because a hostile width value must not reach the parse.
                 // viewport comes from attacker XML: a huge/NaN value would OOM explorer's
                 // process via the intermediate canvas. Real adaptive vectors are ≤ 108dp.
                 Bitmap b = new Bitmap(ClampCanvas(viewportWidth), ClampCanvas(viewportHeight));
@@ -1548,9 +1545,8 @@ namespace ApkQuickReader
         /// <summary>
         /// Fills paths of a &lt;vector&gt; or nested &lt;group&gt;, honouring the group
         /// transforms (scale/rotation about pivot, then translation) defined by Android
-        /// VectorDrawable. Older code read only the paths of one first-level group and
-        /// silently ignored every transform, misplacing artwork such as the adaptive
-        /// foreground of 'Light Start' (drawn upper-left instead of centered).
+        /// VectorDrawable. Ignoring them misplaces artwork: the adaptive foreground of
+        /// 'Light Start', for example, lands upper-left instead of centered.
         /// </summary>
         private void DrawVectorGroup(Graphics g, XmlElement parent, System.Drawing.Drawing2D.Matrix world) {
             foreach (XmlNode child in parent.ChildNodes) {
@@ -1890,16 +1886,16 @@ namespace ApkQuickReader
                 if (type == shapeType.rectangle) {
                     XmlElement corners = (XmlElement)eShape.SelectSingleNode("corners");
                     if (corners != null) {
-                        //ToDo, support round corner
+                        // <corners> is ignored: the rectangle is drawn with square corners
                     }
                     p.AddRectangle(new RectangleF(0, 0, b.Width, b.Height));
                 } else if (type == shapeType.oval) {
                     p.AddEllipse(0, 0, b.Width, b.Height);
                 } else if (type == shapeType.line) {
-                    // todo: support line
+                    // a <line> has no fill area, so no path is added and nothing is drawn
 
                 } else if (type == shapeType.ring) {
-                    // todo: support ring
+                    // a <ring> has no fill area here, so no path is added and nothing is drawn
                 } else {
                     throw new Exception("Unsupported shape type: " + (int)type);
                 }

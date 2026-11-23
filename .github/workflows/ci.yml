@@ -44,7 +44,7 @@ jobs:
 
       # The snk is gitignored, so CI signs only when the base64 key is configured.
       # A missing secret must never fail the build: the local-debug fallback is an
-      # unsigned Release (the publish route signs later, T-G3).
+      # unsigned Release, and signing belongs to the publish route.
       - name: Restore strong-name key (optional secret)
         shell: pwsh
         env:
@@ -85,7 +85,7 @@ jobs:
       # The unit tests build the product again through a ProjectReference that sets
       # Skip7zPackage=true, so this step neither repackages nor needs 7-Zip, and it
       # must forward the signing switch exactly like the build step above.
-      # -warnaserror is deliberately not passed here: it guards the shipped
+      # -warnaserror is only passed to the product build: it guards the shipped
       # assembly, not the test project's analyzers.
       - name: Run unit tests
         shell: pwsh
@@ -110,7 +110,7 @@ jobs:
         with:
           submodules: recursive
 
-      # The two routes deliberately use different SDKs. The dotnet job can use the
+      # The two routes need different SDKs. The dotnet job can use the
       # pinned 10.0.404 because the dotnet CLI carries its own MSBuild; the VS job
       # drives the runner's Visual Studio 2022 MSBuild 17.14, and an SDK newer than
       # 9.x (10.0.404 needs MSBuild >= 18.0.0) cannot be loaded by it. The VS route

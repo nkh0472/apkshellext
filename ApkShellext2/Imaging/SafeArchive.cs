@@ -39,26 +39,26 @@ namespace ApkQuickReader {
         /// stream. Same order of magnitude as a base apk.</summary>
         public const long MAX_NESTED_CONTAINER = 512L * 1024 * 1024;
 
-        /// <summary>Central-directory entry count cap (roadmap C4). Bounds every
-        /// caller's O(n) entry scan and the archive's per-entry bookkeeping no matter
-        /// what a hostile archive claims.
+        /// <summary>Central-directory entry count cap. Bounds every caller's O(n) entry
+        /// scan and the archive's per-entry bookkeeping no matter what a hostile archive
+        /// claims.
         ///
         /// The number is the classic (non-zip64) end-of-central-directory limit,
         /// 65535 entries: above it a zip has to be zip64, which no real package in
-        /// the corpus is. The roadmap draft said 10000, but the 87-sample corpus
-        /// disagrees with that draft: 南方航空_com.csair.mbp_4.6.4(20231214).apk declares
-        /// 15349 entries and com.ubercab's nested base apk 10074, so a 10000 cap
-        /// throws away two real icons — the cap bounds work, it must not reject
-        /// legitimate packages.</summary>
+        /// the corpus is. A tighter round number would be wrong: the 87-sample corpus
+        /// contains packages that only fit here —
+        /// 南方航空_com.csair.mbp_4.6.4(20231214).apk declares 15349 entries and
+        /// com.ubercab's nested base apk 10074 — so the cap bounds work without
+        /// rejecting legitimate packages.</summary>
         public const int MAX_ENTRIES = 65535;
 
         /// <summary>
         /// Hard ceiling on the decompressed bytes ONE SafeArchive instance may hand out
-        /// over its lifetime (roadmap C4, XAPK reference). The per-entry gate already
-        /// bounds a single entry; this bounds their sum, so a container cannot stay alive
-        /// by feeding a reader thousands of individually-legal entries.
+        /// over its lifetime. The per-entry gate already bounds a single entry; this
+        /// bounds their sum, so a container cannot stay alive by feeding a reader
+        /// thousands of individually-legal entries.
         ///
-        /// 1 GiB is deliberately far above what a legitimate package reads: a 147 MB
+        /// 1 GiB is far above what a legitimate package reads: a 147 MB
         /// base apk hands out roughly its manifest, resource table and one icon (a few
         /// MB), a nested container is itself capped at MAX_NESTED_CONTAINER (512 MiB)
         /// and a split bundle buffers at most one base apk. Real packages all fit while
@@ -75,9 +75,8 @@ namespace ApkQuickReader {
         /// Encoding for entry names that do NOT carry the UTF-8 flag (0x800).
         ///
         /// The zip specification says CP437, but in practice Android/Windows tooling
-        /// writes the system ANSI code page, and the previous reader (SharpZipLib with
-        /// its default StringCodec) decoded those names with Encoding.GetEncoding(0)
-        /// too. Keeping the same code page here is what preserves lookups of real
+        /// writes the system ANSI code page, and the entries must be readable as the
+        /// user's system names them: that is what preserves lookups of real
         /// Chinese/Japanese resource paths in the samples. Names WITH the flag are
         /// always decoded as UTF-8 by ZipArchive regardless of this value.
         ///
@@ -101,11 +100,10 @@ namespace ApkQuickReader {
         }
 
         /// <summary>
-        /// Opens a zip container for read-only access. The archive owns the stream
-        /// (matches the previous reader's IsStreamOwner default: disposing the archive
-        /// closes the stream). Rejects a central directory with more than MAX_ENTRIES
-        /// entries — that is a hostile/absurd archive, and it is recorded in the error
-        /// log before the InvalidDataException reaches the handlers.
+        /// Opens a zip container for read-only access. The archive owns the stream:
+        /// disposing the archive closes the stream. Rejects a central directory with more
+        /// than MAX_ENTRIES entries — that is a hostile/absurd archive, and it is recorded
+        /// in the error log before the InvalidDataException reaches the handlers.
         /// </summary>
         public static IArchive Open(Stream stream) {
             return new SafeArchive(stream, MaxTotalReadBytes);
@@ -139,10 +137,10 @@ namespace ApkQuickReader {
         }
 
         /// <summary>
-        /// Legacy fuzzy lookup: the first central-directory entry whose name matches
-        /// case-insensitively. This is the semantics of the previous reader's
-        /// ZipFile.GetEntry, and callers that pass names from package metadata
-        /// (manifest.json, AppxBundleManifest FileName, …) rely on it.
+        /// Case-insensitive first-hit lookup: the first central-directory entry whose name
+        /// matches case-insensitively. Callers that pass names from package metadata
+        /// (manifest.json, AppxBundleManifest FileName, …) rely on it, because that
+        /// metadata is written by other toolchains with their own casing.
         /// ZipArchive.GetEntry is ordinal case-sensitive, so the scan is explicit.
         /// </summary>
         public IArchiveEntry GetEntry(string name) {
@@ -156,12 +154,11 @@ namespace ApkQuickReader {
 
         /// <summary>
         /// Resolves an entry whose name came from package metadata (arsc path
-        /// strings, AXML refs). The previous reader's GetEntry matched
-        /// case-insensitively and returned the first central-directory hit — fatal for
-        /// AndResGuard-obfuscated packages, whose 2-char names deliberately collide by
+        /// strings, AXML refs). A case-insensitive first-hit lookup is fatal for
+        /// AndResGuard-obfuscated packages, whose 2-char names collide by
         /// case (res/Fd.xml vs res/FD.xml vs res/fd.xml: 600+ such groups in real
-        /// APKs). ZIP names are case-sensitive; try the ordinal-exact entry first, fall
-        /// back to the legacy fuzzy match only when it is missing.
+        /// APKs). ZIP names are case-sensitive; try the ordinal-exact entry first and
+        /// fall back to the case-insensitive match only when it is missing.
         /// </summary>
         public IArchiveEntry GetEntryExact(string name) {
             if (name == null) return null;
@@ -169,10 +166,10 @@ namespace ApkQuickReader {
                 if (string.Equals(entry.FullName, name, StringComparison.Ordinal))
                     return new SafeArchiveEntry(entry);
             }
-            return GetEntry(name); // legacy fallback: fuzzy match beats giving up
+            return GetEntry(name); // case-insensitive fallback: a fuzzy hit beats giving up
         }
 
-        /// <summary>Case-insensitive existence check (the previous reader's FindEntry).</summary>
+        /// <summary>Case-insensitive existence check, same semantics as GetEntry.</summary>
         public bool Contains(string name) {
             return GetEntry(name) != null;
         }
@@ -214,8 +211,8 @@ namespace ApkQuickReader {
         /// The byte cap actually applied to one entry: the hard cap, tightened by the
         /// compression-ratio allowance (RATIO_LIMIT × compressed bytes + 1 MiB of
         /// slack). A Stored entry has CompressedLength == Length, so the allowance can
-        /// never widen its cap; the previous reader special-cased Stored only because
-        /// its zip library exposed the method. Same accept/reject outcome.
+        /// never widen its cap; Stored and Deflated entries are accepted and rejected by
+        /// the same rule.
         ///
         /// The multiply saturates instead of wrapping, so a container that lies about
         /// its compressed size cannot produce a negative (i.e. unbounded) limit. A

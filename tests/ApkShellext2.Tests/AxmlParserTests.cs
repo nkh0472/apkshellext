@@ -8,7 +8,7 @@ namespace ApkShellext2.Tests
     /// <summary>
     /// Pins the shared binary-XML parser (ApkQuickReader.AxmlParser) over real bytes from
     /// Spectroid_org.intoorbit.spectrum_1.1.2(31).apk: AndroidManifest.xml plus the matching
-    /// resources.arsc, and patched variants produced by X:\apks-tn\fixtures\make-fixtures.ps1.
+    /// resources.arsc, plus patched variants of both (fixtures/README.md lists every patch).
     ///
     /// The manifest is the file every shell property (app name, version, icon path) comes
     /// from, so the string-pool / resource-map bounds must reject rather than read a

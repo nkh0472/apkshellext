@@ -140,7 +140,7 @@ namespace ApkShellext2 {
 
         /// <summary>
         /// Culture whose localized app labels (android:label via resources.arsc) should be preferred,
-        /// or null when the feature is off (legacy behaviour: first/default resource config wins).
+        /// or null when the feature is off (the first/default resource config wins).
         /// Controlled by Preferences → Renaming: 'UseAppNameLanguage' + 'AppNameLanguage' (empty = UI culture).
         /// </summary>
         public static CultureInfo requestedNameCulture() {
@@ -386,22 +386,6 @@ namespace ApkShellext2 {
             }
         }
 
-        //public static string[] getSelectedFiles() {
-        //    IntPtr handle = User32.GetForegroundWindow();
-
-        //    List<string> selected = new List<string>();
-
-        //    var shell = new Shell32.Shell();
-        //    foreach (SHDocVw.InternetExplorer window in shell.Windows()) {
-        //        if (window.HWND == (int)handle) {
-        //            Shell32.FolderItems items = ((Shell32.IShellFolderViewDual2)window.Document).SelectedItems();
-        //            foreach (Shell32.FolderItem item in items) {
-        //                selected.Add(item.Path);
-        //            }
-        //        }
-        //    }
-        //}
-
         public static void refreshShell() {
             SharpShell.Interop.Shell32.SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
         }
@@ -411,13 +395,12 @@ namespace ApkShellext2 {
             // host process (idempotent); see ApkShellext2.Diagnostics.ErrorLog.
             ErrorLog.EnsureHooks();
             string output = "";
-            //output = "[" + System.DateTime.Now.ToString() + "]";
             if (caller != null)
                 output += "<" + caller.GetType().Name + ">";
             if (title != "")
                 output += "|" + title + "|";
 #if DEBUG
-            // Debug builds keep the legacy SharpShell trace sink unchanged.
+            // Debug builds keep the SharpShell trace sink unchanged.
             SharpShell.Diagnostics.Logging.Log(output + message);
 #else
             // Release has no trace sink. Informational call sites (the handlers' Log()

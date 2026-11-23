@@ -6,8 +6,8 @@ using NUnit.Framework;
 namespace ApkShellext2.Tests
 {
     /// <summary>
-    /// AppxBundleReader: the .appxbundle path introduced by the stage-0 fix (T-C).
-    /// The reader scans the bundle manifest for the application package, then hands
+    /// AppxBundleReader: the .appxbundle path. The reader scans the bundle manifest
+    /// for the application package, then hands
     /// the nested .appx to AppxReader. Each test pins one of the limits that keep a
     /// malformed bundle from looping forever or inflating an arbitrary manifest.
     /// </summary>
@@ -74,8 +74,8 @@ namespace ApkShellext2.Tests
         [Timeout(5000)]
         public void ManifestWithoutAnyPackageThrowsInsteadOfLooping()
         {
-            // T-C: the old scan called ReadToFollowing("Package") and ignored its
-            // false return, so a manifest with no Package element spun forever.
+            // The scan must not read past a missing Package element: a manifest with
+            // no such element ends in the "Cannot find application" error, not a spin.
             string manifest = "<?xml version=\"1.0\" encoding=\"utf-8\"?>"
                 + "<Bundle xmlns=\"http://schemas.microsoft.com/appx/2013/bundle\">"
                 + "<Identity Name=\"Test.Bundle\" Version=\"1.0.0.0\" />"

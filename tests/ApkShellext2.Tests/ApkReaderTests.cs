@@ -7,7 +7,7 @@ namespace ApkShellext2.Tests
 {
     /// <summary>
     /// ApkReader end to end over a complete in-memory apk: the manifest and the resource
-    /// table are the real Spectroid bytes (plus the documented stage 0 patches), packed
+    /// table are the real Spectroid bytes (plus the documented hostile patches), packed
     /// with ZipBuilder. The parser-level caps are pinned by ArscParserTests; these tests
     /// prove the same hostile tables cannot take the shell's entry point down.
     /// </summary>

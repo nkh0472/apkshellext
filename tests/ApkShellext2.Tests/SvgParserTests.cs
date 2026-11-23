@@ -6,10 +6,9 @@ using NUnit.Framework;
 namespace ApkShellext2.Tests
 {
     /// <summary>
-    /// Behaviour pin for the SVG parsers that T-K rewrote off Span&lt;char&gt; onto
-    /// string slices (TextSlice). The rewrite was meant to be behaviour preserving, so
-    /// these tests assert the numbers, unit kinds, path segments and transform text the
-    /// old span implementation produced - including the odd corners (an unknown
+    /// Behaviour pin for the SVG parsers, which read string slices (TextSlice) instead of
+    /// Span&lt;char&gt;. These tests assert the numbers, unit kinds, path segments and
+    /// transform text those parsers produce - including the odd corners (an unknown
     /// transform name is skipped silently, a truncated path stops without throwing,
     /// "NONE" is not the same token as "none").
     ///

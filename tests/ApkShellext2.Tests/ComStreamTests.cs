@@ -11,9 +11,9 @@ namespace ApkShellext2.Tests
 {
     /// <summary>
     /// ComStream: the Stream adapter SharpShell hands to callers instead of a raw
-    /// IStream. T-A fixed two long-standing bugs here: Seek updated the cached
-    /// position with the wrong value and Dispose released the COM object and the
-    /// marshal buffer more than once. The fake IStream makes the position bookkeeping
+    /// IStream. Two invariants matter and are pinned here: Seek keeps the cached
+    /// position in step with the stream, and Dispose releases the COM object and the
+    /// marshal buffer exactly once. The fake IStream makes the position bookkeeping
     /// observable; the SHCreateMemStream test covers the real RCW release path.
     /// </summary>
     [TestFixture]

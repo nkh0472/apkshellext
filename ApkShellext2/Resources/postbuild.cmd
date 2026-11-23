@@ -6,9 +6,8 @@ rem through an MSBuild-generated temp .cmd where line continuations, %% escaping
 rem and block parsing are fragile. A plain file avoids all of that.
 rem
 rem This script ONLY does 7z packaging, into ApkShellext2-<ver>.7z where <ver>
-rem comes from version.txt (eng\package-name.ps1) - the same name the release
-rem assets use, so publishing no longer renames the package by hand. The publish
-rem layout itself
+rem comes from version.txt (eng\package-name.ps1); the release assets carry the
+rem same name, so the two agree by construction. The publish layout itself
 rem (install*.bat, restart_explorer.bat, libwebp_*.dll, debug.bat) is assembled
 rem by MSBuild: those files are Content items with CopyToOutputDirectory in
 rem ApkShellext2.csproj, copied by CopyFilesToOutputDirectory during the build,
@@ -83,15 +82,11 @@ REM Shipping manifest - explicit and toolchain-independent. Both build routes
 REM converge on exactly these root files; a missing entry FAILS the build here
 REM instead of silently packing a short archive (a bare *.bat wildcard would
 REM match nothing without any error - see compile_guidance gotcha 5).
-REM Nine root files since T-U: update.bat upgrades an existing installation
-REM without a manual rename/uninstall round-trip. The System.Memory facade
-REM family (System.Memory, System.Buffers,
-REM System.Runtime.CompilerServices.Unsafe,
-REM System.Numerics.Vectors) used to be load-time dependencies of the main dll
-REM and had to ship app-local, because COM hosts (explorer/dllhost) only probe
-REM the app base and the GAC and the facade versions the compile bound to are
-REM not in the GAC. The SVG parsers now walk strings (TextSlice), so the dll
-REM references framework assemblies only and nothing else belongs here.
+REM Nine root files: update.bat upgrades an existing installation without a
+REM manual rename/uninstall round-trip. The dll references framework assemblies
+REM only and nothing else belongs here: COM hosts (explorer/dllhost) probe the
+REM app base and the GAC only, so a private assembly shipped next to the dll
+REM would be a load-time dependency the host has to find there.
 set "MANIFEST=ApkShellext2.dll install.bat install_user.bat uninstall.bat uninstall_user.bat restart_explorer.bat update.bat libwebp_x86.dll libwebp_x64.dll"
 for %%F in (%MANIFEST%) do (
   if not exist "%%F" (
@@ -99,10 +94,10 @@ for %%F in (%MANIFEST%) do (
     exit /b 1
   )
 )
-REM Annotated EXCLUSIONS - deliberately never packed, whatever sits in the folder:
+REM Annotated EXCLUSIONS - never packed, whatever sits in the folder:
 REM  Any System.Memory/System.Buffers/System.Runtime.CompilerServices.Unsafe/
-REM      System.Numerics.Vectors copy that a stale bin\Release still contains -
-REM      no longer part of the manifest, so it cannot leak into an archive.
+REM      System.Numerics.Vectors copy - not part of the manifest, so it cannot
+REM      leak into an archive.
 REM  System.Resources.Extensions.dll - preserialized-resource support, emitted
 REM      only by dotnet-CLI builds. Shell extensions ship as VS-route
 REM      assemblies; dotnet-CLI output is NOT Explorer-host safe (its menu dies
@@ -118,7 +113,6 @@ REM probing expects them.
 set "SATS="
 for %%L in (ar-SA de-DE el-GR es-ES fa-IR fr-FR he-IL it-IT ja-JP ko-KR my-MM nl-NL pl-PL pt-PT ru-RU tr-TR uk-UA zh-CN zh-TW) do if exist "%%L\ApkShellext2.resources.dll" set "SATS=!SATS! %%L"
 "%Z7%" a "!PKG!" %MANIFEST% !SATS!
-REM No per-language archives anymore: the main package carries every locale,
-REM so the old one-7z-per-language split (upstream distribution style) would
-REM only clutter the output folder.
+REM No per-language archives: the main package carries every locale, so a
+REM one-7z-per-language split would only clutter the output folder.
 exit /b 0

@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Unit tests for the shell extension (stage 1 of the modernization).
+  <!-- Unit tests for the shell extension.
        Runs on the .NET Framework 4.8 test host, so the tests exercise exactly the
        assembly that ships: `dotnet test tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj`.
 

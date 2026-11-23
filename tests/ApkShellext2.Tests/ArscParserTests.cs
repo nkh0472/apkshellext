@@ -7,13 +7,15 @@ namespace ApkShellext2.Tests
     /// Pins the shared resource-table parser (ApkQuickReader.ArscParser) against real bytes
     /// cut out of Spectroid_org.intoorbit.spectrum_1.1.2(31).apk.
     ///
-    /// The fixtures are not hand-written tables: X:\apks-tn\fixtures\make-fixtures.ps1 copies
-    /// resources.arsc / AndroidManifest.xml out of that apk and patches a handful of documented
-    /// fields, so the tests exercise the parser over the same byte shapes it meets in the wild.
+    /// The fixtures are not hand-written tables: they are byte ranges of resources.arsc /
+    /// AndroidManifest.xml cut out of that apk, with a handful of documented fields patched,
+    /// so the tests exercise the parser over the same byte shapes it meets in the wild. The
+    /// generator behind them is a development-time tool and lives outside this repository
+    /// (fixtures/README.md lists the offsets and patches it applies).
     ///
-    /// What is pinned here matters twice over: the four stage 0 caps are what keeps a hostile
+    /// What is pinned here matters twice over: the four cost caps are what keeps a hostile
     /// apk from turning a shell icon request into an out-of-memory or an endless walk, and the
-    /// name lookup (B4 rule 1/4) is what decides which drawable becomes the icon.
+    /// name lookup is what decides which drawable becomes the icon.
     /// </summary>
     [TestFixture]
     public class ArscParserTests
@@ -82,7 +84,7 @@ namespace ApkShellext2.Tests
         {
             // The dup fixture appends a second copy of the package chunk with package id 0x02,
             // so (mipmap, ic_launcher) exists twice: 0x7F080000 first, 0x02080000 second.
-            // B4 rule 4 says the smallest id wins - even though the bigger one comes first,
+            // The smallest id wins - even though the bigger one comes first,
             // which a "first hit" implementation would have returned.
             object parser = ParserOver(Fixture("spectroid-arsc-dup.bin"));
             Assert.That(ProductApi.ArscFindResourceId(parser, "mipmap", "ic_launcher"), Is.EqualTo(0x02080000u));

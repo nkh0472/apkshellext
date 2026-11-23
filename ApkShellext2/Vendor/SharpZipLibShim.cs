@@ -1,21 +1,19 @@
-// SharpZipLib compatibility shim — the last three SharpZipLib types still referenced
-// from the product, provided by System.IO.Compression now that the v1.4.2 submodule is
-// gone (T-J).
+// SharpZipLib compatibility shim — the three SharpZipLib types the product still
+// references, provided by System.IO.Compression.
 //
-// Why a shim instead of rewriting the caller: the only remaining references live in the
-// pinned PNGDecrush submodule (ApkShellext2\PNGDecrush\PNGDecrush\PNGDecrusher.cs), which
-// asks for them by fully-qualified name — ConvertDeflateToZlib() needs a zlib (RFC 1950)
-// recompressor with a Finish() hook, and CalculateCRCForChunk() needs an incremental
-// CRC-32. The submodule is pinned to an upstream commit we cannot push, so the parent
-// keeps it byte-identical and satisfies those three names here instead of forking it.
+// The only remaining references live in the pinned PNGDecrush submodule
+// (ApkShellext2\PNGDecrush\PNGDecrush\PNGDecrusher.cs), which asks for them by
+// fully-qualified name: ConvertDeflateToZlib() needs a zlib (RFC 1950) recompressor with
+// a Finish() hook, and CalculateCRCForChunk() needs an incremental CRC-32. The submodule
+// is pinned to an upstream commit outside this repository, so the parent keeps it
+// byte-identical and satisfies those three names here rather than forking it.
 //
-// Scope is deliberately exactly what PNGDecrusher calls (constructor, Write, Finish,
-// Update, Value) — not a general SharpZipLib reimplementation. The zip container work
-// that used to sit on SharpZipLib now runs on ZipArchive via SafeArchive.
+// Scope is exactly what PNGDecrusher calls (constructor, Write, Finish, Update, Value),
+// not a general SharpZipLib reimplementation. Zip container work runs on ZipArchive
+// through SafeArchive.
 //
-// Provenance change: the previous source-embedded copy was icsharpcode/SharpZipLib
-// v1.4.2 (MIT, LICENSE.txt inside the removed submodule). Nothing from it remains
-// compiled; RFC 1950 and CRC-32 are implemented here from their specifications.
+// Air-gapped provenance: RFC 1950 and CRC-32 are implemented here from their
+// specifications; this file contains no third-party source.
 
 using System;
 using System.IO;

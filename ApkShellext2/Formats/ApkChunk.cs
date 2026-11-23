@@ -1323,8 +1323,8 @@ namespace ApkShellext2.ApkChunk
     [Serializable]
     public class ApkXMLCDATAChunk : ApkXMLChunk
     {
-        // TODO(upstream): the CDATA string index is never parsed from the stream, so
-        // OutputXML() always looks up pool index 0; pinned to 0 explicitly to state that
+        // Known gap: the CDATA string index is not parsed from the stream, so OutputXML()
+        // always looks up string-pool index 0; the field is pinned to 0 to state that
         private UInt16 dataid = 0;
         public ApkXMLCDATAChunk(MemoryStream ms, ApkXMLChunk top) : base(ms, top) { }
 

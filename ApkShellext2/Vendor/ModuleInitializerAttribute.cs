@@ -9,9 +9,8 @@ using System;
 // first ErrorLog access would otherwise leave no trace (the v3.4.x "explorer died and left
 // no trace" case). Several module initializers per module are allowed.
 //
-// This used to live in FacadeResolver.cs next to the AssemblyResolve redirect for the
-// System.Memory facade packages; T-K removed the facades, so the polyfill moved here on its
-// own. A second declaration of the attribute anywhere in the assembly is CS0101.
+// The declaration belongs here, on its own: a second declaration of the attribute anywhere
+// in the assembly is CS0101.
 namespace System.Runtime.CompilerServices
 {
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]

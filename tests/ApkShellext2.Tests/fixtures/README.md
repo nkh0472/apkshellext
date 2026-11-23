@@ -1,18 +1,20 @@
-# Parser fixtures (stage 3 T-N)
+# Parser fixtures
 
 These files are **real byte ranges cut out of a real apk**, not hand-written tables. The
-generator patches a handful of documented fields on top of them so the stage 0 resource-table
-caps and the B4 icon lookup rules can be exercised deterministically.
+generator patches a handful of documented fields on top of them so the resource-table caps and
+the icon lookup steps can be exercised deterministically.
 
-- Source apk: `F:\Backups\apks\Spectroid_org.intoorbit.spectrum_1.1.2(31).apk`
+- Source apk: `Spectroid_org.intoorbit.spectrum_1.1.2(31).apk`, the public F-Droid build
   (107,824 B; `resources.arsc` 21,336 B stored, `AndroidManifest.xml` 2,584 B deflated)
-- Generator: `X:\apks-tn\fixtures\make-fixtures.ps1` (asserts the source layout before
-  patching, then writes this directory and prints every SHA-256)
-- Parser-side dump tool: `X:\apks-tn\fixtures\ArscTool.cs` (`ArscTool.Parse/ReadPool/Dump`,
+- Generator: `make-fixtures.ps1` (asserts the source layout before patching, then writes this
+  directory and prints every SHA-256)
+- Parser-side dump tool: `ArscTool.cs` (`ArscTool.Parse/ReadPool/Dump`,
   `AxmlTool.Pools/Chunks/Dump`)
-- Behaviour probe: `X:\apks-tn\fixtures\verify-fixtures.ps1` (drives the shipped
-  `ApkQuickReader.AxmlParser` / `ArscParser` through reflection; its output is what the
-  NUnit assertions below were written against)
+- Behaviour probe: `verify-fixtures.ps1` (drives the shipped `ApkQuickReader.AxmlParser` /
+  `ArscParser` through reflection; its output is what the NUnit assertions were written against)
+
+The generator, the dump tool and the probe are development-time tools; they are not part of
+this repository.
 
 Source layout (absolute offsets inside the extracted file):
 
@@ -45,8 +47,8 @@ Fixture patches:
 | `spectroid-arsc-packages.bin` | table offset 8 = 0x200 | `MaxResourcePackages` cap |
 | `spectroid-arsc-entries.bin` | string chunk entryCount = 0x20000 | `MaxResourceEntries` cap |
 | `spectroid-arsc-chain.bin` | string entries 0x00..0x27 -> TYPE_REFERENCE to the next id, fr twins marked absent (0xffffffff) | `MaxResourceRefDepth` (31 hops resolve, 32 do not) |
-| `spectroid-arsc-selfref.bin` | string entry 0x00 -> TYPE_REFERENCE to itself | B4 rule 2 self-reference guard |
-| `spectroid-arsc-dup.bin` | package chunk appended a second time with package id 0x02, packageCount 1 -> 2 | B4 rule 4 smallest id wins (0x02080000, not 0x7F080000) |
+| `spectroid-arsc-selfref.bin` | string entry 0x00 -> TYPE_REFERENCE to itself | self-reference guard |
+| `spectroid-arsc-dup.bin` | package chunk appended a second time with package id 0x02, packageCount 1 -> 2 | smallest id wins (0x02080000, not 0x7F080000) |
 | `spectroid-axml-attr-oob.bin` | `application` attributeCount 4 -> 8 | attribute walk past the element chunk end |
 | `spectroid-axml-pool-oob.bin` | string 0 u16 length = 0x7FFF | string pool entry past the buffer |
 | `spectroid-axml-resmap-oob.bin` | resource map id 0 = 8 | resource map rejection |

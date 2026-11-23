@@ -5,17 +5,16 @@ using NUnit.Framework;
 namespace ApkShellext2.Tests
 {
     /// <summary>
-    /// Pins the B4 icon lookup chain (ArscParser.ResolveIconValue, reached from
-    /// ApkReader.getImage) over real Spectroid bytes and the patched fixtures produced by
-    /// X:\apks-tn\fixtures\make-fixtures.ps1.
+    /// Pins the icon lookup chain (ArscParser.ResolveIconValue, reached from
+    /// ApkReader.getImage) over real Spectroid bytes and patched fixtures (fixtures/README.md
+    /// lists every patch).
     ///
-    /// Each test names the B4 rule it pins. The rules exist because the manifest icon
-    /// attribute is one of three different things depending on how the app was built: a
-    /// file path ("res/CG.png"), a "@type/name" reference (which may also be an
-    /// "android:" framework reference), or a typed resource id whose name may be
-    /// ambiguous across packages. Getting this wrong shows up as a wrong icon, which is
-    /// exactly what the 87-sample pixel baseline would catch - but only after shell
-    /// integration, so the rules are pinned here as well.
+    /// The chain exists because the manifest icon attribute is one of three different things
+    /// depending on how the app was built: a file path ("res/CG.png"), a "@type/name"
+    /// reference (which may also be an "android:" framework reference), or a typed resource id
+    /// whose name may be ambiguous across packages. Getting this wrong shows up as a wrong
+    /// icon, which the 87-sample pixel baseline would catch - but only after shell
+    /// integration, so each step of the chain is pinned here as well.
     /// </summary>
     [TestFixture]
     public class IconLookupRuleTests
@@ -37,7 +36,7 @@ namespace ApkShellext2.Tests
         [Test]
         public void ReferenceIdWinsOverTheValueText()
         {
-            // B4 rule 1: the typed reference (0x7F080000 here) is authoritative. The value
+            // The typed reference (0x7F080000 here) is authoritative. The value
             // text is only a fallback - in the wild it is often a stale or scrambled name.
             Assert.That(ProductApi.AxmlResolveIconValue(Parser(), "junk", 0x7F080000), Is.EqualTo("res/u3.png"));
         }
@@ -47,14 +46,14 @@ namespace ApkShellext2.Tests
         {
             // A manifest attribute is either typed or text; when a typed reference exists it is
             // what the app actually points at, so the android: text cannot veto it. (A value
-            // without a typed reference is refused below - that is the rule 3 case.)
+            // without a typed reference and with an android: prefix is refused below.)
             Assert.That(ProductApi.AxmlResolveIconValue(Parser(), "@android:drawable/ic_menu", 0x7F080000), Is.EqualTo("res/u3.png"));
         }
 
         [Test]
         public void NameLookupResolvesTheResourceFile()
         {
-            // B4 rule 1 fallback plus rule 4: "@mipmap/ic_launcher" has no typed id in this
+            // Name fallback with the smallest id: "@mipmap/ic_launcher" has no typed id in this
             // call, so the name is looked up and the smallest matching id wins.
             object parser = Parser();
             Assert.That(ProductApi.AxmlResolveIconValue(parser, "@mipmap/ic_launcher", 0), Is.EqualTo("res/u3.png"));
@@ -65,7 +64,7 @@ namespace ApkShellext2.Tests
         [Test]
         public void NameLookupTakesTheSmallestIdAcrossPackages()
         {
-            // B4 rule 4 over the dup fixture: the name now exists in package 0x7F (first) and
+            // Smallest id over the dup fixture: the name now exists in package 0x7F (first) and
             // package 0x02 (second). The smaller id must win, so the icon still resolves.
             object parser = ProductApi.NewAxmlParser(Fixture("spectroid-arsc-dup.bin"), resolveReferences: true);
             Assert.That(ProductApi.AxmlResolveIconValue(parser, "@mipmap/ic_launcher", 0), Is.EqualTo("res/u3.png"));
@@ -74,7 +73,7 @@ namespace ApkShellext2.Tests
         [Test]
         public void SelfReferenceIsRefusedInsteadOfRepeating()
         {
-            // B4 rule 2 over the selfref fixture: the entry resolves to nothing, so the value
+            // Self reference over the selfref fixture: the entry resolves to nothing, so the value
             // is handed back unchanged and the shell reports "no icon" instead of hanging.
             object parser = ProductApi.NewAxmlParser(Fixture("spectroid-arsc-selfref.bin"), resolveReferences: true);
             System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
@@ -87,7 +86,7 @@ namespace ApkShellext2.Tests
         [Test]
         public void AndroidPrefixIsRefused()
         {
-            // B4 rule 3: a framework resource is not in the app's table. Refusing it leaves the
+            // A framework resource is not in the app's table. Refusing it leaves the
             // value as-is, which the icon handler then reports as an unresolved image, instead
             // of silently resolving an unrelated app resource with a colliding name.
             object parser = Parser();
@@ -107,7 +106,7 @@ namespace ApkShellext2.Tests
         [Test]
         public void ResPrefixedValuesAreFilePaths()
         {
-            // B4 rule 5: a value starting with "res/" is a zip entry path, not a resource name,
+            // A value starting with "res/" is a zip entry path, not a resource name,
             // so it is returned untouched - even when a typed reference is also present.
             object parser = Parser();
             Assert.That(ProductApi.AxmlResolveIconValue(parser, "res/CG.png", 0x7F080000), Is.EqualTo("res/CG.png"));
