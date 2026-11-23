@@ -27,7 +27,7 @@ headers and by the runtime smoke test (`smoke.c`).
 ## Usage
 ```powershell
 # NOTE: every mode takes -SrcDir if the source tree is not ./libwebp-1.6.0-src, e.g.
-#   .\build-libwebp.ps1 -Msvc32 -SrcDir X:\apkshellext_upstream\libwebp-1.6.0-src
+#   .\build-libwebp.ps1 -Msvc32 -SrcDir <libwebp-src-dir>
 
 # clone + patch v1.6.0 into ./libwebp-1.6.0-src (idempotent)
 .\build-libwebp.ps1 -Fetch
@@ -54,7 +54,7 @@ After `-Deploy`, verify exports (CMake builds carry no VERSIONINFO resource, so 
 empty by design): `dumpbin /EXPORTS ..\..\ApkShellext2\LibWebP\libwebp_x64.dll | findstr /I "WebPDecodeBGRInto WebPGetInfo"`
 — and optionally check the build dir's `libwebp.dll` timestamp. The ABI story is in "Pinned facts" below.
 
-## Pinned facts (verified 2026-11-19 against v1.6.0)
+## Pinned facts (verified against v1.6.0)
 - `WEBP_DECODER_ABI_VERSION = 0x0210`; compat rule `(a>>8)!=(b>>8)` — wrapper's
   compiled-in `0x0208` passes (same major byte).
 - gcc x64 build imports only KERNEL32 + api-ms-win-crt-* (UCRT is inbox on Win10+).

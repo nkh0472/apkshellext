@@ -1,11 +1,9 @@
 # ApkShellExt 编译指南(compile_guidance.zh-CN.md)
 
-> 本文记录从**全新克隆**到产出可用 `ApkShellext2.dll`(含 19 个语言卫星程序集)与
-> `apkshellextTest.exe` 的**完整、实际执行过**的流程。所有命令均于 2026-11-20 在
-> `E:\src\apkshellext` 验证通过 —— 基线为上游 3.4.5(`076f182`),加上 §5 所述的
-> 本地现代化提交(它们是本检出的一部分)。可直接复制,只需调整盘符/路径。
+> 本文是**完整、实际执行过**的流程:从全新克隆到产出可用 `ApkShellext2.dll`(含 19 个语言
+> 卫星程序集)。下面每条命令都是构建实际在用的命令;可直接复制,只需调整盘符/路径。
 >
-> 本检出的构建体系已**现代化为 SDK 式 csproj**(§5),这是两条编译路线都能
+> 构建体系是 **SDK 式 csproj**(§5),这是两条编译路线都能
 > **零附加 MSBuild 参数**的原因。对照文档:[English compile_guidance.md](compile_guidance.md)。
 
 ## 0. 速览
@@ -14,7 +12,7 @@
 |---|---|
 | 主产物 | `ApkShellext2\bin\Release\ApkShellext2.dll`(3.4.5.0,强名 `Pkt=fb82661d1c53098c`,本地密钥) |
 | 卫星程序集 | `bin\Release\{ar-SA,…,zh-CN,zh-TW}\ApkShellext2.resources.dll` × 19 |
-| 测试程序 | `apkshellextTest\bin\Release\apkshellextTest.exe` |
+| 单元测试 | `tests\ApkShellext2.Tests` —— `dotnet test`,见 §7 |
 | 分发包 | `bin\Release\ApkShellext2-3.5.1.7z` —— 完整安装包,内含全部 19 个语言目录(需 7-Zip;postbuild 自动打包,包名 = `ApkShellext2-<版本>.7z`,版本取自 `version.txt`、末尾 `.0` 去掉) |
 | 原生依赖 | `ApkShellext2\LibWebP\libwebp_x86.dll` + `libwebp_x64.dll` —— 预编译 libwebp 1.6.0,已入库;重建为可选项(§4.5) |
 | 路线 A | 独立 .NET SDK **10.0.404**:`dotnet build ApkShellext2\ApkShellext2.csproj -c Release` —— 一行命令,零参数 |
@@ -58,7 +56,7 @@ git clone https://github.com/nkh0472/apkshellext.git E:\src\apkshellext
 git clone https://githubfast.com/nkh0472/apkshellext.git E:\src\apkshellext
 ```
 
-## 3. 子模块(2 个)
+## 3. 子模块
 
 `.gitmodules` 里写的是 github.com,上面的克隆走直连时,直接:
 
@@ -80,27 +78,26 @@ git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://gi
 | `ApkShellext2\PNGDecrush` | nkh0472/PNGDecrush @ `e926128` | 源码级引用 |
 
 注意:
-- **PlistCS 已不是子模块** —— 上游(kkguo/PlistCS @ `0fc69e7`,属 animetrics/PlistCS 的 fork)已无人维护,
-  其唯一源文件收编进仓库为 `ApkShellext2\PlistCS\PlistCS\Src\Plist.cs`,并带有本地加固(深度/索引上限、
-  每次调用独立解析状态,见 `ApkShellext2\PlistCS\NOTICE.txt`),不再需要 `git submodule update`。
-- **WebP-wrapper 已不是子模块** —— 上游(JosePineiro/WebP-wrapper @ `79e4234`)只保留一个
+- **PlistCS 已收编进仓库** —— 上游(kkguo/PlistCS @ `0fc69e7`,属 animetrics/PlistCS 的 fork)已无人维护,
+  其唯一源文件就在树内 `ApkShellext2\PlistCS\PlistCS\Src\Plist.cs`,并带有本地加固(深度/索引上限、
+  每次调用独立解析状态,见 `ApkShellext2\PlistCS\NOTICE.txt`),与 `git submodule update` 无关。
+- **WebP-wrapper 已收编进仓库** —— 上游(JosePineiro/WebP-wrapper @ `79e4234`)只剩一个
   收编文件 `ApkShellext2\WebP-wrapper\WebPWrapper.cs`(MIT,来源与许可见
   `ApkShellext2\WebP-wrapper\NOTICE.txt`),因为本仓库在该文件里带有本地加固(解码尺寸上限、
-  从安装目录预加载原生库)。不再需要 `git submodule update`;运行时仍需仓库内已提交的
+  从安装目录预加载原生库)。与 `git submodule update` 无关;运行时仍需仓库内已提交的
   `LibWebP\libwebp_x86/x64.dll`。
-- **SharpZipLib 已不是子模块** —— 上游(icsharpcode/SharpZipLib v1.4.2 @ `33f64eb`)在本仓库
-  从来不是通用 zip 库,只用到了它的只读容器读取,因此 zip 容器现在由 BCL
+- **SharpZipLib 完全没有收编** —— 上游(icsharpcode/SharpZipLib v1.4.2 @ `33f64eb`)在这里只承担
+  只读容器读取,别无他用,因此 zip 容器由 BCL
   `System.IO.Compression.ZipArchive` 在 `ApkShellext2\Imaging\SafeArchive.cs` 之后读取(条目 ≤ 65535、
   单条目字节/压缩比率上限、旧编码条目名、精确查找)。固定版本的 PNGDecrush 源码仍按全名引用
   三个 SharpZipLib 类型,由 `ApkShellext2\Vendor\SharpZipLibShim.cs` 只提供这三个
-  (基于 `System.IO.Compression` 的 zlib/CRC-32);SharpZipLib 其余部分一律不再编译。
-  已删除:子模块、`.gitmodules` 段、csproj 的 glob、其 `LICENSE.txt`。
-- **SharpShell 不是子模块** —— 其源码(2.7.1)直接 vendored 在 `ApkShellext2\SharpShell\`,
+  (基于 `System.IO.Compression` 的 zlib/CRC-32);SharpZipLib 其余部分一律不编译。
+- **SharpShell 已收编进仓库** —— 其源码(2.7.1)直接在 `ApkShellext2\SharpShell\`,
   由 csproj 编译(死代码除外,§5.1)。
-- **SVG 已不是子模块** —— 上游(vvvv-github/SVG **v3.5.0** @ `9d564f4`)收编在
-  `ApkShellext2\SVG\Source\`,其 Roslyn 生成器在 `SVG\Generators\`,仍作为编译器
+- **SVG 已收编进仓库** —— 上游(vvvv-github/SVG **v3.5.0** @ `9d564f4`)位于
+  `ApkShellext2\SVG\Source\`,其 Roslyn 生成器在 `SVG\Generators\`,作为编译器
   analyzer 自动运行(§5)。来源、许可证与本地裁剪(ExCSS、未使用的 SVG 子树)记录在
-  `ApkShellext2\SVG\NOTICE.txt`;其 `bin\`/`obj\` 现在位于仓库树内,由根 `.gitignore` 覆盖。
+  `ApkShellext2\SVG\NOTICE.txt`;其 `bin\`/`obj\` 位于仓库树内,由根 `.gitignore` 覆盖。
 
 ## 4. 工具链与一次性准备
 
@@ -123,9 +120,8 @@ PackageReference):
 & E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe nuget add source https://api.nuget.org/v3/index.json -n nuget.org
 ```
 
-两条路线都会被咬(VS 共用同一份用户配置)。旧式工程布局根本不需要 restore
-(`packages\` 里的 HintPath DLL),所以没配源的机器以前从没暴露过这个问题 —— SDK 式
-工程改为从 nuget.org restore System.Resources.Extensions(§5.2)。
+两条路线都会被咬(VS 共用同一份用户配置):coreclr 下的构建要从 nuget.org restore
+System.Resources.Extensions(§5.2),所以第一次编译前源清单就得是对的。
 
 ### 4.2 签名密钥 snk(本地生成 —— 生成方式不对会弄坏 VS 路线)
 
@@ -230,30 +226,28 @@ libwebp,因为官方 Windows 构建会额外要求一个 `libsharpyuv.dll`,而�
   `Makefile.vc`,钉在 libwebp 1.2.1,那还没有 libsharpyuv)。该口径与本仓库实际发布方式
   不一致;重建一律以 `build\libwebp\` 为准。
 
-## 5. 本检出相对上游的改动(现代化)
+## 5. 构建体系
 
-上游是**老式** csproj。用 `dotnet msbuild` 编老式工程需要三个丑陋的绕行方案
-(SVG 源生成器手工预生成、`MSB4064` 卫星程序集 shim、手工补 NuGet 包)。本检出把两个
-csproj 重写为 **SDK 式**,从根上消掉这三件事 —— 这就是 §6–§7 所有命令零参数的原因。
-全部改动以上游 3.4.5(HEAD `076f182`)为基线,按类别落成了若干提交 —— 构建体系迁移
-(`ApkShellext2.sln`、两个 csproj、`Resources\postbuild.cmd`)、死代码清理、捐赠 UI
-移除、拼写修复,以及本文档。本文写作时这些提交**只在本地,尚未 push** —— 先推送到你的
-远端(或整体带走这个检出),否则别处的全新克隆并不能直接用下面这些零参数命令编译。
+两个 csproj 都是 **SDK 式**,这就是 §6–§7 所有命令零参数的原因。老式工程编这棵树需要的
+三个绕行方案(SVG 源生成器手工预生成、`MSB4064` 卫星程序集 shim、手工补 NuGet 包)在这里
+没有对应物:工程文件本身已经承担了它们。
 
-### 5.1 老绕行方案 → SDK 式替代
+### 5.1 3.5.0 的树在非 SDK 构建下需要什么 —— 现在由工程文件提供什么
 
-| 上游/老式做法 | 现在 |
+左列是上游 3.5.0 那棵树当初的构建方式,右列是这里替代它的做法。
+
+| 老式工程需要什么 | 由谁提供 |
 |---|---|
-| SVG v3.5.0 元素元数据要编译前手工生成(`pregen.ps1` → `SVG\Source\Generated\*.g.cs`) | `<ProjectReference Include="SVG\Generators\Svg.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />` —— 同一个上游生成器**在 Roslyn 内**每次编译自动跑,两条工具链都行 |
+| SVG 元素元数据要编译前手工生成(`pregen.ps1` → `SVG\Source\Generated\*.g.cs`) | `<ProjectReference Include="SVG\Generators\Svg.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />` —— 该生成器**在 Roslyn 内**每次编译自动跑,两条工具链都行 |
 | coreclr MSBuild 下卫星程序集崩(`MSB4064` AL/ToolPath)→ 外部 `dotnet-satellites.targets` shim + 2 个命令行参数 | SDK 式工程在 coreclr 下自动 `GenerateSatelliteAssembliesForCore=true`(用 Csc 生成);FullFramework MSBuild 用真 `al.exe`。什么都不用传 |
-| 手工下载 `packages\System.Runtime.CompilerServices.Unsafe.6.0.0`(HintPath 工程,无 restore) | 只剩一个 `PackageReference`:**仅在 coreclr 下**启用的 System.Resources.Extensions 6.0.0。System.Memory facade 一族(System.Memory / System.Buffers / System.Runtime.CompilerServices.Unsafe / System.Numerics.Vectors)从 T-K 起完全不再引用 —— SVG 的 span 解析已改写成纯字符串(见 §8) |
+| 手工塞进工程的 System.Memory facade 一族(`System.Memory` / `System.Buffers` / `System.Runtime.CompilerServices.Unsafe` / `System.Numerics.Vectors`) | 完全不引用:SVG 的解析走纯字符串(`TextSlice`),见 §8。coreclr 下 `System.Resources.Extensions` 仍会把它作为开发产物的运行时依赖拉进来 |
 | 用户手敲 `-p:GenerateResourceUsePreserializedResources=true` | 写进 csproj:`Condition="'$(MSBuildRuntimeType)' == 'Core'"` —— dotnet CLI 自动用预序列化资源,VS 用经典资源,自动分岔(唯一运行时后果见 §8) |
-| .sln 里 `apkShellextService` 死条目(目录从来不存在) | 已从 .sln 删除 |
-| csproj `Content` 引用上游在 `4f30b7c` 删掉的 `SharpShellNativeBridge32/64.dll`;引用它们的 SharpPropertySheet 属性页机制是死代码 | 相应 `Content` 项已删除;死代码目录 `NativeBridge\`、`SharpPropertySheet\`、`SharpDeskBand\` 已从仓库删除;`Helpers\RegAsm.cs` 与 vendored `Properties\AssemblyInfo.cs` 仍在盘上,但它们从来不是编译输入。没有任何被编译的文件引用这些命名空间 |
+| SharpPropertySheet 属性页机制及其 `SharpShellNativeBridge32/64.dll` `Content` 项 | 不属于构建:没有任何被编译的文件引用这些命名空间,使用它们的目录(`NativeBridge\`、`SharpPropertySheet\`、`SharpDeskBand\`)不在树里。`Helpers\RegAsm.cs` 与 vendored `Properties\AssemblyInfo.cs` 留在盘上,但不是编译输入 |
 
-### 5.2 其他现代化说明
+### 5.2 其他构建设置
 
-- 老的 `packages\` 目录现在**不再被使用**(残留,无害)。不要再加回 HintPath 引用。
+- 两个工程都不按路径引用程序集:编译期依赖一律走 `PackageReference` restore。不要加回
+  HintPath 引用。
 - `AppendTargetFrameworkToOutputPath=false` 保持扁平 `bin\Release` 布局 —— 安装脚本、
   `postbuild.cmd` 和本指南都按这个布局说话(SDK 默认是 `bin\Release\net48\`)。
 - `GenerateAssemblyInfo=false`:`Properties\AssemblyInfo.cs` 仍是版本/Guid/ComVisible
@@ -261,25 +255,23 @@ csproj 重写为 **SDK 式**,从根上消掉这三件事 —— 这就是 §6–
 - `EnableDefaultCompileItems/EmbeddedResourceItems/NoneItems=false` + 显式 glob ——
   vendored 树里有大量**不该**被编译的文件(它们自己的 AssemblyInfo、示例、
   工具、WinUI/WPF 变体)。
-- 保留了老的 `Debug2` 配置(`Configurations=Debug;Debug2;Release`),行为等同 Debug。
+- `Debug2` 是保留的配置(`Configurations=Debug;Debug2;Release`),行为等同 Debug。
   生成器 ProjectReference 通过 `SetConfiguration` 把它映射到生成器自身的 Debug 输出。
 
 ### 5.3 零警告基线
 
-上游树长期带着 7 条编译器警告,现已全部消除,两条路线均 `0 警告 / 0 错误`:
+两条路线均 `0 警告 / 0 错误`。下表每一行都是这棵树**能**产生的警告,以及当前代码为什么
+不会触发它:
 
-| 警告 | 位置 | 处理 |
+| 警告 | 位置 | 为什么不会触发 |
 |---|---|---|
-| CS0219 ×4(`height`、`units`) | `AabReader` / `ApkQuickReader` 的 legacy 矢量回退 | 删除死代码:解析 `android:width` 单位后存入从未被读取的局部变量(画布尺寸来自钳制后的 viewport) |
-| CS0618 `SvgDocument.Open` 过时重载 | vendored 的 `SVG\Source\Web\SvgHandler.cs` | ASP.NET 请求处理器从编译面剔除(`Compile Remove`)——它是全树唯一的 `System.Web` 使用者,主 dll 引用列表随之缩短;SVG 树其余部分不动 |
-| CS0618 `SvgPathSegment.Start` | `VectorDrawableRender.Convert2Path` | Svg 3.5.0 标记过时但无替代 API;唯一调用点用 `#pragma warning disable CS0618` 括起并注释说明 |
-| CS0108 `ApkXMLElementChunk.Node` 隐藏基类成员 | `Formats\ApkChunk.cs` | 显式加 `new`(隐藏行为不变) |
-| CS0649 `ApkXMLCDATAChunk.dataid` 从未赋值 | `Formats\ApkChunk.cs` | 显式 `= 0` 并留 `TODO(upstream)` 注——CDATA 的字符串索引本就从未从流里解析 |
-| CS0162 不可达代码 | `apkshellextTest\Form1.cs` | 早退 `return;` 之下的试验代码块用 `#if PARKED_EXPERIMENTS` 包起(测试场代码退出编译) |
+| CS0219 ×4(`height`、`units`) | `AabReader` / `ApkQuickReader` 的矢量回退 | 画布尺寸来自钳制后的 viewport,`android:width`/`android:height` 根本不解析 |
+| CS0618 `SvgDocument.Open` 过时重载 | vendored 的 `SVG\Source\Web\SvgHandler.cs` | 该 ASP.NET 请求处理器从编译面剔除(`Compile Remove`):它是全树唯一的 `System.Web` 使用者,而主 dll 不得引用 `System.Web`。SVG 树其余部分原样编译 |
+| CS0618 `SvgPathSegment.Start` | `VectorDrawableRender.Convert2Path` | Svg 3.5.0 标记过时且无替代 API;唯一调用点局部禁用 CS0618 并注释说明 |
 
-### 5.4 源码目录结构(阶段 3 T-Q)
+### 5.4 源码目录结构
 
-原先散在工程根的 29 个源文件按职责分目录(路线图第三章)。其余一律保持原路径:vendored 树、
+源码按职责分组;工程根只留每一层都用得上的东西。其余文件保持原路径:vendored 树、
 `Properties\`、`Resources\`、`Preferences.resx`、`LibWebP\` 原生库与签名密钥。
 `eng\check-layout.ps1`(发布布局 9 个根文件 + 19 个语言目录)未改;`eng\check-size.ps1`
 只按参考预算出报告(不拦 CI)—— 发布目录依旧是平铺的。
@@ -288,34 +280,28 @@ csproj 重写为 **SDK 式**,从根上消掉这三件事 —— 这就是 §6–
 ApkShellext2\
   Shell\          四个 COM 处理器(右键菜单、图标、信息提示、缩略图)
   Formats\        IPackageReader + PackageReaderFactory、六个 reader、AXML/ARSC 解析器
-                  (ApkChunk.cs 放在这里,但仍是开发工具:只编进 apkshellextTest,
-                  不进外壳 dll)
   Imaging\        IArchive/SafeArchive、IIconSource 链与解码上限、矢量图光栅化
-  Diagnostics\    ErrorLog、ModuleInitializer、DbgLog(目录早已存在,DbgLog 并入)
+  Diagnostics\    ErrorLog、ModuleInitializer、DbgLog
   Preferences\    WinForms 设置窗体与 designer(Preferences.resx 仍留在根目录)
   Vendor\         net48 polyfill(SharpZipLibShim、ModuleInitializerAttribute)
   Utility.cs      留在根目录:每一层都用它
-  Interop\        手写 COM 接口与 P/Invoke 声明(阶段 4 T-S1,§5.5)
-  Registration\   自有注册器(阶段 4 T-S1,§5.5)
+  Interop\        COM/PInvoke 声明(§5.5)
+  Registration\   注册/注销(§5.5)
   PlistCS\ PNGDecrush\ WebP-wrapper\ SVG\ SharpShell\ LibWebP\ Properties\ Resources\
 ```
 
-**命名空间一律不改**(`ApkShellext2`、`ApkShellext2.Compression`、`ApkQuickReader`、
-`ApkShellext2.ApkChunk` 等)。路线图第三章写的是「目录 + 命名空间」,T-Q 只落地目录:
-把 `Preferences` 挪进 `ApkShellext2.Preferences` 命名空间会与同名的 `Preferences` 类型
-(以及该命名空间名本身)冲突;其余重命名则要动 COM ServerRegistration/ProgID 契约和
-`apkshellextTest` 的全部引用,而行为收益为零。命名空间拆分留给阶段 4 的外壳层重写。
-
-**历史可读**:每一步都是不改内容的 `git mv` —— `git diff -M` 与 `git log --follow`
-全部显示 100% 相似度 rename,文件字节(BOM 与 CRLF/LF 混合)原样保留。
+**命名空间一律不改**(`ApkShellext2`、`ApkShellext2.Compression`、`ApkQuickReader` 等),
+原因有三:把 `Preferences` 挪进 `ApkShellext2.Preferences`
+命名空间会与同名的 `Preferences` 类型(以及该命名空间名本身)冲突;其余重命名要动
+COM ServerRegistration/ProgID 契约;而行为收益为零。
 `Preferences.resx` 的路径与 `ApkShellext2.Preferences.resources` 资源名都不变;窗体移走后
 必须去掉它的 `DependentUpon` 元数据,否则 MSBuild 取名时会以 MSB3041 失败。
 
-### 5.5 Interop 与注册器(阶段 4 T-S1)
+### 5.5 Interop 与注册器
 
-阶段 4 要删掉 vendored 的 SharpShell(26,525 行),换成自有最小 COM 层。T-S1 只落地其中两半
-——声明与注册器,S2/S3 再把四个 handler 接过来。**T-S1 不改任何 handler 行为**:四个 SharpShell
-类仍占据同样的四个 CLSID,`install*.bat` / `update.bat` 也照旧走各自的 `regasm` 流程。
+四个注册到 shell 的 CLSID 仍由 vendored SharpShell(26,525 行)服务,`install*.bat` / `update.bat` 
+也照旧用 `regasm` 注册它们。下面两半与那个实现无关:`Interop\` 声明 shell 会调用的接口,
+`Registration\` 用托管代码写出与 `regasm` 相同的那套键。
 
 #### 5.5.1 声明规范(`Interop\`)
 
@@ -473,29 +459,16 @@ CI(GitHub Actions,`.github/workflows/ci.yml`)对两个 job 故意用不同 SDK:
 ```
 
 脚本**总是 exit 0**,只打印 `ApkShellext2.dll`、7z 包与 28 文件部署树相对参考预算的位置
-(参考值 1,260,000 / 1,000,000 / 2,500,000 B;post-T-R 基线 1,181,184 / ~752,500 / 2,360,097 B)。
+(参考值 1,260,000 / 1,000,000 / 2,500,000 B;参考点 1,181,184 / ~752,500 / 2,360,097 B)。
 超过参考值的那一行标 `OVER (guidance only)` —— 体积只是指导,不是合并契约,升依赖或加功能
 都不必改预算,也永远不会让 CI 变红;真正的功能契约是 `check-layout.ps1`(缺文件/多文件才失败)。
 部署树只按 9 个清单文件 + 19 个卫星资源集计,不扫目录,所以 `bin\Release` 里多出的
 pdb/日志不影响数字。预算都是参数(`-MaxDllBytes` 等),调小只是渲染一份更紧的报告。
 
-## 7. 编译测试工程
+## 7. 单元测试(NUnit)
 
-```powershell
-# 路线 A:
-E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe build apkshellextTest\apkshellextTest.csproj -c Release --nologo
-# 路线 B:同样的两条 msbuild 命令,工程换成 apkshellextTest\apkshellextTest.csproj
-```
-
-它是个 WinForms 程序,引用主工程(外加一个 link 文件 `..\ApkShellext2\Formats\ApkChunk.cs`),
-不签名,无 NuGet 依赖。Debug 编译同理(`-c Debug` / `-p:Configuration=Debug`);Debug
-输出会额外多一个 `debug.bat`(仅 Debug 复制的开发辅助脚本,§8)。别再找
-`apkShellextService` —— 它的 .sln 死条目已在本检出删除,磁盘上从来就没有过。
-
-### 7.1 自动化单元测试(NUnit)
-
-`tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj` 存放无人值守的测试,把阶段 0 的
-安全闸钉住(T-A…T-E)。写入本文时共 238 个用例:版本单一来源;arsc 的 config / package /
+`tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj` 存放无人值守的测试,钉住解析器的
+安全闸。覆盖范围:版本单一来源;arsc 的 config / package /
 entry / reference 上限;binary 与 XML plist 的深度限制、索引边界和每次调用独立状态;
 archive 的条目数、压缩比和累计字节预算;WebP 与 PNG 解码尺寸上限;Appx / Appxbundle / Ipa
 reader 的边界(manifest 大小、包数、文件名长度、嵌套容器读取);ComStream 的 seek/dispose;
@@ -525,7 +498,7 @@ E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe test tests\ApkShellext2.Tests\Ap
 `TestSupport\BinaryPlistBuilder.cs` 里的小写入器,appx/appxbundle 包用
 `TestSupport\AppxFixtures.cs`),要么是 `tests\ApkShellext2.Tests\fixtures\` 下提交的真实
 字节切片(Spectroid 的 `resources.arsc` / `AndroidManifest.xml`,由
-`X:\apks-tn\fixtures\make-fixtures.ps1` 重新生成)。因此测试是自足的:不读
+`tests\ApkShellext2.Tests\fixtures\make-fixtures.ps1` 重新生成)。因此测试是自足的:不读
 `F:\Backups\apks\` 样本库,也不联网。
 
 CI:`.github\workflows\ci.yml` 的 `dotnet-build` job,**Run unit tests** 一步 —— 位于
@@ -558,17 +531,15 @@ CI:`.github\workflows\ci.yml` 的 `dotnet-build` job,**Run unit tests** 一步 �
   全部语言目录(`ar-SA` … `zh-TW`)。
   清单条目缺失会**让编译失败**,短包不可能静默出货。
   四个 System.Memory facade dll(`System.Memory.dll`、`System.Buffers.dll`、
-  `System.Runtime.CompilerServices.Unsafe.dll`、`System.Numerics.Vectors.dll`)以前正是
-  因为下面这条 app-local 理由才列在清单里:COM 宿主(explorer/dllhost)里 Fusion 的
-  Load 上下文只探测宿主 app base(`C:\Windows`)与 GAC,`TypeDescriptor` 要绑定 Svg.NET
-  的数值类型转换器,只有该文件躺在 `ApkShellext2.dll` 旁边才加载得到 —— 缺失时每个
-  数值 SVG 属性(渐变坐标、offset……)都抛 `FileNotFoundException`,自适应图标静默渲染
-  成空白/碎片(2026-11-21 图标损坏报告的根因)。T-K 把 SVG 里最后一处 `Span<char>`
-  解析改成了纯字符串,编译器不再绑定这些程序集,也就不需要部署它们;历史理由保留在
-  `Resources\postbuild.cmd` 的清单注释里。只有一个 dll 被注为*排除项*,无论输出目录里
-  躺着什么都不打包:`System.Resources.Extensions.dll`(见下)。主包就是完整安装包:不再有
-  按语言分包(旧方案把 `<locale>.7z` 单独发,只装主包就会静默变英文界面)。没有
-  7-Zip ⇒ WARNING + 跳过,编译照样成功。
+  `System.Runtime.CompilerServices.Unsafe.dll`、`System.Numerics.Vectors.dll`)一个都不在
+  清单里,也不能在清单里:COM 宿主(explorer/dllhost)里 Fusion 的 Load 上下文只探测宿主
+  app base(`C:\Windows`)与 GAC,而 `TypeDescriptor` 要绑定 Svg.NET 的数值类型转换器,
+  只有该文件躺在 `ApkShellext2.dll` 旁边才加载得到 —— 缺失时每个数值 SVG 属性
+  (渐变坐标、offset……)都抛 `FileNotFoundException`,自适应图标静默渲染成空白/碎片。
+  SVG 里的解析全部走纯字符串,编译器不绑定这些程序集,部署它们这件事也就不存在。
+  只有一个 dll 被注为*排除项*,无论输出目录里躺着什么都不打包:
+  `System.Resources.Extensions.dll`(见下)。主包就是完整安装包:不做按语言分包 ——
+  只装主包会让界面静默变英文。没有 7-Zip ⇒ WARNING + 跳过,编译照样成功。
 
 **为什么 VS 路线是出货路线 —— 预序列化资源。** coreclr MSBuild(dotnet CLI)下
 csproj 启用预序列化资源生成,把对象资源内嵌成经 `System.Resources.Extensions`
@@ -590,6 +561,15 @@ dotnet CLI 产物只留作开发。** `postbuild.cmd` 把该包 dll 列为注名
 `install_user.bat`(按用户;两者都 regasm 注册并 NGEN 预编译 —— 3.4.5 修好了脚本里的
 NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat`。本地 snk 与
 上游不同,别把本地编译的 DLL 和官方包混在同一注册/GAC 状态里。
+
+**正在被占用的 dll 怎么换。** Explorer 和 `dllhost.exe` 都会加载处理器,先停这两个。
+若文件仍被占用,`Rename-Item <dll> <dll>.old` 一定成功(Explorer 以非 delete 共享打开
+它),然后把新文件拷进去、删掉 `.old`。重启资源管理器要用预建的计划任务,不要在会话里
+`Start-Process explorer`:那样起出来的是没有桌面的实例。
+
+**部署后的旧缓存。** 资源管理器停着的时候,删掉 `%LOCALAPPDATA%\Microsoft\Windows\
+Explorer` 下的 `thumbcache_*.db` 与 `iconcache_*.db`;否则 dll 换了之后图标和缩略图
+仍在用旧缓存。
 
 **已有安装的升级:** 把新包解压到任意位置,在包目录里运行 `update.bat`(可选 `/quiet`
 供脚本调用、`/ngen` 刷新原生映像)。它从 COM 的 `CodeBase` 读已注册目录(HKLM 64 位
@@ -639,7 +619,7 @@ NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat
    `Resources\`/`LibWebP\` 子目录。
 5. **Debug 布局:** `bin\Debug` 根有 `debug.bat` + bat + libwebp,且**没有 `.7z`**。
 
-### 可测性门(Testability gate,阶段 3)
+### 可测性门(Testability gate)
 
 `eng\check-layers.ps1` 保证解析层不依赖外壳宿主。两个 CI job 都在 "Check publish layout"
 之后、较慢的测试之前运行它;本地也用同一个脚本。它扫描 `ApkShellext2\Formats\` 与
@@ -655,8 +635,8 @@ NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat
 允许的是 BCL、`System.Drawing`、根 `Utility.cs`、`Diagnostics\`、`Vendor\`,以及这些文件
 本就使用的工程内解析/图标辅助类型。COM 与外壳注册代码属于 `Shell\`、`Preferences\`、
 `SharpShell\` —— 它们可以引用解析层,反向不允许。只有这样,NUnit 或普通控制台进程才能
-在不启动 explorer 的情况下加载 reader、parser、`SafeArchive`、图标链;阶段 3 新增的
-`tests\ApkShellext2.Tests` 测试正依赖这一点。
+在不启动 explorer 的情况下加载 reader、parser、`SafeArchive`、图标链;`tests\ApkShellext2.Tests`
+的测试正依赖这一点。
 
 负例验证(预期 `exit 1`,还原后重新变绿 —— 门禁本身也要被验证):
 
@@ -667,11 +647,10 @@ git checkout -- ApkShellext2\Formats\AppxReader.cs
 pwsh -File eng\check-layers.ps1    # "layers OK: 19 C# files ...",exit 0
 ```
 
-阶段 3 清理了门禁查出的两处死引用(不改运行行为、不改 IL):`Formats\IpaReader.cs` 的
-6 行未使用 `using SharpShell.*`,以及 `Formats\ApkQuickReader.cs` 的未使用
-`using Media = System.Windows.Media;` 别名。
+门禁要求 `Formats\` 与 `Imaging\` 既没有 `using SharpShell.*` 也没有
+`using Media = System.Windows.Media;` —— 两者在这里都只会是死引用。
 
-这道门和 §7.1 的单元测试是一对:那些测试在普通 NUnit 进程里直接加载 parser、`SafeArchive`
+这道门和 §7 的单元测试是一对:那些测试在普通 NUnit 进程里直接加载 parser、`SafeArchive`
 和图标链,而这只在门禁成立时才行。若 `Formats\` 或 `Imaging\` 里需要用 shell 类型,门禁会
 先拦住,而不是等测试(以及打包后的 handler)崩掉。
 
@@ -690,17 +669,17 @@ pwsh -File eng\check-layers.ps1    # "layers OK: 19 C# files ...",exit 0
    展开(那时 `$(TargetDir)` 等还是空),脚本会静默收到 `"" ""`。保持
    `AfterBuild` 式的 `Exec` target。
 5. **`Content` + `CopyToOutputDirectory` 会在输出里重建源子目录**,除非每项都写
-   `TargetPath=<裸文件名>`;并且 7z 通配符对**零匹配静默忽略** —— 历史上的 `*.bat`
-   bug 就打出过没有 bat 的包还退出 0。这正是打包步骤现在改用显式文件清单、缺条目
-   即失败(§8)的原因:别再引入通配符,且动过布局项后仍要查 `7z l`。
+   `TargetPath=<裸文件名>`;并且 7z 通配符对**零匹配静默忽略** —— 一个 `*.bat` 通配符
+   就能打出没有 bat 的包还退出 0。所以打包步骤用显式文件清单、缺条目即失败(§8):
+   不要引入通配符,动过布局项后仍要查 `7z l`。
 6. **绝不要把 dotnet CLI 产物装进 Explorer**:其预序列化对象资源在宿主进程里
    静默失败 —— 自定义文件类型图标照常工作,右键菜单整个消失。出货用 VS 路线
    产物;两条路线的打包都排除 `System.Resources.Extensions.dll`(§8)。
 7. **snk**:被 gitignore;本地生成(§4.2)。公钥 ≠ 官方构建。
-8. **老残留是有意的**:`packages\` 目录现已不再使用;NativeBridge 原生 DLL 在上游
-   `4f30b7c` 里就是有意删除的,引用它们的死代码已从仓库删除(§5.1)。两者都不要"修"。
-9. **SVG 已收编进仓**(`ApkShellext2\SVG\Source\`,§3)—— 生成器的 `bin\`/`obj\`
-   由根 `.gitignore` 覆盖;剩下唯一的子模块(PNGDecrush)独立编译时仍会
+8. **一处残留是预期状态,不是坏了**:`SharpShellNativeBridge32/64.dll` 原生库不存在,因为
+   没有任何文件针对它们编译(§5.1)。不要"修"它。
+9. **SVG 在仓内**(`ApkShellext2\SVG\Source\`,§3)—— 生成器的 `bin\`/`obj\`
+   由根 `.gitignore` 覆盖;唯一剩下的子模块(PNGDecrush)独立编译时仍会
    在各自目录产生 `bin\`/`obj\`。
 10. **MSBuild node-reuse 工作进程活着时改名/移动 SDK 目录会「Access denied」**
     (`MSBuild.exe … /nodemode:2 /nodereuse:True`,从 SDK 目录启动;
@@ -709,7 +688,7 @@ pwsh -File eng\check-layers.ps1    # "layers OK: 19 C# files ...",exit 0
 11. **PATH 上的 `dotnet` 可能只有运行时。** 用 `dotnet --version` 验证;报无 SDK 就用
     已装 SDK 的完整路径(本文所有命令都这么写)。
 12. **四个文件是有意不跟随上游的**(§5):`.sln`、两个 csproj、`postbuild.cmd`。
-    把任何一个回退成上游版本,就等于把老绕行方案(参数、shim、pregen、手工补包)
+    把任何一个回退成上游版本,就等于把老绕行方案(参数、shim、pregen)
     请回来。
 13. **VS 路线报 `ALINK : error AL1078 对程序集签名时出错 - 未知错误(8013141e)`** =
     snk 是*密钥交换(key-exchange)*blob(`aiKeyAlg=0xa400`,裸
@@ -767,10 +746,10 @@ $DOTNET = 'E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe'
 & $DOTNET nuget list source | Select-String nuget.org -Quiet | % { if (-not $_) { throw '没有 nuget.org 源 - 见 §4.1' } }
 if (-not (Test-Path "$R\ApkShellext2\apkshellext2_hy.snk")) { throw '先生成 snk - 见 §4.2' }
 
-# --- 1. 主工程 + 测试(restore 隐式;analyzer 生成器在编译内自动跑) ---
+# --- 1. 主工程 + 单元测试(restore 隐式;analyzer 生成器在编译内自动跑) ---
 Set-Location $R
 & $DOTNET build ApkShellext2\ApkShellext2.csproj     -c Release --nologo; if ($LASTEXITCODE) { throw '主工程编译失败' }
-& $DOTNET build apkshellextTest\apkshellextTest.csproj -c Release --nologo; if ($LASTEXITCODE) { throw '测试工程编译失败' }
+& $DOTNET test tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj -c Release --nologo; if ($LASTEXITCODE) { throw '测试失败' }
 
 # --- 2. 验证(必须在 Windows PowerShell 5.1 下跑,见 §9) ---
 $sats = Get-ChildItem "$R\ApkShellext2\bin\Release" -Directory | Where-Object Name -cmatch '^[a-z]{2}-'

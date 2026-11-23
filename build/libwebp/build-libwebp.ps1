@@ -14,7 +14,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $cmake = "$GccRoot\bin\cmake.exe"
 $ninja = "$GccRoot\bin\ninja.exe"
-$repo  = Split-Path (Split-Path $PSScriptRoot -Parent)   # repo root (X:\apkshellext)
+$repo  = Split-Path (Split-Path $PSScriptRoot -Parent)   # repo root
 $deployTarget = Join-Path $repo 'ApkShellext2\LibWebP'
 
 function Invoke-Vs([string]$arch, [string]$cmd) {

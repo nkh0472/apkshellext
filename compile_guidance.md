@@ -1,15 +1,13 @@
 # ApkShellExt Build Guide (compile_guidance.md)
 
-> This document records the **complete, actually-executed** procedure for going from a
-> fresh clone to a working `ApkShellext2.dll` (with 19 localized satellite assemblies)
-> and `apkshellextTest.exe`. Every command was run and verified on 2026-11-20 in
-> `E:\src\apkshellext` — upstream 3.4.5 (`076f182`) plus the local modernization
-> commits described in §5, which are part of this checkout. Copy them verbatim,
-> adjusting drive/paths.
+> This document is the **complete, actually-executed** procedure for going from a
+> fresh clone to a working `ApkShellext2.dll` (with 19 localized satellite assemblies).
+> Every command below is one the build actually runs; copy them verbatim, adjusting
+> drive/paths.
 >
-> This checkout's build system was **modernized to SDK-style csproj**
-> (§5), which is what makes both build routes work with **zero extra MSBuild
-> properties**. Companion document: [中文对照版 compile_guidance.zh-CN.md](compile_guidance.zh-CN.md).
+> The build system is **SDK-style csproj** (§5), which is what makes both build routes
+> work with **zero extra MSBuild properties**. Companion document:
+> [中文对照版 compile_guidance.zh-CN.md](compile_guidance.zh-CN.md).
 
 ## 0. Summary
 
@@ -17,7 +15,7 @@
 |---|---|
 | Main artifact | `ApkShellext2\bin\Release\ApkShellext2.dll` (3.4.5.0, strong-named `Pkt=fb82661d1c53098c`, local key) |
 | Satellites | `bin\Release\{ar-SA,…,zh-CN,zh-TW}\ApkShellext2.resources.dll` × 19 |
-| Test app | `apkshellextTest\bin\Release\apkshellextTest.exe` |
+| Unit tests | `tests\ApkShellext2.Tests` - `dotnet test`, see §7 |
 | Packages | `bin\Release\ApkShellext2-3.5.1.7z` — complete install set incl. all 19 language folders (needs 7-Zip; postbuild packs automatically, name = `ApkShellext2-<version>.7z` from `version.txt` with a trailing `.0` dropped) |
 | Native deps | `ApkShellext2\LibWebP\libwebp_x86.dll` + `libwebp_x64.dll` — prebuilt libwebp 1.6.0, committed in-repo; rebuilding is optional (§4.5) |
 | Route A | .NET SDK **10.0.404** standalone: `dotnet build ApkShellext2\ApkShellext2.csproj -c Release` — one line, no flags |
@@ -65,7 +63,7 @@ Only if github.com is unreachable or too slow, use the githubfast mirror instead
 git clone https://githubfast.com/nkh0472/apkshellext.git E:\src\apkshellext
 ```
 
-## 3. Submodules (2 of them)
+## 3. Submodule
 
 `.gitmodules` points at github.com, so the plain command works whenever the clone
 above was direct:
@@ -88,32 +86,31 @@ Only one submodule is left, and it is genuinely compiled into the build:
 | `ApkShellext2\PNGDecrush` | nkh0472/PNGDecrush @ `e926128` | source-level reference |
 
 Notes:
-- **PlistCS is not a submodule any more** — upstream (kkguo/PlistCS @ `0fc69e7`, a fork of
-  animetrics/PlistCS) is unmaintained, so its single source file was absorbed into the tree as
-  `ApkShellext2\PlistCS\PlistCS\Src\Plist.cs` and now carries local hardening (depth/index caps,
-  per-call parser state — see `ApkShellext2\PlistCS\NOTICE.txt`). It no longer needs
-  `git submodule update`.
-- **WebP-wrapper is not a submodule any more** — upstream (JosePineiro/WebP-wrapper @
-  `79e4234`) is kept as a single vendored file, `ApkShellext2\WebP-wrapper\WebPWrapper.cs`
+- **PlistCS is vendored in-tree** — upstream (kkguo/PlistCS @ `0fc69e7`, a fork of
+  animetrics/PlistCS) is unmaintained, so its single source file lives in the tree as
+  `ApkShellext2\PlistCS\PlistCS\Src\Plist.cs` and carries local hardening (depth/index caps,
+  per-call parser state — see `ApkShellext2\PlistCS\NOTICE.txt`). No
+  `git submodule update` is involved.
+- **WebP-wrapper is vendored in-tree** — upstream (JosePineiro/WebP-wrapper @
+  `79e4234`) is one vendored file, `ApkShellext2\WebP-wrapper\WebPWrapper.cs`
   (MIT, provenance and license in `ApkShellext2\WebP-wrapper\NOTICE.txt`), because this repo
   carries local hardening in it (decode-size bound, install-directory native-library preload).
-  It no longer needs `git submodule update`; runtime still needs the committed
+  No `git submodule update` is involved; runtime still needs the committed
   `LibWebP\libwebp_x86/x64.dll` files.
-- **SharpZipLib is not a submodule any more** — upstream (icsharpcode/SharpZipLib v1.4.2
-  @ `33f64eb`) was never used as a general zip library here: only its read-only container
-  reader was, so zip containers are now read with the BCL `System.IO.Compression.ZipArchive`
-  behind `ApkShellext2\Imaging\SafeArchive.cs` (≤ 65535 entries, per-entry byte/ratio caps, legacy
-  name encoding, precise lookup). The pinned PNGDecrush source still names three
+- **SharpZipLib is not vendored at all** — upstream (icsharpcode/SharpZipLib v1.4.2
+  @ `33f64eb`) served as the zip container reader here and nothing else, so containers are
+  read with the BCL `System.IO.Compression.ZipArchive` behind
+  `ApkShellext2\Imaging\SafeArchive.cs` (≤ 65535 entries, per-entry byte/ratio caps, legacy
+  name encoding, precise lookup). The pinned PNGDecrush source names three
   SharpZipLib types by full name, so `ApkShellext2\Vendor\SharpZipLibShim.cs` provides exactly
   those (zlib/CRC-32 on `System.IO.Compression`); nothing else of SharpZipLib is compiled.
-  Removed: the submodule, the `.gitmodules` stanza, the csproj glob, its `LICENSE.txt`.
-- **SharpShell is not a submodule** — its sources (2.7.1) are vendored directly under
-  `ApkShellext2\SharpShell\` and compiled by the csproj (minus dead code, §5.1).
-- **SVG is not a submodule any more** — upstream (vvvv-github/SVG **v3.5.0** @ `9d564f4`) was
-  absorbed at `ApkShellext2\SVG\Source\` together with its Roslyn generator at
-  `SVG\Generators\`; the generator still runs automatically as a compiler analyzer (§5).
+- **SharpShell is vendored in-tree** — its sources (2.7.1) live directly under
+  `ApkShellext2\SharpShell\` and are compiled by the csproj (minus the dead code, §5.1).
+- **SVG is vendored in-tree** — upstream (vvvv-github/SVG **v3.5.0** @ `9d564f4`) lives at
+  `ApkShellext2\SVG\Source\` together with its Roslyn generator at
+  `SVG\Generators\`; the generator runs automatically as a compiler analyzer (§5).
   Provenance, license and the local trims (ExCSS, and the unused SVG subtrees) are recorded in `ApkShellext2\SVG\NOTICE.txt`;
-  its `bin\`/`obj\` now live inside the repo tree and are covered by the root `.gitignore`.
+  its `bin\`/`obj\` live inside the repo tree and are covered by the root `.gitignore`.
 
 ## 4. Toolchain and one-time setup
 
@@ -136,9 +133,9 @@ restore dies with `error NU1100: 无法解析 net48 的 "System.Resources.Extens
 & E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe nuget add source https://api.nuget.org/v3/index.json -n nuget.org
 ```
 
-This bites both routes (VS shares the same user config). The old repo layout needed no
-restore at all (HintPath DLLs in `packages\`), so a source-less machine never noticed —
-the SDK-style project restores System.Resources.Extensions from nuget.org instead (§5.2).
+This bites both routes (VS shares the same user config): building under coreclr restores
+System.Resources.Extensions from nuget.org (§5.2), so the source list must be valid before
+the first build.
 
 ### 4.2 Signing key snk (generate locally — the wrong key breaks the VS route)
 
@@ -257,34 +254,29 @@ What matters in practice:
   libsharpyuv entirely. That recipe does not match what this repo ships; use
   `build\libwebp\` for rebuilds.
 
-## 5. What this checkout changed vs. upstream (the modernization)
+## 5. Build system
 
-Upstream ships **old-style** csproj files. Building them with `dotnet msbuild` needs
-three ugly workarounds (SVG source-generator pregeneration, a satellite-assembly shim
-for `MSB4064`, manual NuGet package backfill). This checkout rewrites both csproj files
-as **SDK-style** instead, which removes all three at the root — that is why every
-command in §6–§7 is flag-free. All of it lands on top of upstream 3.4.5
-(HEAD `076f182`) as a set of focused commits — build-system migration
-(`ApkShellext2.sln`, both csproj files, `Resources\postbuild.cmd`), dead-code removal,
-donation-UI removal, typo fixes, plus this documentation. As of writing they are
-**committed locally but not pushed** — push to your remote (or carry this checkout)
-before expecting a fresh clone elsewhere to build with the flag-free commands below.
+Both csproj files are **SDK-style**, which is why every command in §6–§7 is flag-free. The
+three workarounds a non-SDK build of this tree needs (SVG source-generator pregeneration, a
+satellite-assembly shim for `MSB4064`, manual NuGet package backfill) have no equivalent
+here: the project files carry them.
 
-### 5.1 Legacy workaround → SDK-style replacement
+### 5.1 What a non-SDK build of the 3.5.0 tree needed — and what these projects provide
 
-| Upstream / legacy need | Now |
+The left column is the build the upstream 3.5.0 tree used; the right column is what replaces it here.
+
+| What a non-SDK build needs | Provided by |
 |---|---|
-| SVG v3.5.0 element metadata generated by hand before the build (`pregen.ps1` → `SVG\Source\Generated\*.g.cs`) | `<ProjectReference Include="SVG\Generators\Svg.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />` — the same upstream generator runs **inside Roslyn** on every compile, on both toolchains |
+| SVG element metadata generated before the build (`pregen.ps1` → `SVG\Source\Generated\*.g.cs`) | `<ProjectReference Include="SVG\Generators\Svg.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />` — the generator runs **inside Roslyn** on every compile, on both toolchains |
 | Satellites crash under coreclr MSBuild (`MSB4064` AL/ToolPath) → external `dotnet-satellites.targets` shim + 2 command-line flags | SDK-style projects get `GenerateSatelliteAssembliesForCore=true` automatically under coreclr (Csc-based generation); FullFramework MSBuild uses real `al.exe`. Nothing to pass |
-| `packages\System.Runtime.CompilerServices.Unsafe.6.0.0` fetched by hand (HintPath project, no restore) | one `PackageReference`: System.Resources.Extensions 6.0.0 **only when** building under coreclr. The System.Memory facade family (System.Memory / System.Buffers / System.Runtime.CompilerServices.Unsafe / System.Numerics.Vectors) is no longer referenced at all since T-K rewrote the SVG span parsing — see §8 |
+| Hand-kept facade DLLs for `Span`/`Unsafe` (System.Memory, System.Buffers, System.Runtime.CompilerServices.Unsafe, System.Numerics.Vectors) | not referenced: the SVG code parses plain strings (`TextSlice`) — see §8. Under coreclr, `System.Resources.Extensions` still pulls `System.Memory` in as a runtime dependency of the dev output only |
 | `-p:GenerateResourceUsePreserializedResources=true` typed by the user | inside the csproj: `Condition="'$(MSBuildRuntimeType)' == 'Core'"` — dotnet CLI uses preserialized resources, VS uses classic ones, automatically (see §8 for the one runtime consequence) |
-| `apkShellextService` dead entry in the .sln (directory never existed) | entry deleted from the .sln |
-| csproj `Content`-references `SharpShellNativeBridge32/64.dll`, which upstream deleted in `4f30b7c`; the SharpPropertySheet property-page machinery referencing them is dead code | those `Content` items are gone, and the dead consumer directories `NativeBridge\`, `SharpPropertySheet\` and `SharpDeskBand\` have been deleted from the tree; `Helpers\RegAsm.cs` and the vendored `Properties\AssemblyInfo.cs` remain on disk but were never compile inputs. No compiled file references those namespaces |
+| the SharpPropertySheet property-page machinery and its `SharpShellNativeBridge32/64.dll` `Content` items | not part of the build: no compiled file references those namespaces, and the dead consumer directories (`NativeBridge\`, `SharpPropertySheet\`, `SharpDeskBand\`) are not in the tree. `Helpers\RegAsm.cs` and the vendored `Properties\AssemblyInfo.cs` stay on disk but are not compile inputs |
 
-### 5.2 Other modernization notes
+### 5.2 Other build settings
 
-- The legacy `packages\` folder is now **unused** (leftover; harmless). Do not re-add
-  HintPath references.
+- Neither project references an assembly by path: compile-time packages arrive through
+  `PackageReference` restore. Do not add HintPath references.
 - `AppendTargetFrameworkToOutputPath=false` keeps the flat `bin\Release` layout that the
   install scripts, `postbuild.cmd` and this guide all assume (SDK default would be
   `bin\Release\net48\`).
@@ -293,69 +285,59 @@ before expecting a fresh clone elsewhere to build with the flag-free commands be
 - `EnableDefaultCompileItems/EmbeddedResourceItems/NoneItems=false` with explicit globs —
   the vendored trees contain many files that must *not* be compiled
   (their own AssemblyInfo, samples, tools, WinUI/WPF variants).
-- The legacy `Debug2` configuration is kept (`Configurations=Debug;Debug2;Release`); it
-  behaves like Debug. The generator ProjectReference maps it to the generator's own
-  Debug output via `SetConfiguration`.
+- `Debug2` is a kept configuration (`Configurations=Debug;Debug2;Release`); it behaves like
+  Debug. The generator ProjectReference maps it to the generator's own Debug output via
+  `SetConfiguration`.
 
 ### 5.3 Zero-warning baseline
 
-The upstream tree carried seven long-lived compiler warnings; all are resolved, and both
-routes now build with `0 warnings / 0 errors`:
+Both routes build with `0 warnings / 0 errors`. Each entry below is a warning the tree can
+produce, with the reason the current code cannot:
 
-| Warning | Where | Resolution |
+| Warning | Where | Why it cannot fire |
 |---|---|---|
-| CS0219 ×4 (`height`, `units`) | `AabReader` / `ApkQuickReader` legacy vector fallback | dead `android:width` unit parse removed — it stored values nothing read (the canvas comes from the clamped viewport) |
-| CS0618 `SvgDocument.Open` overload | vendored `SVG\Source\Web\SvgHandler.cs` | ASP.NET handler excluded from compilation (`Compile Remove`); it was the tree's only `System.Web` consumer, and the main dll's reference list shrank accordingly — the rest of the SVG tree is untouched |
-| CS0618 `SvgPathSegment.Start` | `VectorDrawableRender.Convert2Path` | marked obsolete in Svg 3.5.0 with no successor API; the single call site is wrapped in `#pragma warning disable CS0618` with a comment |
-| CS0108 `ApkXMLElementChunk.Node` hides base | `Formats\ApkChunk.cs` | explicit `new` keyword (hiding behaviour unchanged) |
-| CS0649 `ApkXMLCDATAChunk.dataid` never assigned | `Formats\ApkChunk.cs` | pinned `= 0` with a `TODO(upstream)` note — the CDATA string index was never parsed from the stream |
-| CS0162 unreachable code | `apkshellextTest\Form1.cs` | scratch block below an early `return;` wrapped in `#if PARKED_EXPERIMENTS` (test playground kept out of compilation) |
+| CS0219 ×4 (`height`, `units`) | `AabReader` / `ApkQuickReader` vector fallback | the canvas comes from the clamped viewport, so `android:width`/`android:height` are never parsed |
+| CS0618 `SvgDocument.Open` overload | vendored `SVG\Source\Web\SvgHandler.cs` | that ASP.NET handler is excluded from compilation (`Compile Remove`): it is the tree's only `System.Web` consumer and the main dll must not reference `System.Web`. The rest of the SVG tree compiles unchanged |
+| CS0618 `SvgPathSegment.Start` | `VectorDrawableRender.Convert2Path` | obsolete in Svg 3.5.0 with no successor API; the single call site disables CS0618 locally, with a comment |
 
-### 5.4 Source layout (stage-3 T-Q)
+### 5.4 Source layout
 
-The 29 sources that used to sit at the project root are grouped by responsibility
-(roadmap §3). Everything else keeps its path: the vendored trees, `Properties\`,
-`Resources\`, `Preferences.resx`, the `LibWebP\` natives and the signing keys.
-`eng\check-layout.ps1` (9 root files + 19 language folders) is untouched and
-`eng\check-size.ps1` only reports against its reference budgets — the publish folder stays flat.
+Sources are grouped by responsibility; the project root keeps only what every layer uses.
+Everything else keeps its path: the vendored trees, `Properties\`, `Resources\`,
+`Preferences.resx`, the `LibWebP\` natives and the signing keys.
+`eng\check-layout.ps1` (9 root files + 19 language folders) and `eng\check-size.ps1` only
+report — the publish folder stays flat.
 
 ```
 ApkShellext2\
   Shell\          the four COM handlers (context menu, icon, info tip, thumbnail)
   Formats\        IPackageReader + PackageReaderFactory, the six readers, AXML/ARSC parsers
-                  (ApkChunk.cs lives here but is still dev tooling: compiled only into
-                  apkshellextTest, never into the shell dll)
   Imaging\        IArchive/SafeArchive, the IIconSource chain + decode limits, vector drawables
-  Diagnostics\    ErrorLog, ModuleInitializer, DbgLog (folder existed; DbgLog joined it)
+  Diagnostics\    ErrorLog, ModuleInitializer, DbgLog
   Preferences\    the WinForms settings form + designer (Preferences.resx stays at the root)
   Vendor\         net48 polyfills (SharpZipLibShim, ModuleInitializerAttribute)
   Utility.cs      stays at the root: every layer uses it
-  Interop\        hand-written COM interfaces and P/Invoke declarations (stage-4 T-S1, §5.5)
-  Registration\   the self-hosted registrar (stage-4 T-S1, §5.5)
+  Interop\        COM/PInvoke declarations (§5.5)
+  Registration\   registration/unregistration (§5.5)
   PlistCS\ PNGDecrush\ WebP-wrapper\ SVG\ SharpShell\ LibWebP\ Properties\ Resources\
 ```
 
-**Namespaces are deliberately unchanged** (`ApkShellext2`, `ApkShellext2.Compression`,
-`ApkQuickReader`, `ApkShellext2.ApkChunk`, …). The roadmap's chapter 3 says
-"directories + namespaces"; T-Q lands the directories only. Moving `Preferences` into an
+**Namespaces are unchanged by that layout** (`ApkShellext2`, `ApkShellext2.Compression`,
+`ApkQuickReader`, …). Moving `Preferences` into an
 `ApkShellext2.Preferences` namespace would collide with the existing `Preferences` type
 (and with the namespace name itself), and renaming the rest would touch the COM
-ServerRegistration/ProgID contract and every `apkshellextTest` reference for no
-behavioural gain. The namespace split belongs to the stage-4 shell rewrite.
+ServerRegistration/ProgID contract for no behavioural gain.
 
-**History stays readable**: every move is a content-preserving `git mv` — `git diff -M`
-and `git log --follow` report 100%-similarity renames, and the files keep their exact
-bytes (BOM and CRLF/LF mix). `Preferences.resx` keeps both its path and its
-`ApkShellext2.Preferences.resources` manifest name; its `DependentUpon` metadata had to
-go once the form moved, otherwise MSBuild fails with MSB3041 while deriving that name.
+`Preferences.resx` keeps both its path and its `ApkShellext2.Preferences.resources` manifest
+name; its `DependentUpon` metadata must stay absent, otherwise MSBuild fails with MSB3041
+while deriving that name.
 
-### 5.5 Interop and the registration layer (stage-4 T-S1)
+### 5.5 Interop and the registration layer
 
-Stage 4 removes the vendored SharpShell (26,525 lines) and replaces it with a minimal COM
-layer of our own. T-S1 lands the two halves the handlers get rewired to in S2/S3 — the
-declarations and the registrar. **No handler behaviour changed in T-S1**: the four SharpShell
-classes keep serving the same four CLSIDs, and `install*.bat` / `update.bat` keep their
-existing `regasm` flow.
+The four CLSIDs registered with the shell are still served by the vendored SharpShell
+(26,525 lines), and `install*.bat` / `update.bat` still register them with `regasm`. The two
+halves below do not depend on that implementation: `Interop\` declares the interfaces the
+shell calls, and `Registration\` writes the same keys `regasm` writes, from managed code.
 
 #### 5.5.1 Declaration rules (`Interop\`)
 
@@ -535,7 +517,7 @@ the FullFramework resource pipeline, not for the compiler version.
 
 Always exits 0 and prints how `ApkShellext2.dll`, the 7z package and the 28-file
 deployment tree compare with the reference budgets (currently 1,260,000 / 1,000,000 /
-2,500,000 B; the post-T-R baseline is 1,181,184 / ~752,500 / 2,360,097 B). A line above
+2,500,000 B; the reference point is 1,181,184 / ~752,500 / 2,360,097 B). A line above
 its number is labelled `OVER (guidance only)` — package size is guidance, not a merge
 contract, so a dependency bump or a new feature does not need a budget edit and never
 turns CI red. The functional contract is `check-layout.ps1`, which fails on a missing or
@@ -544,25 +526,10 @@ satellites, never from a directory glob, so stray pdb or log files in `bin\Relea
 cannot affect it. The budgets are parameters (`-MaxDllBytes` …); lowering one renders a
 tighter report without editing the script.
 
-## 7. Build the test project
-
-```powershell
-# Route A:
-E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe build apkshellextTest\apkshellextTest.csproj -c Release --nologo
-# Route B: the same two msbuild lines pointed at apkshellextTest\apkshellextTest.csproj
-```
-
-It is a WinForms app referencing the main project (plus one linked file
-`..\ApkShellext2\Formats\ApkChunk.cs`), unsigned, with no NuGet dependencies. Debug builds work
-identically (`-c Debug` / `-p:Configuration=Debug`); the Debug output additionally gets
-`debug.bat` (a dev helper copied only in Debug, §8). Never look for
-`apkShellextService` — its dead .sln entry was deleted here and never existed on disk.
-
-### 7.1 Automated unit tests (NUnit)
+## 7. Unit tests (NUnit)
 
 `tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj` holds the unattended tests that pin the
-stage-0 safety guards (T-A…T-E). At the time of writing the suite has 238 tests: the version
-single source; the arsc config / package / entry / reference caps; the binary and XML plist
+parser, archive and decode safety guards. Coverage list: the version single source; the arsc config / package / entry / reference caps; the binary and XML plist
 depth guards, index bounds and per-call parser state; the archive entry, ratio and
 cumulative-byte limits; the WebP and PNG decode-size limits; the Appx / Appxbundle / Ipa
 reader bounds (manifest size, package count, file-name length, nested-container reads);
@@ -597,7 +564,7 @@ Every fixture is either built inside the test (zip archives with `System.IO.Comp
 binary plists with the small writer in `TestSupport\BinaryPlistBuilder.cs`, appx/appxbundle
 packages with `TestSupport\AppxFixtures.cs`) or is a committed real-byte slice under
 `tests\ApkShellext2.Tests\fixtures\` (Spectroid `resources.arsc` / `AndroidManifest.xml`,
-regenerated by `X:\apks-tn\fixtures\make-fixtures.ps1`). The suite is hermetic: it does not
+regenerated by `tests\ApkShellext2.Tests\fixtures\make-fixtures.ps1`). The suite is hermetic: it does not
 read the sample library under `F:\Backups\apks\` and it never touches the network.
 
 CI: `.github\workflows\ci.yml`, job `dotnet-build`, step **Run unit tests** — after
@@ -634,21 +601,15 @@ analyzer suggestion can never turn into a red build.
   from an **explicit manifest** — the nine root files (`ApkShellext2.dll`, the six
   bats, the two `libwebp_*` binaries) plus every
   locale folder that exists (`ar-SA` … `zh-TW`). A missing manifest entry **fails the
-  build**, so a short archive cannot ship silently. The four System.Memory facade dlls
-  (`System.Memory.dll`, `System.Buffers.dll`,
-  `System.Runtime.CompilerServices.Unsafe.dll`, `System.Numerics.Vectors.dll`) used to be
-  listed here for exactly that app-local reason — inside COM hosts the Fusion Load context
-  probes only the host app base (`C:\Windows`) and the GAC, so `TypeDescriptor` could not
-  bind Svg.NET's numeric converters without them and every numeric SVG attribute (gradient
-  coords, offsets, …) failed with `FileNotFoundException`, silently rendering adaptive
-  icons as blank/fragmented tiles (root cause of the 2026-11-21 broken-icon report). T-K
-  removed the last `Span<char>` parsing from the SVG code, so the compiler no longer binds
-  those assemblies and nothing has to be deployed for them; the manifest comment in
-  `Resources\postbuild.cmd` records the history. One dll is an annotated *exclusion*,
+  build**, so a short archive cannot ship silently. Nothing private belongs next to the
+  dll: inside COM hosts the Fusion load context probes only the host app base
+  (`C:\Windows`) and the GAC, so an app-local assembly is a load-time dependency the host
+  cannot resolve — that is why the SVG code parses plain strings instead of `Span<char>`
+  and no `System.Memory` family dll is shipped. One dll is an annotated *exclusion*,
   never packed whatever sits in the output folder: `System.Resources.Extensions.dll`
   (see below). The main archive is a complete install set: there are no per-language
-  archives (an earlier split shipped `<locale>.7z` separately; that made an install from
-  the main archive alone silently English). No 7-Zip ⇒ WARNING + skip, build still
+  archives (a locale-only archive would make an install from the main archive alone
+  silently English). No 7-Zip ⇒ WARNING + skip, build still
   succeeds.
 
 **Why the VS route is the shipping route — preserialized resources.** Under coreclr
@@ -675,6 +636,17 @@ Deployment (on the target machine, as the user who owns the shell extension): ex
 `install.bat` (elevated, machine-wide) or `install_user.bat` (per-user;
 both register via regasm and NGEN the assembly — 3.4.5 fixed NGEN in these scripts).
 `restart_explorer.bat` reloads the shell. Uninstall with the matching `uninstall*.bat`.
+
+**Replacing a locked dll on a running install.** Explorer and `dllhost.exe` load the
+handler, so stop both first. If the file is still held, `Rename-Item <dll> <dll>.old`
+always succeeds (Explorer opens it with a non-delete share); then copy the new file into
+place and delete the `.old`. Restart Explorer through a pre-created scheduled task, not
+with `Start-Process explorer` from a session: a session launch starts an instance that has
+no desktop.
+
+**Stale caches after a deploy.** With Explorer stopped, delete `thumbcache_*.db` and
+`iconcache_*.db` under `%LOCALAPPDATA%\Microsoft\Windows\Explorer`; otherwise the old
+icons and thumbnails keep being served after the dll has been replaced.
 
 **Upgrading an existing installation:** extract the new package anywhere and run
 `update.bat` from it (optional `/quiet` for scripting, `/ngen` to refresh native images).
@@ -734,7 +706,7 @@ official package in the same GAC/registration state.
    `bin\Release`.
 5. **Debug layout:** `bin\Debug` root has `debug.bat` + bats + libwebp and **no `.7z`**.
 
-### Testability gate (stage 3)
+### Testability gate
 
 `eng\check-layers.ps1` enforces that the parsing layer stays independent of the shell host.
 Both CI jobs run it right after "Check publish layout" (before the slower tests), and it is
@@ -753,7 +725,7 @@ project-local parser/icon helpers those files already use. COM plumbing and shel
 registration belong in `Shell\`, `Preferences\` and `SharpShell\`, which may reference the
 parsing layer but never the other way around. That is what lets an NUnit run or a plain
 console process load a reader, a parser, `SafeArchive` or the icon chain without explorer;
-the stage 3 tests in `tests\ApkShellext2.Tests` rely on exactly this.
+the unit tests in `tests\ApkShellext2.Tests` rely on exactly this.
 
 Negative test (expected `exit 1`, then back to green — this is how the gate itself is
 verified, not just how a violation looks):
@@ -765,11 +737,10 @@ git checkout -- ApkShellext2\Formats\AppxReader.cs
 pwsh -File eng\check-layers.ps1    # "layers OK: 19 C# files ...", exits 0
 ```
 
-The stage 3 cleanup removed two dead imports the gate surfaced (no runtime behaviour
-change, no IL difference): six unused `using SharpShell.*` lines in `Formats\IpaReader.cs`
-and the unused `using Media = System.Windows.Media;` alias in `Formats\ApkQuickReader.cs`.
+`Formats\` and `Imaging\` therefore carry no `using SharpShell.*` and no
+`using Media = System.Windows.Media;`; both would be dead anyway.
 
-The gate is paired with the unit suite in §7.1: those tests load the parsers, `SafeArchive`
+The gate is paired with the unit suite in §7: those tests load the parsers, `SafeArchive`
 and the icon chain from a plain NUnit process, which is only possible while this gate holds.
 A change that needs a shell type in `Formats\` or `Imaging\` is therefore caught here, before
 the tests (and the packaged handler) break.
@@ -800,9 +771,8 @@ the tests (and the packaged handler) break.
    the context menu disappears silently). Ship and deploy VS-route builds only;
    packaging excludes `System.Resources.Extensions.dll` on both routes (§8).
 7. **snk**: gitignored; generate locally (§4.2). Public key ≠ official builds.
-8. **Legacy leftovers are intentional**: the `packages\` folder is unused now; the
-   NativeBridge native DLLs are missing upstream by design (`4f30b7c`) and their dead
-   consumer code has been deleted from the tree (§5.1). Do not “fix” either.
+8. **One leftover is expected, not broken**: the `SharpShellNativeBridge32/64.dll` natives
+   are absent because nothing compiles against them (§5.1). Do not “fix” it.
 9. **SVG is in-tree now** (absorbed at `ApkShellext2\SVG\Source\`, §3) — the generator's
    `bin\`/`obj\` are covered by the root `.gitignore`; the one remaining submodule
    (PNGDecrush) still produces its own `bin\`/`obj\` if built standalone.
@@ -813,9 +783,9 @@ the tests (and the packaged handler) break.
     and stop it first.
 11. **`dotnet` on PATH may be runtime-only.** Verify with `dotnet --version`; if it
     reports no SDK, use the installed SDK's full path (as all commands here do).
-12. **Four files are intentionally not upstream** (§5): `.sln`, both csproj
-    files, `postbuild.cmd`. Reverting any of them to its upstream version re-introduces
-    the legacy workarounds (flags, shim, pregen, manual packages).
+12. **Four files differ from the upstream project** (§5): `.sln`, both csproj files,
+    `postbuild.cmd`. Reverting any of them to its upstream version re-introduces the
+    workarounds listed in §5.1 (flags, shim, pregen).
 13. **`ALINK : error AL1078 对程序集签名时出错 - 未知错误(8013141e)` on the VS route** =
     the snk is a *key-exchange* blob (`aiKeyAlg=0xa400`, what a bare
     `RSACryptoServiceProvider 1024` produces). csc ignores the field, `al.exe` refuses it.
@@ -883,10 +853,10 @@ $DOTNET = 'E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe'
 & $DOTNET nuget list source | Select-String nuget.org -Quiet | % { if (-not $_) { throw 'no nuget.org source - see §4.1' } }
 if (-not (Test-Path "$R\ApkShellext2\apkshellext2_hy.snk")) { throw 'generate the snk first - see §4.2' }
 
-# --- 1. main + test (restore implicit; analyzer generator runs inside compile) ---
+# --- 1. main + unit tests (restore implicit; analyzer generator runs inside compile) ---
 Set-Location $R
 & $DOTNET build ApkShellext2\ApkShellext2.csproj     -c Release --nologo; if ($LASTEXITCODE) { throw 'main build failed' }
-& $DOTNET build apkshellextTest\apkshellextTest.csproj -c Release --nologo; if ($LASTEXITCODE) { throw 'test build failed' }
+& $DOTNET test tests\ApkShellext2.Tests\ApkShellext2.Tests.csproj -c Release --nologo; if ($LASTEXITCODE) { throw 'tests failed' }
 
 # --- 2. verify (must run under Windows PowerShell 5.1, see §9) ---
 $sats = Get-ChildItem "$R\ApkShellext2\bin\Release" -Directory | Where-Object Name -cmatch '^[a-z]{2}-'
