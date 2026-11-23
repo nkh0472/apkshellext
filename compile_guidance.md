@@ -544,7 +544,9 @@ both register via regasm and NGEN the assembly — 3.4.5 fixed NGEN in these scr
 `update.bat` from it (optional `/quiet` for scripting, `/ngen` to refresh native images).
 It reads the registered install folder from the COM `CodeBase` (HKLM 64-bit view, then
 WOW6432Node, then HKCU — machine wins), stages the new files, moves the eight product
-files to `backup-<oldversion>-<timestamp>\`, copies the new files in and repairs the same
+files to `backup-<oldversion>-<timestamp>\` together with the files this version no
+longer ships (a 3.5.1 install still has `ExCSS.dll` and the four Span facade
+assemblies), copies the new files in and repairs the same
 registration scope in place. If the package folder *is* the registered folder the files
 are swapped in place; otherwise they are copied into the registered folder and `CodeBase`
 is left pointing there. It never overwrites an existing `SharpShell_Backup_DefaultIcon`,

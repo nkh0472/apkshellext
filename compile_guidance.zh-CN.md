@@ -479,7 +479,8 @@ NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat
 
 **已有安装的升级:** 把新包解压到任意位置,在包目录里运行 `update.bat`(可选 `/quiet`
 供脚本调用、`/ngen` 刷新原生映像)。它从 COM 的 `CodeBase` 读已注册目录(HKLM 64 位
-视图 → WOW6432Node → HKCU,机器级优先),先把新文件暂存,再把 8 个产品文件移进
+视图 → WOW6432Node → HKCU,机器级优先),先把新文件暂存,再把 8 个产品文件连同本版本
+已不再出货的文件(3.5.1 安装里还有 `ExCSS.dll` 和四个 Span facade 程序集)一起移进
 `backup-<旧版本>-<时间戳>\`,复制新文件并**就地修复同一注册作用域**。包目录就是已注册
 目录时就地换文件;否则复制进已注册目录,`CodeBase` 保持指向它。它不会覆盖已有的
 `SharpShell_Backup_DefaultIcon`,并清掉四个 CLSID 在 Windows 阻止列表里的项。`/rollback`

@@ -18,9 +18,11 @@ REM
 REM The registered install folder is read from the COM CodeBase value (HKLM
 REM 64-bit view, then HKLM WOW6432Node, then HKCU - machine wins, matching the
 REM install scripts). The new files are staged, the old eight product files are
-REM moved to backup-<oldversion>-<timestamp>, the new files are copied in and
-REM the SAME registration scope is repaired in place. Nothing is pushed to the
-REM registry that points at this package folder itself.
+REM moved to backup-<oldversion>-<timestamp> together with the files this version
+REM no longer ships (ExCSS.dll and the four Span facade assemblies, so an upgrade
+REM from 3.5.1 leaves no stale private assembly next to the DLL), the new files
+REM are copied in and the SAME registration scope is repaired in place. Nothing
+REM is pushed to the registry that points at this package folder itself.
 REM
 REM update.bat is never backed up or restored: Windows keeps a running .bat
 REM open, so it cannot be moved. It is a helper, not product content; a rollback
@@ -43,6 +45,12 @@ set "BLOCK64=HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blo
 set "BLOCK32=HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked"
 set "BLOCKU=HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked"
 set "PRODUCT=ApkShellext2.dll install.bat install_user.bat uninstall.bat uninstall_user.bat restart_explorer.bat libwebp_x86.dll libwebp_x64.dll"
+REM Files that packages up to 3.5.1 deployed next to the DLL and 3.6.0 no longer
+REM ships: the ExCSS parser and the four Span facade assemblies. They are moved
+REM into the backup folder (never deleted) so an upgrade from 3.5.1 does not leave
+REM a second, stale copy of a private assembly next to the new build, and
+REM /rollback puts them back.
+set "LEGACY=ExCSS.dll System.Buffers.dll System.Memory.dll System.Numerics.Vectors.dll System.Runtime.CompilerServices.Unsafe.dll"
 set "PAYLOAD=%PRODUCT% update.bat"
 set "LANGS=ar-SA de-DE el-GR es-ES fa-IR fr-FR he-IL it-IT ja-JP ko-KR my-MM nl-NL pl-PL pt-PT ru-RU tr-TR uk-UA zh-CN zh-TW"
 set "QUIET="
@@ -211,7 +219,19 @@ for %%F in (%PRODUCT%) do (
         )
     )
 )
+set "OBSOLETE=0"
+for %%F in (%LEGACY%) do (
+    if exist "%TARGET%\%%F" (
+        move /y "%TARGET%\%%F" "%BACKUP%\%%F" >nul 2>&1
+        if errorlevel 1 (
+            set "FAILMSG=could not move the obsolete %%F into the backup folder; close any program using it and retry"
+            goto :fail_rollback
+        )
+        set /a OBSOLETE+=1
+    )
+)
 ECHO     backup folder: %BACKUP%
+if not "%OBSOLETE%"=="0" ECHO     moved %OBSOLETE% file(s) that 3.6.0 no longer ships out of the install folder
 
 REM === 5) copy + register ===
 ECHO.
@@ -406,7 +426,7 @@ goto :eof
 :restore_backup
 if not defined BACKUP goto :eof
 if not exist "%BACKUP%" goto :eof
-for %%F in (%PRODUCT%) do if exist "%BACKUP%\%%F" move /y "%BACKUP%\%%F" "%TARGET%\%%F" >nul 2>&1
+for %%F in (%PRODUCT% %LEGACY%) do if exist "%BACKUP%\%%F" move /y "%BACKUP%\%%F" "%TARGET%\%%F" >nul 2>&1
 rmdir "%BACKUP%" >nul 2>&1
 set "RESTORED=1"
 goto :eof
@@ -513,7 +533,7 @@ if not defined LATEST (
     goto :failmsg
 )
 ECHO [2/4] Restoring "%TARGET%\%LATEST%"...
-for %%F in (%PRODUCT%) do (
+for %%F in (%PRODUCT% %LEGACY%) do (
     if exist "%TARGET%\%LATEST%\%%F" (
         move /y "%TARGET%\%LATEST%\%%F" "%TARGET%\%%F" >nul 2>&1
         if errorlevel 1 (
