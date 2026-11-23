@@ -18,6 +18,16 @@ updates:
       minor-patch:
         applies-to: version-updates
         update-types: [minor, patch]
+    # ApkShellext2\SVG\Generators is vendored upstream code (vvvv/SVG) that runs
+    # as an analyzer of the main build. It implements the non-incremental
+    # ISourceGenerator API, so Microsoft.CodeAnalysis 4.14+ makes RS1035 an
+    # error (warnings are errors) unless the generator is rewritten as
+    # IIncrementalGenerator. Keep the pair pinned to the versions the vendored
+    # source compiles against; adopting newer Roslyn is a deliberate port with
+    # the 87-sample icon baseline, not a dependency refresh.
+    ignore:
+      - dependency-name: "Microsoft.CodeAnalysis.CSharp"
+      - dependency-name: "Microsoft.CodeAnalysis.Analyzers"
 
   # Action major bumps (v4 -> v5) change runner requirements, so they come
   # individually; minor/patch movers of the existing pins are grouped.
