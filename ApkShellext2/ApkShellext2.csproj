@@ -94,6 +94,9 @@
     <Compile Include="Diagnostics\**\*.cs" />
     <!-- Shell\: the four COM handlers (context menu, icon, info tip, thumbnail). -->
     <Compile Include="Shell\**\*.cs" />
+    <!-- Interop\: the hand written COM declarations and P/Invokes that replace the vendored
+         SharpShell interop layer (stage 4), plus the layout contract in ComLayout.cs. -->
+    <Compile Include="Interop\**\*.cs" />
     <!-- Preferences\: the WinForms settings form and its designer file; the .resx stays
          at the project root so its embedded resource name is unchanged. -->
     <Compile Include="Preferences\**\*.cs" />
