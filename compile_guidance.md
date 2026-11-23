@@ -102,9 +102,9 @@ Notes:
 - **SharpZipLib is not a submodule any more** — upstream (icsharpcode/SharpZipLib v1.4.2
   @ `33f64eb`) was never used as a general zip library here: only its read-only container
   reader was, so zip containers are now read with the BCL `System.IO.Compression.ZipArchive`
-  behind `ApkShellext2\SafeArchive.cs` (≤ 65535 entries, per-entry byte/ratio caps, legacy
+  behind `ApkShellext2\Imaging\SafeArchive.cs` (≤ 65535 entries, per-entry byte/ratio caps, legacy
   name encoding, precise lookup). The pinned PNGDecrush source still names three
-  SharpZipLib types by full name, so `ApkShellext2\SharpZipLibShim.cs` provides exactly
+  SharpZipLib types by full name, so `ApkShellext2\Vendor\SharpZipLibShim.cs` provides exactly
   those (zlib/CRC-32 on `System.IO.Compression`); nothing else of SharpZipLib is compiled.
   Removed: the submodule, the `.gitmodules` stanza, the csproj glob, its `LICENSE.txt`.
 - **SharpShell is not a submodule** — its sources (2.7.1) are vendored directly under
@@ -307,10 +307,47 @@ routes now build with `0 warnings / 0 errors`:
 | CS0219 ×4 (`height`, `units`) | `AabReader` / `ApkQuickReader` legacy vector fallback | dead `android:width` unit parse removed — it stored values nothing read (the canvas comes from the clamped viewport) |
 | CS0618 `SvgDocument.Open` overload | vendored `SVG\Source\Web\SvgHandler.cs` | ASP.NET handler excluded from compilation (`Compile Remove`); it was the tree's only `System.Web` consumer, and the main dll's reference list shrank accordingly — the rest of the SVG tree is untouched |
 | CS0618 `SvgPathSegment.Start` | `VectorDrawableRender.Convert2Path` | marked obsolete in Svg 3.5.0 with no successor API; the single call site is wrapped in `#pragma warning disable CS0618` with a comment |
-| CS0108 `ApkXMLElementChunk.Node` hides base | `ApkChunk.cs` | explicit `new` keyword (hiding behaviour unchanged) |
-| CS0649 `ApkXMLCDATAChunk.dataid` never assigned | `ApkChunk.cs` | pinned `= 0` with a `TODO(upstream)` note — the CDATA string index was never parsed from the stream |
+| CS0108 `ApkXMLElementChunk.Node` hides base | `Formats\ApkChunk.cs` | explicit `new` keyword (hiding behaviour unchanged) |
+| CS0649 `ApkXMLCDATAChunk.dataid` never assigned | `Formats\ApkChunk.cs` | pinned `= 0` with a `TODO(upstream)` note — the CDATA string index was never parsed from the stream |
 | CS0162 unreachable code | `apkshellextTest\Form1.cs` | scratch block below an early `return;` wrapped in `#if PARKED_EXPERIMENTS` (test playground kept out of compilation) |
 
+### 5.4 Source layout (stage-3 T-Q)
+
+The 29 sources that used to sit at the project root are grouped by responsibility
+(roadmap §3). Everything else keeps its path: the vendored trees, `Properties\`,
+`Resources\`, `Preferences.resx`, the `LibWebP\` natives and the signing keys.
+`eng\check-layout.ps1` (8 root files + 19 language folders) and the
+`eng\check-size.ps1` thresholds are untouched — the publish folder stays flat.
+
+```
+ApkShellext2\
+  Shell\          the four COM handlers (context menu, icon, info tip, thumbnail)
+  Formats\        IPackageReader + PackageReaderFactory, the six readers, AXML/ARSC parsers
+                  (ApkChunk.cs lives here but is still dev tooling: compiled only into
+                  apkshellextTest, never into the shell dll)
+  Imaging\        IArchive/SafeArchive, the IIconSource chain + decode limits, vector drawables
+  Diagnostics\    ErrorLog, ModuleInitializer, DbgLog (folder existed; DbgLog joined it)
+  Preferences\    the WinForms settings form + designer (Preferences.resx stays at the root)
+  Vendor\         net48 polyfills (SharpZipLibShim, ModuleInitializerAttribute)
+  Utility.cs      stays at the root: every layer uses it
+  Interop\        not created yet - COM/PInvoke declarations arrive in stage 4
+  Registration\   not created yet - registration/unregistration arrive in stage 4
+  PlistCS\ PNGDecrush\ WebP-wrapper\ SVG\ SharpShell\ LibWebP\ Properties\ Resources\
+```
+
+**Namespaces are deliberately unchanged** (`ApkShellext2`, `ApkShellext2.Compression`,
+`ApkQuickReader`, `ApkShellext2.ApkChunk`, …). The roadmap's chapter 3 says
+"directories + namespaces"; T-Q lands the directories only. Moving `Preferences` into an
+`ApkShellext2.Preferences` namespace would collide with the existing `Preferences` type
+(and with the namespace name itself), and renaming the rest would touch the COM
+ServerRegistration/ProgID contract and every `apkshellextTest` reference for no
+behavioural gain. The namespace split belongs to the stage-4 shell rewrite.
+
+**History stays readable**: every move is a content-preserving `git mv` — `git diff -M`
+and `git log --follow` report 100%-similarity renames, and the files keep their exact
+bytes (BOM and CRLF/LF mix). `Preferences.resx` keeps both its path and its
+`ApkShellext2.Preferences.resources` manifest name; its `DependentUpon` metadata had to
+go once the form moved, otherwise MSBuild fails with MSB3041 while deriving that name.
 ## 6. Build the main project
 
 ### Route A — dotnet CLI (development output only — do not install this output into Explorer, §8)
@@ -379,7 +416,7 @@ E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe build apkshellextTest\apkshellex
 ```
 
 It is a WinForms app referencing the main project (plus one linked file
-`..\ApkShellext2\ApkChunk.cs`), unsigned, with no NuGet dependencies. Debug builds work
+`..\ApkShellext2\Formats\ApkChunk.cs`), unsigned, with no NuGet dependencies. Debug builds work
 identically (`-c Debug` / `-p:Configuration=Debug`); the Debug output additionally gets
 `debug.bat` (a dev helper copied only in Debug, §8). Never look for
 `apkShellextService` — its dead .sln entry was deleted here and never existed on disk.

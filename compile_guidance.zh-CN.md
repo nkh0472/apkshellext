@@ -90,9 +90,9 @@ git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://gi
   `LibWebP\libwebp_x86/x64.dll`。
 - **SharpZipLib 已不是子模块** —— 上游(icsharpcode/SharpZipLib v1.4.2 @ `33f64eb`)在本仓库
   从来不是通用 zip 库,只用到了它的只读容器读取,因此 zip 容器现在由 BCL
-  `System.IO.Compression.ZipArchive` 在 `ApkShellext2\SafeArchive.cs` 之后读取(条目 ≤ 65535、
+  `System.IO.Compression.ZipArchive` 在 `ApkShellext2\Imaging\SafeArchive.cs` 之后读取(条目 ≤ 65535、
   单条目字节/压缩比率上限、旧编码条目名、精确查找)。固定版本的 PNGDecrush 源码仍按全名引用
-  三个 SharpZipLib 类型,由 `ApkShellext2\SharpZipLibShim.cs` 只提供这三个
+  三个 SharpZipLib 类型,由 `ApkShellext2\Vendor\SharpZipLibShim.cs` 只提供这三个
   (基于 `System.IO.Compression` 的 zlib/CRC-32);SharpZipLib 其余部分一律不再编译。
   已删除:子模块、`.gitmodules` 段、csproj 的 glob、其 `LICENSE.txt`。
 - **SharpShell 不是子模块** —— 其源码(2.7.1)直接 vendored 在 `ApkShellext2\SharpShell\`,
@@ -273,9 +273,43 @@ csproj 重写为 **SDK 式**,从根上消掉这三件事 —— 这就是 §6–
 | CS0219 ×4(`height`、`units`) | `AabReader` / `ApkQuickReader` 的 legacy 矢量回退 | 删除死代码:解析 `android:width` 单位后存入从未被读取的局部变量(画布尺寸来自钳制后的 viewport) |
 | CS0618 `SvgDocument.Open` 过时重载 | vendored 的 `SVG\Source\Web\SvgHandler.cs` | ASP.NET 请求处理器从编译面剔除(`Compile Remove`)——它是全树唯一的 `System.Web` 使用者,主 dll 引用列表随之缩短;SVG 树其余部分不动 |
 | CS0618 `SvgPathSegment.Start` | `VectorDrawableRender.Convert2Path` | Svg 3.5.0 标记过时但无替代 API;唯一调用点用 `#pragma warning disable CS0618` 括起并注释说明 |
-| CS0108 `ApkXMLElementChunk.Node` 隐藏基类成员 | `ApkChunk.cs` | 显式加 `new`(隐藏行为不变) |
-| CS0649 `ApkXMLCDATAChunk.dataid` 从未赋值 | `ApkChunk.cs` | 显式 `= 0` 并留 `TODO(upstream)` 注——CDATA 的字符串索引本就从未从流里解析 |
+| CS0108 `ApkXMLElementChunk.Node` 隐藏基类成员 | `Formats\ApkChunk.cs` | 显式加 `new`(隐藏行为不变) |
+| CS0649 `ApkXMLCDATAChunk.dataid` 从未赋值 | `Formats\ApkChunk.cs` | 显式 `= 0` 并留 `TODO(upstream)` 注——CDATA 的字符串索引本就从未从流里解析 |
 | CS0162 不可达代码 | `apkshellextTest\Form1.cs` | 早退 `return;` 之下的试验代码块用 `#if PARKED_EXPERIMENTS` 包起(测试场代码退出编译) |
+
+### 5.4 源码目录结构(阶段 3 T-Q)
+
+原先散在工程根的 29 个源文件按职责分目录(路线图第三章)。其余一律保持原路径:vendored 树、
+`Properties\`、`Resources\`、`Preferences.resx`、`LibWebP\` 原生库与签名密钥。
+`eng\check-layout.ps1`(发布布局 8 个根文件 + 19 个语言目录)与 `eng\check-size.ps1`
+的阈值都未改 —— 发布目录依旧是平铺的。
+
+```
+ApkShellext2\
+  Shell\          四个 COM 处理器(右键菜单、图标、信息提示、缩略图)
+  Formats\        IPackageReader + PackageReaderFactory、六个 reader、AXML/ARSC 解析器
+                  (ApkChunk.cs 放在这里,但仍是开发工具:只编进 apkshellextTest,
+                  不进外壳 dll)
+  Imaging\        IArchive/SafeArchive、IIconSource 链与解码上限、矢量图光栅化
+  Diagnostics\    ErrorLog、ModuleInitializer、DbgLog(目录早已存在,DbgLog 并入)
+  Preferences\    WinForms 设置窗体与 designer(Preferences.resx 仍留在根目录)
+  Vendor\         net48 polyfill(SharpZipLibShim、ModuleInitializerAttribute)
+  Utility.cs      留在根目录:每一层都用它
+  Interop\        尚未创建 —— COM/PInvoke 声明是阶段 4 的产物
+  Registration\   尚未创建 —— 注册/注销是阶段 4 的产物
+  PlistCS\ PNGDecrush\ WebP-wrapper\ SVG\ SharpShell\ LibWebP\ Properties\ Resources\
+```
+
+**命名空间一律不改**(`ApkShellext2`、`ApkShellext2.Compression`、`ApkQuickReader`、
+`ApkShellext2.ApkChunk` 等)。路线图第三章写的是「目录 + 命名空间」,T-Q 只落地目录:
+把 `Preferences` 挪进 `ApkShellext2.Preferences` 命名空间会与同名的 `Preferences` 类型
+(以及该命名空间名本身)冲突;其余重命名则要动 COM ServerRegistration/ProgID 契约和
+`apkshellextTest` 的全部引用,而行为收益为零。命名空间拆分留给阶段 4 的外壳层重写。
+
+**历史可读**:每一步都是不改内容的 `git mv` —— `git diff -M` 与 `git log --follow`
+全部显示 100% 相似度 rename,文件字节(BOM 与 CRLF/LF 混合)原样保留。
+`Preferences.resx` 的路径与 `ApkShellext2.Preferences.resources` 资源名都不变;窗体移走后
+必须去掉它的 `DependentUpon` 元数据,否则 MSBuild 取名时会以 MSB3041 失败。
 
 ## 6. 编译主工程
 
@@ -339,7 +373,7 @@ E:\src\apkshellext-dep\dotnet-sdk-10\dotnet.exe build apkshellextTest\apkshellex
 # 路线 B:同样的两条 msbuild 命令,工程换成 apkshellextTest\apkshellextTest.csproj
 ```
 
-它是个 WinForms 程序,引用主工程(外加一个 link 文件 `..\ApkShellext2\ApkChunk.cs`),
+它是个 WinForms 程序,引用主工程(外加一个 link 文件 `..\ApkShellext2\Formats\ApkChunk.cs`),
 不签名,无 NuGet 依赖。Debug 编译同理(`-c Debug` / `-p:Configuration=Debug`);Debug
 输出会额外多一个 `debug.bat`(仅 Debug 复制的开发辅助脚本,§8)。别再找
 `apkShellextService` —— 它的 .sln 死条目已在本检出删除,磁盘上从来就没有过。
