@@ -394,6 +394,37 @@ ApkShellext2\
 `sweepzoo`/`:cleancls` 清扫(只反向 `Register`),并且只在安装器自建的 `\<ext>.1` 类下
 只剩默认值时才会删掉它。
 
+### 5.6 右键菜单:一份模型,两个前端
+
+菜单先被描述成数据、再被渲染,因此 SharpShell 处理器与原生处理器提供的是同一份菜单。
+
+**模型(`Shell\Commands\`)。** `CommandCatalog.Build(selectedPaths)` 读取 HKCU 设置、本地化、为
+单选打开唯一需要的 reader,返回 `CommandModel`:一棵前序排列的 `CommandItem` 树,每项带
+`Index`(相对 `idCmdFirst` 的偏移)、`Text`、`Verb`、`HelpText`、`Action`、`Icon`、`Enabled`、
+`IsSeparator` 和 `Children`。该目录里没有任何代码碰 WinForms;与 UI 相邻的只有
+`CommandActions`(执行重命名、导出、商店与首选项命令)、`CommandIconResolver`(把图标标记变成
+`Bitmap`)和 `Shell\StaUiHost.cs`(在带消息泵的专用 STA 线程上打开首选项窗口和导出提示框,因此
+查询菜单不会加载 UI 栈)。
+
+**id 与 verb。** `CommandIds` 固定区间(`First = 0`,`MaxItems = 0x100`);菜单写入
+`wID = idCmdFirst + Index`,分隔符完全不携带 id,与改造前的输出一致。`CommandVerb` 把每条命令
+命名为 `ApkShellext2.<Name>`;对于命令 id,`GCS_VERBW` 返回该字符串,对于父项、分隔符或菜单未
+发放的 id 返回 `E_FAIL`。`InvokeCommand` 同时接受 verb 字符串与整数 verb(相对 `idCmdFirst`
+的偏移,也容忍绝对 id),执行与 WinForms 适配器相同的 `Action`,把父项、分隔符和禁用项当作
+成功的空操作,对无法识别的输入返回 `E_FAIL`。verb 指针为空表示"默认项",这里一律拒绝:本菜单
+没有默认项。
+
+**为什么用原生 `HMENU`。** shell 把 `HMENU` 交给右键菜单处理器,由它把菜单项插进去。直接用
+`CreatePopupMenu` / `InsertMenuItemW` / `DestroyMenu` 构造,可以让 COM 入口不碰 WinForms(实测:
+一次菜单查询加载 8 个程序集,没有 `System.Windows.Forms`),让 id 与 verb 由我们自己控制,也避开
+了改造前那条转换路径的缺陷(0 基 id 计数器,以及 `IContextMenu2/3` 重新声明时漏掉
+`[PreserveSig]`,导致处理器返回 `E_FAIL` 时调用方看到 `S_OK`、并且拿不到项数)。菜单位图按图标
+标记与尺寸缓存到进程结束,因为交给 `InsertMenuItemW` 的 `HBITMAP` 必须活得比菜单更久。
+`QueryContextMenu` 在低字返回项数,比改造前包装器对同一份菜单报的数少一。
+
+`ShellGuids.NativeMenuClsid` 是原生处理器的 CLSID,注册器故意不写它:它存在只是为了让 harness
+能单独激活这个类,而四个已注册 CLSID 依旧指向 SharpShell 类。
+
 ## 6. 编译主工程
 
 ### 路线 A —— dotnet CLI(仅开发产物 —— 不要把该产物装进 Explorer,§8)

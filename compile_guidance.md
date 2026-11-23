@@ -444,6 +444,46 @@ above: `Unregister` does not run the global `sweepzoo`/`:cleancls` cleanup (it o
 `Register`), and it deletes an installer-invented `\<ext>.1` class only when nothing but the
 default value remains under it.
 
+### 5.6 The context menu: one model, two front ends
+
+The menu is described as data first and rendered second, so the SharpShell handler and the
+native handler serve the same menu.
+
+**The model (`Shell\Commands\`).** `CommandCatalog.Build(selectedPaths)` reads the HKCU
+settings, localises, opens the one reader a single selection needs and returns a
+`CommandModel`: a tree of `CommandItem`s in pre-order, each carrying `Index` (its offset from
+`idCmdFirst`), `Text`, `Verb`, `HelpText`, `Action`, `Icon`, `Enabled`, `IsSeparator` and
+`Children`. Nothing in the folder touches WinForms; the UI-adjacent pieces are
+`CommandActions` (runs the rename, dump, store and preferences commands),
+`CommandIconResolver` (turns an icon token into a `Bitmap`) and `Shell\StaUiHost.cs` (runs the
+Preferences window and the dump prompt on a dedicated STA thread with a message pump, so a menu
+query never loads the UI stack).
+
+**Ids and verbs.** `CommandIds` fixes the range (`First = 0`, `MaxItems = 0x100`); the menu
+writes `wID = idCmdFirst + Index` and separators carry no id at all, which is what the previous
+implementation produced. `CommandVerb` names every command `ApkShellext2.<Name>`; `GCS_VERBW`
+returns that string for a command id and `E_FAIL` for a parent, a separator or an id the menu
+never handed out. `InvokeCommand` accepts the verb or the integer verb (the offset from
+`idCmdFirst`, with the absolute id tolerated), runs the same `Action` the WinForms adapter runs,
+treats parents, separators and disabled entries as successful no-ops, and returns `E_FAIL` for
+anything it does not know. A zero verb pointer means "the default item" and is refused: this
+menu has no default item.
+
+**Why a native `HMENU`.** The shell hands a context menu handler an `HMENU` and expects the
+items to be inserted into it. Building that menu directly with `CreatePopupMenu` /
+`InsertMenuItemW` / `DestroyMenu` keeps the COM entry free of WinForms (measured: a menu query
+loads eight assemblies and none of them is `System.Windows.Forms`), keeps the ids and verbs
+under our control, and avoids the conversion defects of the previous path (a 0-based id counter,
+and `IContextMenu2/3` re-declared without `[PreserveSig]`, which reports `S_OK` where the
+handler returned `E_FAIL` and drops the item count). Menu bitmaps are cached per icon token and
+size for the process lifetime, because an `HBITMAP` handed to `InsertMenuItemW` must outlive the
+menu. `QueryContextMenu` returns the item count in the low word, one less than the previous
+wrapper reported for the same menu.
+
+`ShellGuids.NativeMenuClsid` is the native handler's CLSID and is deliberately not written by
+the registrar: it exists so a harness can activate that class alone while the four registered
+CLSIDs still point at the SharpShell classes.
+
 ## 6. Build the main project
 
 ### Route A — dotnet CLI (development output only — do not install this output into Explorer, §8)
