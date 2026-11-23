@@ -33,12 +33,12 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'package-name.ps1')
 $packageName = Get-ApkShellextPackageName -VersionFile (Join-Path $PSScriptRoot '..\version.txt')
 
-# The tree is counted from the same 8 manifest files the postbuild 7z packs plus
+# The tree is counted from the same 9 manifest files the postbuild 7z packs plus
 # the 19 satellite resource assemblies, so the number does not move when the
 # developer leaves extra files (pdb, logs, stale stdout) in bin\Release.
 $manifest = @(
     'ApkShellext2.dll', 'install.bat', 'install_user.bat', 'uninstall.bat',
-    'uninstall_user.bat', 'restart_explorer.bat', 'libwebp_x86.dll', 'libwebp_x64.dll'
+    'uninstall_user.bat', 'restart_explorer.bat', 'update.bat', 'libwebp_x86.dll', 'libwebp_x64.dll'
 )
 $langs = @(
     'ar-SA', 'de-DE', 'el-GR', 'es-ES', 'fa-IR', 'fr-FR', 'he-IL', 'it-IT', 'ja-JP',

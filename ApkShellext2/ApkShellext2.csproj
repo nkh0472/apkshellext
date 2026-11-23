@@ -319,6 +319,10 @@
       <TargetPath>restart_explorer.bat</TargetPath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Resources\update.bat">
+      <TargetPath>update.bat</TargetPath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <!-- Dev helper: Debug-only, so the Release *.bat wildcard in the 7z
          packaging step never picks it up. -->
     <Content Include="Resources\debug.bat" Condition="'$(Configuration)'=='Debug'">

@@ -83,14 +83,16 @@ REM Shipping manifest - explicit and toolchain-independent. Both build routes
 REM converge on exactly these root files; a missing entry FAILS the build here
 REM instead of silently packing a short archive (a bare *.bat wildcard would
 REM match nothing without any error - see compile_guidance gotcha 5).
-REM Eight root files since T-K. The System.Memory facade family (System.Memory,
-REM System.Buffers, System.Runtime.CompilerServices.Unsafe,
+REM Nine root files since T-U: update.bat upgrades an existing installation
+REM without a manual rename/uninstall round-trip. The System.Memory facade
+REM family (System.Memory, System.Buffers,
+REM System.Runtime.CompilerServices.Unsafe,
 REM System.Numerics.Vectors) used to be load-time dependencies of the main dll
 REM and had to ship app-local, because COM hosts (explorer/dllhost) only probe
 REM the app base and the GAC and the facade versions the compile bound to are
 REM not in the GAC. The SVG parsers now walk strings (TextSlice), so the dll
 REM references framework assemblies only and nothing else belongs here.
-set "MANIFEST=ApkShellext2.dll install.bat install_user.bat uninstall.bat uninstall_user.bat restart_explorer.bat libwebp_x86.dll libwebp_x64.dll"
+set "MANIFEST=ApkShellext2.dll install.bat install_user.bat uninstall.bat uninstall_user.bat restart_explorer.bat update.bat libwebp_x86.dll libwebp_x64.dll"
 for %%F in (%MANIFEST%) do (
   if not exist "%%F" (
     echo ERROR: postbuild - manifest file missing from output: %%F
