@@ -334,10 +334,12 @@ while deriving that name.
 
 ### 5.5 Interop and the registration layer
 
-The four CLSIDs registered with the shell are still served by the vendored SharpShell
-(26,525 lines), and `install*.bat` / `update.bat` still register them with `regasm`. The two
-halves below do not depend on that implementation: `Interop\` declares the interfaces the
-shell calls, and `Registration\` writes the same keys `regasm` writes, from managed code.
+The four CLSIDs registered with the shell are served by the native handlers in
+`ApkShellext2\Shell\Native`; the vendored SharpShell classes declare no COM identity any more and
+stay in the tree only until they are retired. `install*.bat` / `update.bat` still register the
+handlers with `regasm`. The two halves below do not depend on that implementation: `Interop\`
+declares the interfaces the shell calls, and `Registration\` writes the same keys `regasm` writes,
+from managed code.
 
 #### 5.5.1 Declaration rules (`Interop\`)
 
@@ -440,13 +442,11 @@ to `ShellRegistrar.RegisterAssembly`/`UnregisterAssembly` with the machine scope
 `HKCR`, the machine hive, and `/regfile` never runs the hook - which is what the per-user
 installer relies on.
 
-The four registered class ids are still served by the vendored SharpShell classes, and the
-registrar still writes those type names, so an installation the registrar makes resolves exactly
-as it does today. Against `regasm /codebase /regfile` for the same build: 56 server records on
-both sides, no key written by only one of them, and the 12 remaining differences all name the
-native class on regasm's side, because both classes sit in one assembly and an import applies the
-last block. Moving the class ids onto the native classes, and retiring SharpShell, is the next
-step.
+The four registered class ids are served by the native handlers, and the registrar writes those
+type names too, so an installation the registrar makes resolves the same class regasm names.
+Against `regasm /codebase /regfile` for the same build: 56 server records on both sides, no key
+written by only one of them, and no differing value. Retiring the vendored SharpShell classes is
+the next step.
 
 ### 5.6 The context menu: one model, two front ends
 
@@ -484,9 +484,8 @@ size for the process lifetime, because an `HBITMAP` handed to `InsertMenuItemW` 
 menu. `QueryContextMenu` returns the item count in the low word, one less than the previous
 wrapper reported for the same menu.
 
-`ShellGuids.NativeMenuClsid` is the native handler's CLSID and is deliberately not written by
-the registrar: it exists so a harness can activate that class alone while the four registered
-CLSIDs still point at the SharpShell classes.
+Each native handler owns the class id it serves: it is the only declaration of that CLSID, so a
+harness that activates it activates exactly the class the shell activates.
 
 ## 6. Build the main project
 

@@ -21,10 +21,13 @@ namespace ApkShellext2.Registration {
     /// stores under <c>CLSID\{guid}</c> and its version subkey.
     /// </summary>
     internal sealed class ShellHandler {
-        internal ShellHandler(ShellHandlerKind kind, string clsid, string progId) {
+        private readonly string _className;
+
+        internal ShellHandler(ShellHandlerKind kind, string clsid, string progId, string className) {
             Kind = kind;
             Clsid = clsid;
             ProgId = progId;
+            _className = className;
         }
 
         internal ShellHandlerKind Kind { get; }
@@ -33,15 +36,21 @@ namespace ApkShellext2.Registration {
         internal string Clsid { get; }
 
         /// <summary>
-        /// ProgID, which is also the managed type full name that <c>mscoree.dll</c> activates
-        /// (<c>InprocServer32\Class</c>). The native handler declares the same string with
-        /// <c>[ProgId]</c>, so a regasm run and this registrar record one ProgID per class id.
+        /// ProgID the class is published under: the value of <c>CLSID\{guid}\ProgId</c> and the name of
+        /// the <c>&lt;ProgId&gt;</c> key that points back at the CLSID. The native handler declares the
+        /// same string with <c>[ProgId]</c>, so a regasm run and this registrar record one ProgID per
+        /// class id. It is not the type the CLR activates - that is <see cref="ClassName"/>.
         /// </summary>
         internal string ProgId { get; }
 
-        /// <summary>Managed type the CLR activates; same value as <see cref="ProgId"/>.</summary>
+        /// <summary>
+        /// The managed type <c>mscoree.dll</c> activates for <see cref="Clsid"/>: its full name. regasm
+        /// records it in four places (the CLSID key's default value, the <c>&lt;ProgId&gt;</c> key's
+        /// default value, <c>InprocServer32\Class</c> and the version subkey's <c>Class</c>), and the
+        /// shell reads <c>InprocServer32\Class</c> to decide which class to activate.
+        /// </summary>
         internal string ClassName {
-            get { return ProgId; }
+            get { return _className; }
         }
     }
 
@@ -75,16 +84,24 @@ namespace ApkShellext2.Registration {
         internal const string ThumbnailClsid = "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}";
 
         /// <summary>
-        /// CLSID used for the Windows 11 <c>ExplorerCommandHandler</c> registration. It is a
-        /// placeholder: on a Windows 11 host the shell tries to activate it, finds no registration,
-        /// and keeps using the classic verbs.
+        /// CLSID of the Windows 11 <c>ExplorerCommandHandler</c> registration. It has no implementation
+        /// yet, so on a 22H2+ host the shell fails to activate it and keeps using the classic verbs; the
+        /// registrar writes the value only from build 22621 and removes it again on uninstall.
         /// </summary>
-        internal const string ExplorerCommandClsid = "{7C2F1A44-3D51-4E8B-9C0A-5B6D2E3F4A11}";
+        internal const string ExplorerCommandClsid = "{0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}";
 
         internal const string ContextMenuProgId = "ApkShellext2.ApkContextMenu";
         internal const string IconHandlerProgId = "ApkShellext2.ApkIconHandler";
         internal const string InfoTipProgId = "ApkShellext2.ApkInfoTipHandler";
         internal const string ThumbnailProgId = "ApkShellext2.ApkThumbnailHandler";
+
+        //  The type that serves each CLSID: the [Guid] of the handler class in Shell\Native, which is
+        //  also the type mscoree.dll activates. regasm derives the same strings from the assembly, so
+        //  these constants only repeat what the attributes already say.
+        internal const string ContextMenuClassName = "ApkShellext2.Shell.Native.ContextMenuHandler";
+        internal const string IconHandlerClassName = "ApkShellext2.Shell.Native.IconHandlerNative";
+        internal const string InfoTipClassName = "ApkShellext2.Shell.Native.InfoTipHandlerNative";
+        internal const string ThumbnailClassName = "ApkShellext2.Shell.Native.ThumbnailHandlerNative";
 
         /// <summary>Registry key names and shell defined value names.</summary>
         internal const string ClsidKey = "CLSID";
@@ -155,10 +172,10 @@ namespace ApkShellext2.Registration {
 
         /// <summary>The four handlers, in the order regasm and the installers register them.</summary>
         internal static readonly ShellHandler[] Handlers = {
-            new ShellHandler(ShellHandlerKind.ContextMenu, ContextMenuClsid, ContextMenuProgId),
-            new ShellHandler(ShellHandlerKind.IconHandler, IconHandlerClsid, IconHandlerProgId),
-            new ShellHandler(ShellHandlerKind.InfoTip, InfoTipClsid, InfoTipProgId),
-            new ShellHandler(ShellHandlerKind.Thumbnail, ThumbnailClsid, ThumbnailProgId)
+            new ShellHandler(ShellHandlerKind.ContextMenu, ContextMenuClsid, ContextMenuProgId, ContextMenuClassName),
+            new ShellHandler(ShellHandlerKind.IconHandler, IconHandlerClsid, IconHandlerProgId, IconHandlerClassName),
+            new ShellHandler(ShellHandlerKind.InfoTip, InfoTipClsid, InfoTipProgId, InfoTipClassName),
+            new ShellHandler(ShellHandlerKind.Thumbnail, ThumbnailClsid, ThumbnailProgId, ThumbnailClassName)
         };
 
         /// <summary>

@@ -33,7 +33,7 @@ namespace ApkShellext2.Tests
         private const string ManagedCategoryClsid = "{62C8FE65-4EBB-45E7-B440-6E39B2CDBF29}";
         private const string InfoTipSlotName = "{00021500-0000-0000-C000-000000000046}";
         private const string ThumbnailSlotName = "{e357fccd-a995-4576-b01f-234630154e96}";
-        private const string ExplorerCommandClsid = "{7C2F1A44-3D51-4E8B-9C0A-5B6D2E3F4A11}";
+        private const string ExplorerCommandClsid = "{0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}";
         private const string DefaultIconBackupValueName = "SharpShell_Backup_DefaultIcon";
         private const int Windows10Build = 19045;
         private const int Windows11Build = 22621;
@@ -50,6 +50,30 @@ namespace ApkShellext2.Tests
             (InfoTipClsid, InfoTipProgId),
             (ThumbnailClsid, ThumbnailProgId)
         };
+
+        // The native handler that declares each class id: the type mscoree activates, which is what
+        // regasm records in the CLSID key's default value, InprocServer32\Class and the ProgID key.
+        private static readonly (string Clsid, string NativeType)[] s_nativeTypes =
+        {
+            (ContextMenuClsid, "ApkShellext2.Shell.Native.ContextMenuHandler"),
+            (IconHandlerClsid, "ApkShellext2.Shell.Native.IconHandlerNative"),
+            (InfoTipClsid, "ApkShellext2.Shell.Native.InfoTipHandlerNative"),
+            (ThumbnailClsid, "ApkShellext2.Shell.Native.ThumbnailHandlerNative")
+        };
+
+        private static string NativeTypeOf(string clsid)
+        {
+            foreach ((string registered, string nativeType) in s_nativeTypes)
+            {
+                if (string.Equals(registered, clsid, StringComparison.OrdinalIgnoreCase))
+                {
+                    return nativeType;
+                }
+            }
+
+            Assert.Fail("no native handler is recorded for " + clsid);
+            return null;
+        }
 
         private string _sandboxRoot;
 
@@ -247,10 +271,11 @@ namespace ApkShellext2.Tests
             foreach ((string clsid, string progId) in s_handlers)
             {
                 string clsidKey = @"CLSID\" + clsid;
-                Assert.That(Default(clsidKey), Is.EqualTo(progId), "the CLSID key's default value is the ProgID (regasm behaviour)");
+                string nativeType = NativeTypeOf(clsid);
+                Assert.That(Default(clsidKey), Is.EqualTo(nativeType), "the CLSID key's default value is the native handler");
                 Assert.That(
                     Default(clsidKey, _mirrorRoot),
-                    Is.EqualTo(progId),
+                    Is.EqualTo(nativeType),
                     "without the Wow6432Node mirror a 32 bit process gets REGDB_E_CLASSNOTREG (0x80040154) from CoCreateInstance");
                 Assert.That(Default(clsidKey + @"\ProgId"), Is.EqualTo(progId));
                 Assert.That(SubKeyNames(clsidKey + @"\Implemented Categories"), Does.Contain(ManagedCategoryClsid));
@@ -265,7 +290,7 @@ namespace ApkShellext2.Tests
             AssemblyName assembly = AssemblyName.GetAssemblyName(ProductDllPath);
             string inproc = @"CLSID\" + IconHandlerClsid + @"\InprocServer32";
             Assert.That(Default(inproc), Is.EqualTo("mscoree.dll"), "the managed server is activated through mscoree.dll");
-            Assert.That(Value(inproc, "Class"), Is.EqualTo(IconHandlerProgId));
+            Assert.That(Value(inproc, "Class"), Is.EqualTo(NativeTypeOf(IconHandlerClsid)));
             Assert.That(Value(inproc, "Assembly"), Is.EqualTo(assembly.FullName));
             Assert.That(Value(inproc, "RuntimeVersion"), Is.EqualTo("v4.0.30319"));
             Assert.That(Value(inproc, "ThreadingModel"), Is.EqualTo("Both"), "the shipping handlers are Both; Apartment would break Explorer's reentrant calls");
@@ -294,9 +319,10 @@ namespace ApkShellext2.Tests
 
             foreach ((string clsid, string progId) in s_handlers)
             {
-                Assert.That(Default(progId), Is.EqualTo(progId));
+                string nativeType = NativeTypeOf(clsid);
+                Assert.That(Default(progId), Is.EqualTo(nativeType), "regasm records the class name as the ProgID key's default value");
                 Assert.That(Default(progId + @"\CLSID"), Is.EqualTo(clsid));
-                Assert.That(Default(progId, _mirrorRoot), Is.EqualTo(progId), "the ProgID must exist in the 32 bit view too");
+                Assert.That(Default(progId, _mirrorRoot), Is.EqualTo(nativeType), "the ProgID must exist in the 32 bit view too");
                 Assert.That(Default(progId + @"\CLSID", _mirrorRoot), Is.EqualTo(clsid));
             }
         }
@@ -463,6 +489,33 @@ namespace ApkShellext2.Tests
             }
         }
 
+        /// <summary>
+        /// The two GUID-named slots the registrar writes are ours, so uninstall removes both values and
+        /// leaves the extension key itself alone: an empty extension key belongs to the user.
+        /// </summary>
+        [Test]
+        public void UnregisterRemovesTheInfoTipAndThumbnailSlots()
+        {
+            Register();
+            foreach (string extension in s_extensions)
+            {
+                string shellEx = extension.Substring(1) + ".1" + @"\ShellEx";
+                bool wroteInfoTip = Value(shellEx, InfoTipSlotName) != null;
+                Assert.That(wroteInfoTip, Is.EqualTo(extension != ".aab"), "precondition: the info tip slot of " + extension);
+            }
+
+            RegistrationApi.Unregister("User", SandboxOptions());
+
+            foreach (string extension in s_extensions)
+            {
+                string shellEx = extension.Substring(1) + ".1" + @"\ShellEx";
+                Assert.That(Value(shellEx, InfoTipSlotName), Is.Null, "the info tip slot is ours and goes away: " + extension);
+                Assert.That(Value(shellEx, ThumbnailSlotName), Is.Null, "the thumbnail slot is ours and goes away: " + extension);
+                Assert.That(Value(shellEx, InfoTipSlotName, _mirrorRoot), Is.Null, "the 32 bit view is cleared too: " + extension);
+                Assert.That(Value(shellEx, ThumbnailSlotName, _mirrorRoot), Is.Null, "the 32 bit view is cleared too: " + extension);
+            }
+        }
+
         [Test]
         public void UnregisterRestoresTheBackedUpDefaultIcon()
         {
@@ -538,7 +591,7 @@ namespace ApkShellext2.Tests
                 Assert.That(Value(string.Empty, clsid, _approvedRoot), Is.EqualTo(progId), "a machine install whitelists the handlers");
             }
 
-            Assert.That(Default(@"CLSID\" + IconHandlerClsid, _mirrorRoot), Is.EqualTo(IconHandlerProgId), "a machine install needs the 32 bit view as well");
+            Assert.That(Default(@"CLSID\" + IconHandlerClsid, _mirrorRoot), Is.EqualTo(NativeTypeOf(IconHandlerClsid)), "a machine install needs the 32 bit view as well");
         }
     }
 }

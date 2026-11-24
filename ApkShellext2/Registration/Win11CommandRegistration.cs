@@ -13,11 +13,11 @@ namespace ApkShellext2.Registration {
     /// </summary>
     internal static class Win11CommandRegistration {
         /// <summary>
-        /// The CLSID the registrar writes. No <c>IExplorerCommand</c> class is registered under it,
+        /// The CLSID the registrar writes. No <c>IExplorerCommand</c> class is registered under it yet,
         /// so the shell fails to activate it and falls back to the classic context menu handlers -
-        /// the intended behaviour on a Windows 11 host.
+        /// the intended behaviour on a Windows 11 host until the command class exists.
         /// </summary>
-        internal const string PlaceholderClsid = ShellGuids.ExplorerCommandClsid;
+        internal const string CommandClsid = ShellGuids.ExplorerCommandClsid;
 
         /// <summary>
         /// True when the Windows 11 command handler should be registered for a host of
@@ -37,7 +37,7 @@ namespace ApkShellext2.Registration {
                 throw new ArgumentException("A file class name is required.", nameof(className));
             }
             string shellEx = classesRoot + "\\" + className + "\\" + ShellGuids.ShellExKey;
-            writer.SetValue(shellEx, ShellGuids.ExplorerCommandHandlerValue, PlaceholderClsid);
+            writer.SetValue(shellEx, ShellGuids.ExplorerCommandHandlerValue, CommandClsid);
             report.AddKey(shellEx);
         }
 
@@ -51,7 +51,7 @@ namespace ApkShellext2.Registration {
             }
             string shellEx = classesRoot + "\\" + className + "\\" + ShellGuids.ShellExKey;
             string current = writer.GetValue(shellEx, ShellGuids.ExplorerCommandHandlerValue);
-            if (string.Equals(current, PlaceholderClsid, StringComparison.OrdinalIgnoreCase)) {
+            if (string.Equals(current, CommandClsid, StringComparison.OrdinalIgnoreCase)) {
                 writer.DeleteValue(shellEx, ShellGuids.ExplorerCommandHandlerValue);
                 report.AddKey(shellEx);
             }

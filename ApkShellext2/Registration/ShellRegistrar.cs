@@ -180,7 +180,10 @@ namespace ApkShellext2.Registration {
                 string clsidKey = classRoot + "\\" + ShellGuids.ClsidKey + "\\" + handler.Clsid;
                 string inprocKey = clsidKey + "\\" + ShellGuids.InprocServer32Key;
 
-                writer.SetDefaultValue(clsidKey, handler.ProgId);
+                // The class and the class id name the native handler: regasm records the type full name
+                // in the CLSID key's default value and in the ProgID key's default value, and the shell
+                // reads InprocServer32\Class to decide which class to activate.
+                writer.SetDefaultValue(clsidKey, handler.ClassName);
                 writer.SetDefaultValue(inprocKey, ShellGuids.InprocServerModule);
                 writer.SetValue(inprocKey, ShellGuids.ValueThreadingModel, ShellGuids.ThreadingModel);
                 writer.SetValue(inprocKey, ShellGuids.ValueClass, handler.ClassName);
@@ -202,7 +205,7 @@ namespace ApkShellext2.Registration {
 
                 writer.SetDefaultValue(clsidKey + "\\" + ShellGuids.ProgIdKey, handler.ProgId);
                 string progIdKey = classRoot + "\\" + handler.ProgId;
-                writer.SetDefaultValue(progIdKey, handler.ProgId);
+                writer.SetDefaultValue(progIdKey, handler.ClassName);
                 writer.SetDefaultValue(progIdKey + "\\" + ShellGuids.ClsidKey, handler.Clsid);
                 report.AddKey(progIdKey);
 

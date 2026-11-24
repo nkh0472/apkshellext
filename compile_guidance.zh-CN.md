@@ -299,9 +299,8 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 
 ### 5.5 Interop 与注册器
 
-四个注册到 shell 的 CLSID 仍由 vendored SharpShell(26,525 行)服务,`install*.bat` / `update.bat` 
-也照旧用 `regasm` 注册它们。下面两半与那个实现无关:`Interop\` 声明 shell 会调用的接口,
-`Registration\` 用托管代码写出与 `regasm` 相同的那套键。
+四个注册到 shell 的 CLSID 由 `ApkShellext2\Shell\Native` 里的原生处理器服务;vendored SharpShell 
+类已不再声明 COM 身份,只留在树里等下线。`install*.bat` / `update.bat` 也照旧用 `regasm` 注册它们。
 
 #### 5.5.1 声明规范(`Interop\`)
 
@@ -391,11 +390,9 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 `ShellRegistrar.RegisterAssembly`/`UnregisterAssembly` 的机器作用域:regasm 写的是 `HKCR`
 (机器 hive),而 `/regfile` 从不执行该钩子——按用户安装器正是靠这一点才安全。
 
-四个已注册 CLSID 目前仍由 vendored SharpShell 类服务,注册器写的也仍是那些类名,所以注册器安装的
-机器解析结果与今天一致。同一份构建与 `regasm /codebase /regfile` 逐键对比:两侧各 56 条服务器记录,
-没有任一侧独有的键,剩下的 12 处差异都只是 regasm 一侧写了原生类名(两个类在同一程序集里,导入时后
-一个块生效);关联层与 `install_user.bat` 的循环逐条一致。把 CLSID 切到原生类、并让 SharpShell
-下线是后续一步。
+四个已注册 CLSID 由原生处理器服务,注册器写的也是那些类名,所以注册器安装的机器解析到同一个类。
+同一份构建与 `regasm /codebase /regfile` 逐键对比:两侧各 56 条服务器记录,没有任一侧独有的键,
+也没有任何值不同。让 vendored SharpShell 下线是后续一步。
 
 ### 5.6 右键菜单:一份模型,两个前端
 
@@ -425,8 +422,7 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 标记与尺寸缓存到进程结束,因为交给 `InsertMenuItemW` 的 `HBITMAP` 必须活得比菜单更久。
 `QueryContextMenu` 在低字返回项数,比改造前包装器对同一份菜单报的数少一。
 
-`ShellGuids.NativeMenuClsid` 是原生处理器的 CLSID,注册器故意不写它:它存在只是为了让 harness
-能单独激活这个类,而四个已注册 CLSID 依旧指向 SharpShell 类。
+每个原生处理器自己声明它服务的那个 CLSID:那是该 CLSID 的唯一声明,所以 harness 激活的就是 shell 激活的同一个类。
 
 ## 6. 编译主工程
 

@@ -11,8 +11,8 @@ namespace ApkShellext2.Interop {
     /// <remarks>
     /// No handler implements this interface: the registrar only writes the
     /// <c>ExplorerCommandHandler</c> registration when <c>RtlGetVersion</c> reports Windows 11
-    /// 22H2 (build 22621) or newer, and that value points at the placeholder CLSID in
-    /// <c>Win11CommandRegistration.PlaceholderClsid</c>. The declaration fixes the registration
+    /// 22H2 (build 22621) or newer, and that value points at the dedicated CLSID in
+    /// <c>ShellGuids.ExplorerCommandClsid</c>. The declaration fixes the registration
     /// shape, which InteropLayoutTests pins.
     ///
     /// The <c>LPWSTR*</c> out parameters stay <see cref="IntPtr"/> on purpose: the implementation

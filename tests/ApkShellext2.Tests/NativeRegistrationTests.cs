@@ -61,17 +61,6 @@ namespace ApkShellext2.Tests
             "ApkShellext2.ApkThumbnailHandler",
         };
 
-        // The SharpShell derived class the registrar names for a class id: it is the managed type
-        // its InprocServer32 "Class" value holds. regasm names the native handler instead, which is
-        // the class that declares the class id.
-        private static readonly (string Clsid, string ServingType)[] s_servingTypes =
-        {
-            (ContextMenuClsid, "ApkShellext2.ApkContextMenu"),
-            (IconHandlerClsid, "ApkShellext2.ApkIconHandler"),
-            (InfoTipClsid, "ApkShellext2.ApkInfoTipHandler"),
-            (ThumbnailClsid, "ApkShellext2.ApkThumbnailHandler"),
-        };
-
         // The native classes, the class id each one declares and the ProgId it records for it.
         private static readonly (string TypeName, string Clsid)[] s_nativeHandlers =
         {
@@ -220,10 +209,8 @@ namespace ApkShellext2.Tests
         /// <summary>
         /// The server registration is what a regasm run and what the registrar write. Both describe
         /// the same four classes, the same InprocServer32 values, the same version sub key and the
-        /// same ProgId links. They disagree on the four values that name a class: regasm names the
-        /// native handler that declares the class id, the registrar names the SharpShell derived
-        /// handler class it has always activated. An import of either record points the class id at
-        /// a type of this assembly, and the native one is the class the class id belongs to.
+        /// same ProgId links, down to every value: both name the native handler that declares the
+        /// class id, so an import of either record points the class id at the class that owns it.
         /// </summary>
         [Test]
         public void TheRegasmFileAndTheRegistrarDescribeTheSameServerRegistration()
@@ -246,22 +233,8 @@ namespace ApkShellext2.Tests
                 Assert.That(regasmOnly, Is.Empty, "regasm writes server values the registrar does not: " + string.Join("; ", regasmOnly));
                 Assert.That(registrarOnly, Is.Empty, "the registrar writes server values regasm does not: " + string.Join("; ", registrarOnly));
 
-                // The only values the two disagree on, and the values they must hold: the four
-                // places that record the managed type of a class id (the CLSID default value, the
-                // InprocServer32 Class value in both keys, and the ProgID key).
-                string version = AssemblyName.GetAssemblyName(ProductDllPath).Version.ToString();
-                Dictionary<string, (string Regasm, string Registrar)> expectedDiffering =
-                    new Dictionary<string, (string Regasm, string Registrar)>(StringComparer.OrdinalIgnoreCase);
-                foreach ((string clsid, string nativeType) in s_sharedClsids)
-                {
-                    string inproc = "CLSID\\" + clsid + "\\InprocServer32";
-                    string progId = ServingTypeOf(clsid);
-                    expectedDiffering["CLSID\\" + clsid + "::(default)"] = (nativeType, progId);
-                    expectedDiffering[inproc + "::Class"] = (nativeType, progId);
-                    expectedDiffering[inproc + "\\" + version + "::Class"] = (nativeType, progId);
-                    expectedDiffering[progId + "::(default)"] = (nativeType, progId);
-                }
-
+                // The two records must agree down to every value: regasm and the registrar both
+                // name the native handler that declares the class id.
                 List<string> differing = fromRegistrar.Keys
                     .Where(k => !string.Equals(fromRegistrar[k], fromRegasm[k], StringComparison.OrdinalIgnoreCase))
                     .OrderBy(k => k, StringComparer.OrdinalIgnoreCase)
@@ -271,14 +244,16 @@ namespace ApkShellext2.Tests
                     differing.Select(k => k + ": regasm=" + fromRegasm[k] + " registrar=" + fromRegistrar[k]));
                 Assert.That(
                     differing,
-                    Is.EquivalentTo(expectedDiffering.Keys),
-                    "the only values the two disagree on are the ones that name the managed type of a class id." +
+                    Is.Empty,
+                    "regasm and the registrar must record the same server registration." +
                     Environment.NewLine + report);
 
-                foreach (KeyValuePair<string, (string Regasm, string Registrar)> expected in expectedDiffering)
+                foreach ((string clsid, string nativeType) in s_sharedClsids)
                 {
-                    Assert.That(fromRegasm[expected.Key], Is.EqualTo(expected.Value.Regasm), "regasm names the native handler: " + expected.Key);
-                    Assert.That(fromRegistrar[expected.Key], Is.EqualTo(expected.Value.Registrar), "the registrar names the SharpShell derived class: " + expected.Key);
+                    string inproc = "CLSID\\" + clsid + "\\InprocServer32";
+                    Assert.That(fromRegistrar["CLSID\\" + clsid + "::(default)"], Is.EqualTo(nativeType), "the CLSID key names the native handler: " + clsid);
+                    Assert.That(fromRegistrar[inproc + "::Class"], Is.EqualTo(nativeType), "InprocServer32\\Class names the native handler: " + clsid);
+                    Assert.That(fromRegasm[inproc + "::Class"], Is.EqualTo(nativeType), "regasm names the native handler: " + clsid);
                 }
 
                 // One class declares each class id, so regasm writes one block per class id: a .reg
@@ -380,19 +355,6 @@ namespace ApkShellext2.Tests
                 .ToList();
             Assert.That(hooks.Count, Is.EqualTo(1), type.Name + " must declare exactly one method with " + attributeType.Name + ".");
             return hooks[0];
-        }
-
-        private static string ServingTypeOf(string clsid)
-        {
-            foreach ((string registered, string servingType) in s_servingTypes)
-            {
-                if (string.Equals(registered, clsid, StringComparison.OrdinalIgnoreCase))
-                {
-                    return servingType;
-                }
-            }
-
-            throw new ArgumentException("no serving type is recorded for " + clsid, nameof(clsid));
         }
 
         private string NewSandbox()
