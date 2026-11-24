@@ -57,6 +57,13 @@ namespace ApkShellext2 {
 
         public virtual AppType Type { get { return AppType.AndroidApp; } }
 
+        // Platform facts. A container that does not declare them answers with the
+        // empty value; the readers that do parse a manifest override all four.
+        public virtual string MinSdk { get { return ""; } }
+        public virtual string TargetSdk { get { return ""; } }
+        public virtual bool? Debuggable { get { return null; } }
+        public virtual string Packer { get { return ""; } }
+
         // use for other information, or file type specific info
         public virtual void setFlag(string flag, object value) {
             if (Flags == null)

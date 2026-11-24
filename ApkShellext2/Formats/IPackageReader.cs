@@ -5,7 +5,8 @@ using System.Globalization;
 namespace ApkShellext2 {
     /// <summary>
     /// Contract every package reader exposes to the shell extension layer:
-    /// identity/version metadata plus the icon and per-file flags.
+    /// identity/version metadata, the platform facts the manifest declares,
+    /// the icon and per-file flags.
     /// AppPackageReader is the base implementation; PackageReaderFactory is
     /// the only place that decides which concrete reader is used.
     /// </summary>
@@ -25,6 +26,19 @@ namespace ApkShellext2 {
         Bitmap Icon { get; }
         string AppID { get; }
         AppPackageReader.AppType Type { get; }
+        // android:minSdkVersion as the manifest writes it: "21", or a codename such
+        // as "S". Empty when the attribute is absent or the container has no android
+        // manifest. Kept as text on purpose - a codename carries information that an
+        // integer conversion would throw away.
+        string MinSdk { get; }
+        // android:targetSdkVersion, same rules as MinSdk
+        string TargetSdk { get; }
+        // android:debuggable. Null when the attribute is not written at all, which is
+        // not the same thing as an explicit false.
+        bool? Debuggable { get; }
+        // Packer/hardening tool named by the APK signing block; empty when the
+        // container has no signing block or it names none of the known tools
+        string Packer { get; }
 
         // use for other information, or file type specific info
         void setFlag(string flag, object value);

@@ -90,8 +90,9 @@ namespace ApkShellext2.Shell.Commands {
                     else if (t == NonLocalizeResources.varLastModify)
                         replacement = File.GetLastWriteTime(reader.FileName).ToString("dd/MM/yy HH:mm:ss");
                     else if (t == NonLocalizeResources.varDebuggable)
+                        // an unwritten flag means the platform default, which is not debuggable
                         replacement = (reader.Type == AppPackageReader.AppType.AndroidApp) ?
-                            (((ApkReader)reader).Debuggable ? "Debug" : "Release") : "";
+                            (reader.Debuggable == true ? "Debug" : "Release") : "";
                     else if (reader.Type == AppPackageReader.AppType.AndroidApp) {
                         try {
                             var apkreader = reader as ApkReader;

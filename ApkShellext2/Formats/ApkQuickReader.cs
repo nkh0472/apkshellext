@@ -1124,6 +1124,7 @@ namespace ApkQuickReader
         private IArchive zip;
         private byte[] resources;
         private byte[] manifest;
+        private ManifestFacts facts;
 
         private const string AndroidManifestXML = @"androidmanifest.xml";
         private const string Resources_arsc = @"resources.arsc";
@@ -1135,8 +1136,6 @@ namespace ApkQuickReader
         private const string AttrIcon = @"icon";
         private const string AttrPackage = @"package";
         //private const string AttrName = @"name";
-        private const string AttrDebuggable = @"debuggable";
-        private const string ConstTrue = "true";
         private const string ConstFalse = "false";
         private const string viewportWidth = "viewportWidth";
         private const string viewportHeight = "viewportHeight";
@@ -1210,7 +1209,27 @@ namespace ApkQuickReader
         public override Bitmap Icon => getImage(TagApplication, AttrIcon, new Size(64, 64));
 
         public override string PackageName => getAttribute(TagManifest, AttrPackage);
-        public bool Debuggable => getAttribute(TagApplication, AttrDebuggable) == ConstTrue;
+
+        public override string MinSdk => Facts().MinSdk;
+        public override string TargetSdk => Facts().TargetSdk;
+        public override bool? Debuggable => Facts().Debuggable;
+
+        /// <summary>
+        /// The sdk levels and the debuggable flag, walked once from the manifest this
+        /// reader already decoded. A manifest that does not walk leaves the facts empty
+        /// instead of failing the identity attributes, which have their own paths.
+        /// </summary>
+        private ManifestFacts Facts() {
+            if (facts == null) {
+                try {
+                    facts = NewAxmlParser().ReadManifestFacts(manifest);
+                } catch (Exception ex) {
+                    Log("manifest facts unreadable: " + ex.Message);
+                    facts = new ManifestFacts();
+                }
+            }
+            return facts;
+        }
 
         /// <summary>
         /// get a string from manifest.xml
@@ -1970,6 +1989,7 @@ namespace ApkQuickReader
             if (disposing) {
                 resources = null;
                 manifest = null;
+                facts = null;
                 if (zip != null)
                     zip.Dispose();
             }

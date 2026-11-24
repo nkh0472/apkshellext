@@ -87,6 +87,12 @@ namespace ApkShellext2 {
             }
         }
 
+        // an appx declares no android platform facts and carries no apk signing block
+        public override string MinSdk { get { return ""; } }
+        public override string TargetSdk { get { return ""; } }
+        public override bool? Debuggable { get { return null; } }
+        public override string Packer { get { return ""; } }
+
         public override string AppName {
             get {
                 return appname;

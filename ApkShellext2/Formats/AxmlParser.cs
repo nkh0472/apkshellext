@@ -79,6 +79,122 @@ namespace ApkQuickReader
         }
 
         /// <summary>
+        /// The attributes the platform reads are the ones in the android namespace. A
+        /// manifest may carry the same attribute name in another namespace - tools: is the
+        /// common one - and those values are build hints, not what the device sees.
+        /// </summary>
+        private const string AndroidNamespace = "http://schemas.android.com/apk/res/android";
+
+        // manifest is the root, so its uses-sdk and application children sit at depth 2
+        private const int FactsElementDepth = 2;
+
+        // ns, name, rawValue, typedValue(size, res0, dataType, data)
+        private const int AttributeStructSize = 20;
+
+        /// <summary>
+        /// Reads the sdk levels and the debuggable flag in one walk of an already decoded
+        /// manifest. The owning reader keeps the manifest bytes for its identity
+        /// attributes, so this never decodes the container a second time.
+        /// A manifest too damaged to walk throws; the reader decides what empty means.
+        /// </summary>
+        internal ManifestFacts ReadManifestFacts(byte[] xml)
+        {
+            ManifestFacts facts = new ManifestFacts();
+            if (xml == null || xml.Length < 8) return facts;
+
+            using (MemoryStream ms = new MemoryStream(xml))
+            using (BinaryReader br = new BinaryReader(ms))
+            {
+                ms.Seek(8, SeekOrigin.Begin); // skip the RES_XML header
+                int depth = 0;
+                while (ms.Position < ms.Length)
+                {
+                    long chunkPos = ms.Position;
+                    RES_TYPE chunkType = (RES_TYPE)br.ReadInt16();
+                    short headerSize = br.ReadInt16();
+                    int chunkSize = br.ReadInt32();
+                    if (chunkType == RES_TYPE.RES_XML_START_ELEMENT_TYPE)
+                    {
+                        ms.Seek(8 + 4, SeekOrigin.Current); // line number & comment
+                        string tag = QuickSearchCompressedXmlStringPoolAndResMap(xml, br.ReadUInt32());
+                        depth++;
+                        if (depth == FactsElementDepth &&
+                            (string.Equals(tag, "uses-sdk", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(tag, "application", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            ReadFactsAttributes(ms, br, xml, chunkPos, headerSize, chunkSize, tag, facts);
+                        }
+                    }
+                    else if (chunkType == RES_TYPE.RES_XML_END_ELEMENT_TYPE)
+                    {
+                        if (depth > 0) depth--;
+                    }
+                    SeekNextChunk(ms, chunkPos, chunkSize);
+                }
+            }
+            return facts;
+        }
+
+        /// <summary>
+        /// Reads the attributes of the uses-sdk or application element the walk just
+        /// stopped on. Only the android namespace is accepted, and every attribute is
+        /// checked against the element chunk before it is read.
+        /// </summary>
+        private void ReadFactsAttributes(MemoryStream ms, BinaryReader br, byte[] xml,
+            long chunkPos, short headerSize, int chunkSize, string tag, ManifestFacts facts)
+        {
+            int attributeStart = br.ReadInt16();
+            int attributeSize = br.ReadInt16();
+            int attributeCount = br.ReadInt16();
+            if (attributeSize < AttributeStructSize)
+                throw new InvalidDataException("attribute entry of " + tag + " claims " + attributeSize + " bytes");
+
+            for (int i = 0; i < attributeCount; i++)
+            {
+                long offset = headerSize + (long)attributeStart + (long)attributeSize * i;
+                if (offset < 0 || offset + AttributeStructSize > chunkSize ||
+                    chunkPos + offset + AttributeStructSize > ms.Length)
+                    throw new InvalidDataException("attribute " + i + " of " + tag + " falls outside its chunk");
+
+                ms.Seek(chunkPos + offset, SeekOrigin.Begin);
+                uint namespaceRef = br.ReadUInt32();
+                uint nameRef = br.ReadUInt32();
+                uint rawValue = br.ReadUInt32();
+                short valueSize = br.ReadInt16();
+                ms.Seek(1, SeekOrigin.Current); // res0, always zero
+                DATA_TYPE dataType = (DATA_TYPE)br.ReadByte();
+                uint data = br.ReadUInt32();
+                if (valueSize < 8)
+                    throw new InvalidDataException("attribute value of " + tag + " claims " + valueSize + " bytes");
+
+                // a string attribute carries its pool index in both rawValue and data;
+                // the manifests that leave the typed value empty still declare it raw
+                if (dataType == DATA_TYPE.TYPE_NULL && rawValue != 0xffffffffu)
+                {
+                    dataType = DATA_TYPE.TYPE_STRING;
+                    data = rawValue;
+                }
+
+                if (namespaceRef == 0xffffffff) continue;
+                if (QuickSearchStringPool(xml, namespaceRef) != AndroidNamespace) continue;
+                string name = QuickSearchCompressedXmlStringPoolAndResMap(xml, nameRef);
+                if (string.Equals(tag, "uses-sdk", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.Equals(name, "minSdkVersion", StringComparison.OrdinalIgnoreCase))
+                        facts.MinSdk = convertData(xml, dataType, data, false);
+                    else if (string.Equals(name, "targetSdkVersion", StringComparison.OrdinalIgnoreCase))
+                        facts.TargetSdk = convertData(xml, dataType, data, false);
+                }
+                else if (string.Equals(name, "debuggable", StringComparison.OrdinalIgnoreCase))
+                {
+                    string text = convertData(xml, dataType, data, false);
+                    if (text == "true") facts.Debuggable = true;
+                    else if (text == "false") facts.Debuggable = false;
+                }
+            }
+        }
+
+        /// <summary>
         /// Icon attribute resolution: see ArscParser.ResolveIconValue. The AXML side only
         /// forwards, because the rules are about the resource table, not about the binary xml.
         /// </summary>

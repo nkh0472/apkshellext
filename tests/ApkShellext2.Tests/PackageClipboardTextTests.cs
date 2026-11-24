@@ -282,6 +282,13 @@ namespace ApkShellext2.Tests
         public Bitmap Icon { get { return null; } }
         public AppPackageReader.AppType Type { get { return AppPackageReader.AppType.AndroidApp; } }
 
+        // the copy command only asks for identity and version, so the platform facts stay
+        // at their empty defaults here
+        public string MinSdk { get { return ""; } }
+        public string TargetSdk { get { return ""; } }
+        public bool? Debuggable { get { return null; } }
+        public string Packer { get { return ""; } }
+
         public StubReader()
         {
             PackageName = "";

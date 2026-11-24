@@ -129,6 +129,13 @@ namespace ApkShellext2.Tests
             public AppPackageReader.AppType Type { get; set; }
             public bool Disposed { get; private set; }
 
+            // the writer emits the twelve identity columns, so the platform facts are
+            // present but unused by this fixture
+            public string MinSdk { get { return ""; } }
+            public string TargetSdk { get { return ""; } }
+            public bool? Debuggable { get { return null; } }
+            public string Packer { get { return ""; } }
+
             public FakeReader()
             {
                 AppName = "Example";

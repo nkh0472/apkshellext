@@ -24,6 +24,7 @@ namespace ApkShellext2
     {
         private IArchive zip;
         private byte[] manifest;
+        private ManifestFacts facts;
 
         private const string AndroidManifestXML = @"base/manifest/androidmanifest.xml";
         private const string TagApplication = @"manifest/application";
@@ -89,6 +90,32 @@ namespace ApkShellext2
         public override Bitmap Icon => getImage(TagApplication, AttrIcon, new Size(64, 64));
 
         public override string PackageName => getAttribute(TagManifest, AttrPackage);
+
+        public override string MinSdk => Facts().MinSdk;
+        public override string TargetSdk => Facts().TargetSdk;
+        public override bool? Debuggable => Facts().Debuggable;
+
+        /// <summary>
+        /// The sdk levels and the debuggable flag, walked once from the base module
+        /// manifest this reader already decoded. A manifest that does not walk leaves the
+        /// facts empty instead of failing the identity attributes, which have their own paths.
+        /// </summary>
+        private ManifestFacts Facts()
+        {
+            if (facts == null)
+            {
+                try
+                {
+                    facts = NewAxmlParser().ReadManifestFacts(manifest);
+                }
+                catch (Exception ex)
+                {
+                    Log("manifest facts unreadable: " + ex.Message);
+                    facts = new ManifestFacts();
+                }
+            }
+            return facts;
+        }
 
         // get an icon with size
         public override Bitmap getIcon(Size size)
@@ -643,6 +670,7 @@ namespace ApkShellext2
             if (disposing)
             {
                 manifest = null;
+                facts = null;
                 if (zip != null)
                     zip.Dispose();
             }

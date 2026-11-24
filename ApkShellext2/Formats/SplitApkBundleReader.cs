@@ -167,6 +167,11 @@ namespace ApkQuickReader {
         public override string Revision { get { EnsureInner(); return inner.Revision; } }
         public override string Publisher { get { EnsureInner(); return inner.Publisher; } }
         public override string AppID { get { EnsureInner(); return inner.AppID; } }
+        // the base apk carries the manifest and the signing block of the whole bundle
+        public override string MinSdk { get { EnsureInner(); return inner.MinSdk; } }
+        public override string TargetSdk { get { EnsureInner(); return inner.TargetSdk; } }
+        public override bool? Debuggable { get { EnsureInner(); return inner.Debuggable; } }
+        public override string Packer { get { EnsureInner(); return inner.Packer; } }
         public override CultureInfo Culture {
             get { EnsureInner(); return inner.Culture; }
             set { EnsureInner(); inner.Culture = value; }
