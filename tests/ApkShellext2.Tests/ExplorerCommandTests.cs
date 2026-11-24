@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using ApkShellext2.Shell.Commands;
 using ApkShellext2.Shell.Native;
 using NUnit.Framework;
@@ -48,10 +50,14 @@ namespace ApkShellext2.Tests
         private string originalRotatedPath;
         private Action<IReadOnlyList<string>> originalPreferences;
         private Action<IReadOnlyList<string>> originalExport;
+        private CultureInfo originalCulture;
+        private CultureInfo originalUICulture;
 
         [SetUp]
         public void RedirectTheLogAndForgetTheActionHooks()
         {
+            originalCulture = Thread.CurrentThread.CurrentCulture;
+            originalUICulture = Thread.CurrentThread.CurrentUICulture;
             originalLogPath = (string)LogPathField.GetValue(null);
             originalRotatedPath = (string)RotatedPathField.GetValue(null);
             logDirectory = Path.Combine(Path.GetTempPath(), "apkshellext-command-" + Guid.NewGuid().ToString("N"));
@@ -66,6 +72,7 @@ namespace ApkShellext2.Tests
         [TearDown]
         public void RestoreTheLogAndTheActionHooks()
         {
+            RestoreCulture();
             CommandActions.PreferencesHandler = originalPreferences;
             CommandActions.ExportHandler = originalExport;
             LogPathField.SetValue(null, originalLogPath);
@@ -74,10 +81,35 @@ namespace ApkShellext2.Tests
             try { Directory.Delete(logDirectory, true); } catch { }
         }
 
+        private void RestoreCulture()
+        {
+            Thread.CurrentThread.CurrentCulture = originalCulture;
+            Thread.CurrentThread.CurrentUICulture = originalUICulture;
+        }
+
+        /// <summary>Makes the thread culture look like the host the shell extension runs on,
+        /// while the language setting stays under the test's control.</summary>
+        private static void UseHostCulture(string name)
+        {
+            CultureInfo culture = new CultureInfo(name);
+            Thread.CurrentThread.CurrentCulture = culture;
+            Thread.CurrentThread.CurrentUICulture = culture;
+        }
+
         private static SettingsScope Chinese()
         {
+            return MenuSettings("zh-CN");
+        }
+
+        private static SettingsScope English()
+        {
+            return MenuSettings("en-US");
+        }
+
+        private static SettingsScope MenuSettings(string language)
+        {
             return new SettingsScope()
-                .Set("Language", "zh-CN")
+                .Set("Language", language)
                 .Set("CheckForUpdates", "False")
                 .Set("RenamePattern", "%AppName%_%Version%")
                 .Set("ShowGooglePlay", "True")
@@ -104,6 +136,51 @@ namespace ApkShellext2.Tests
                 } finally {
                     Marshal.FreeCoTaskMem(text);
                 }
+            }
+        }
+
+        [Test]
+        public void TheRootTitleFollowsTheLanguageSettingOnAnEnglishHost()
+        {
+            UseHostCulture("en-US");
+            Assert.That(Thread.CurrentThread.CurrentUICulture.Name, Is.EqualTo("en-US"));
+
+            using (Chinese()) {
+                string modern = ModernTitle();
+                Assert.That(modern, Is.EqualTo("APK文件助手"),
+                            "the setting, not the host culture, must pick the menu title");
+
+                CommandModel model = CommandCatalog.Build(TwoPaths);
+                Assert.That(model.Root.Text, Is.EqualTo(modern),
+                            "the modern title and the model title must be the same text");
+            }
+        }
+
+        [Test]
+        public void TheRootTitleFollowsTheLanguageSettingOnAChineseHost()
+        {
+            UseHostCulture("zh-CN");
+            Assert.That(Thread.CurrentThread.CurrentUICulture.Name, Is.EqualTo("zh-CN"));
+
+            using (English()) {
+                string modern = ModernTitle();
+                Assert.That(modern, Is.EqualTo("APK Shell Extension"),
+                            "the setting, not the host culture, must pick the menu title");
+
+                CommandModel model = CommandCatalog.Build(TwoPaths);
+                Assert.That(model.Root.Text, Is.EqualTo(modern),
+                            "the modern title and the model title must be the same text");
+            }
+        }
+
+        [TestCase("en-US", "zh-CN")]
+        [TestCase("zh-CN", "en-US")]
+        public void TheModernTitleMatchesTheClassicModelWhenTheHostCultureDiffers(string hostCulture, string language)
+        {
+            UseHostCulture(hostCulture);
+            using (MenuSettings(language)) {
+                string modern = ModernTitle();
+                Assert.That(modern, Is.EqualTo(CommandCatalog.Build(TwoPaths).Root.Text));
             }
         }
 
@@ -493,6 +570,18 @@ namespace ApkShellext2.Tests
             Type type = ProductApi.Assembly.GetType(name, false);
             Assert.That(type, Is.Not.Null, "missing type " + name);
             return type;
+        }
+
+        private static string ModernTitle()
+        {
+            IExplorerCommandNative command = NewCommand(TwoPaths);
+            IntPtr text;
+            Assert.That(command.GetTitle(IntPtr.Zero, out text), Is.EqualTo(S_OK));
+            try {
+                return Marshal.PtrToStringUni(text);
+            } finally {
+                Marshal.FreeCoTaskMem(text);
+            }
         }
 
         private static IExplorerCommandNative NewCommand(params string[] paths)
