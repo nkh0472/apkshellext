@@ -24,9 +24,16 @@ REM from 3.5.1 leaves no stale private assembly next to the DLL), the new files
 REM are copied in and the SAME registration scope is repaired in place. Nothing
 REM is pushed to the registry that points at this package folder itself.
 REM
-REM update.bat is never backed up or restored: Windows keeps a running .bat
-REM open, so it cannot be moved. It is a helper, not product content; a rollback
-REM restores the eight product files (dll, five bats, the two libwebp dlls).
+REM update.bat is part of the package payload. A migration update (package
+REM extracted anywhere) moves the installed copy into the backup folder, so
+REM /rollback restores the file set that was there before the update. An
+REM in-place update (package extracted over the install folder) leaves the
+REM running script alone while this window reads it; /rollback then deletes it,
+REM because the backup holds no update.bat - the case for every install made
+REM before update.bat shipped.
+REM
+REM The final step reads every handler slot back from the file class: a slot is
+REM a subkey whose default value is the class id, and only that shape is loaded.
 REM
 REM Registration note: install*.bat and this script each carry their own regasm /
 REM HKCU association logic and must stay byte-for-byte equivalent for the same
@@ -120,10 +127,7 @@ REM The on-disk dll is already new in mode A (the package was extracted over the
 REM registered folder), so only the registered Assembly version survives there;
 REM mode B still sees the old dll and reads FileVersionInfo. Trailing slashes and
 REM letter case are ignored because both sides come from different sources.
-set "MODE="
-set "T1=%TARGET%"
-set "T2=%~dp0"
-for /f "usebackq delims=" %%M in (`powershell -NoProfile -Command "if (($env:T1).TrimEnd([char]92) -ieq ($env:T2).TrimEnd([char]92)) { 'A' } else { 'B' }"`) do set "MODE=%%M"
+call :detect_mode
 if not defined MODE (
     set "FAILMSG=could not compare the registered folder with this folder; run update.bat from the extracted package again"
     goto :failmsg
@@ -195,8 +199,10 @@ if errorlevel 1 (
 ECHO     file locks released
 
 REM === 4) backup ===
-REM Only the eight product files are moved. update.bat cannot be moved while it
-REM runs, so it is excluded from backup and from rollback by design.
+REM The eight product files are moved into the backup folder. update.bat joins
+REM them in migration mode only: there it is not the script that is running, so
+REM /rollback can put the previous package's update.bat back. In in-place mode
+REM the running script is the install folder copy and stays where it is.
 ECHO.
 ECHO [4/7] Backing up the current installation...
 call :read_old_version
@@ -228,8 +234,19 @@ for %%F in (%LEGACY%) do (
         set /a OBSOLETE+=1
     )
 )
+REM The previous package's update.bat belongs to the old file set as well, but
+REM only a migration update can move it: in-place mode is reading this file.
+if /I not "%MODE%"=="A" (
+    if exist "%TARGET%\update.bat" (
+        move /y "%TARGET%\update.bat" "%BACKUP%\update.bat" >nul 2>&1
+        if errorlevel 1 (
+            set "FAILMSG=could not move the previous update.bat into the backup folder; close any program using it and retry"
+            goto :fail_rollback
+        )
+    )
+)
 ECHO     backup folder: %BACKUP%
-if not "%OBSOLETE%"=="0" ECHO     moved %OBSOLETE% file(s) that 3.6.0 no longer ships out of the install folder
+if not "%OBSOLETE%"=="0" ECHO     moved %OBSOLETE% file(s) this package no longer ships out of the install folder
 
 REM === 5) copy + register ===
 ECHO.
@@ -342,7 +359,26 @@ if /I not "%CMP%"=="OK" (
 ) else (
     ECHO     CodeBase: %CB%
 )
+REM The registration is only as good as what the shell reads back: every handler
+REM slot is a subkey whose default value is the class id of this package, under
+REM the file class each extension resolves to. A missing or foreign value there
+REM means Explorer will not load the handler, so it is an error, not a warning.
+if /I "%SCOPE%"=="machine" (
+    set "VERIFYROOTS=HKLM\SOFTWARE\Classes HKLM\SOFTWARE\WOW6432Node\Classes"
+) else (
+    set "VERIFYROOTS=HKCU\SOFTWARE\Classes HKCU\SOFTWARE\Classes\Wow6432Node"
+)
+set "SLOTFAIL="
+call :verify_slots
 call :print_version
+if defined SLOTFAIL (
+    ECHO.
+    ECHO ERROR: the handler slots read back above do not match this package, so Explorer will not load the handlers.
+    ECHO Repair it by running install.bat or install_user.bat in "%TARGET%" again, then run update.bat again.
+    if defined STAGE if exist "%STAGE%" rmdir /s /q "%STAGE%" >nul 2>&1
+    if not defined QUIET pause
+    exit /b 1
+)
 ECHO.
 ECHO Update finished. If icons still look stale, close and reopen Explorer windows.
 if not defined QUIET pause
@@ -356,6 +392,14 @@ set "ARG=%~1"
 if /I "%ARG%"=="/quiet" set "QUIET=1"
 if /I "%ARG%"=="/ngen" set "NGEN=1"
 if /I "%ARG%"=="/rollback" set "ROLLBACK=1"
+goto :eof
+
+:detect_mode
+REM A = this package is the install folder itself, B = it has to be copied over
+set "MODE="
+set "T1=%TARGET%"
+set "T2=%SCRIPTDIR%"
+for /f "usebackq delims=" %%M in (`powershell -NoProfile -Command "if (($env:T1).TrimEnd([char]92) -ieq ($env:T2).TrimEnd([char]92)) { 'A' } else { 'B' }"`) do set "MODE=%%M"
 goto :eof
 
 :try_install
@@ -421,12 +465,76 @@ ECHO     ApkShellext2.dll FileVersion: %NEWVER%
 ECHO     install folder: %TARGET%
 goto :eof
 
+:verify_slots
+REM Every extension in every class root of the registration scope: 8 icon slots,
+REM info-tip and context menu for the seven extensions that have them, and the
+REM thumbnail slot for .apk - 23 slots per root, 46 for a two-root scope. The
+REM ids mirror ApkShellext2\Registration\ShellGuids.cs and install_user.bat.
+set "SLOTOK=0"
+set "SLOTBAD=0"
+for %%R in (%VERIFYROOTS%) do for %%E in (.apk .ipa .aab .appx .appxbundle .apks .apkm .xapk) do call :verify_class "%%R" "%%E"
+if not "%SLOTBAD%"=="0" set "SLOTFAIL=1"
+if "%SLOTBAD%"=="0" ECHO     %SLOTOK% handler slot(s) read back from the file class of all eight extensions
+goto :eof
+
+:verify_class
+REM %1 = classes root, %2 = extension with the dot. The shell loads a handler
+REM from the file class the extension points at (the extension key's default
+REM value), never from the extension key itself, so the class is resolved the
+REM same way the registrar wrote it - including the '<name>.1' fallback.
+set "VC_KEY=%~1\%~2"
+set "VC_CLASS="
+for /f "tokens=2,*" %%A in ('reg query "%VC_KEY%" /ve 2^>nul ^| findstr /i "REG_SZ"') do set "VC_CLASS=%%B"
+if not defined VC_CLASS set "VC_CLASS=%~2"
+if "%VC_CLASS:~0,1%"=="." set "VC_CLASS=%VC_CLASS:~1%.1"
+call :checkslot "%~1\%VC_CLASS%" "IconHandler" "{1F869CEE-4FDA-35D9-896F-43975A87D1F6}"
+if /I not "%~2"==".aab" (
+    call :checkslot "%~1\%VC_CLASS%" "{00021500-0000-0000-C000-000000000046}" "{946435A5-FE96-416D-99DB-E94EE9FB46C8}"
+    call :checkslot "%~1\%VC_CLASS%" "ContextMenuHandlers\ApkContextMenu" "{DCB629FC-F86F-456F-8E24-98B9B2643A9B}"
+)
+if /I "%~2"==".apk" call :checkslot "%~1\%VC_CLASS%" "{E357FCCD-A995-4576-B01F-234630154E96}" "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}"
+goto :eof
+
+:checkslot
+REM %1 = file class key, %2 = subkey below ShellEx, %3 = class id expected there
+set "SLOTVAL="
+for /f "tokens=2,*" %%a in ('reg query "%~1\ShellEx\%~2" /ve 2^>nul ^| findstr /i "REG_SZ"') do set "SLOTVAL=%%b"
+if /i "%SLOTVAL%"=="%~3" (
+    set /a SLOTOK+=1
+    goto :eof
+)
+set /a SLOTBAD+=1
+if not defined SLOTVAL ECHO     ERROR: %~1\ShellEx\%~2 is missing
+if defined SLOTVAL ECHO     ERROR: %~1\ShellEx\%~2 holds "%SLOTVAL%", expected "%~3"
+goto :eof
+
 :restore_backup
 if not defined BACKUP goto :eof
 if not exist "%BACKUP%" goto :eof
 for %%F in (%PRODUCT% %LEGACY%) do if exist "%BACKUP%\%%F" move /y "%BACKUP%\%%F" "%TARGET%\%%F" >nul 2>&1
+call :restore_updater
 rmdir "%BACKUP%" >nul 2>&1
 set "RESTORED=1"
+goto :eof
+
+:restore_updater
+REM A migration update moves the installed update.bat into the backup folder, so
+REM /rollback restores it and the file set is exactly what was there before. An
+REM install that predates update.bat has no such file in the backup, so the copy
+REM this update placed in the install folder has to go as well.
+if not defined BACKUP goto :eof
+if exist "%BACKUP%\update.bat" (
+    move /y "%BACKUP%\update.bat" "%TARGET%\update.bat" >nul 2>&1
+    goto :eof
+)
+if not exist "%TARGET%\update.bat" goto :eof
+if /I not "%MODE%"=="A" (
+    del /f /q "%TARGET%\update.bat" >nul 2>&1
+    goto :eof
+)
+REM In-place mode has no file to delete while this window reads it: the caller
+REM ends the script with the deletion (see :rollback).
+set "UPDATER_SELFDEL=1"
 goto :eof
 
 :latest_backup
@@ -457,7 +565,7 @@ goto :eof
 REM Same registration result as install_user.bat: regasm writes an HKCR .reg
 REM file, the root is rewritten to HKCU\Software\Classes, the associations are
 REM added explicitly, and an existing DefaultIcon backup is never overwritten.
-ECHO     Registering per-user shell handlers (HKCU)...
+ECHO     Importing the per-user class registration (HKCU)...
 set "REGF=%TEMP%\apksext_update_%RANDOM%.reg"
 set "REGFH=%TEMP%\apksext_update_hkcu_%RANDOM%.reg"
 "%REGASM64%" /codebase /regfile:"%REGF%" "%TARGET%\ApkShellext2.dll" >nul 2>&1
@@ -487,7 +595,7 @@ del "%REGF%" "%REGFH%" >nul 2>&1
 REM The registrar owns the per-user association layer: it writes the same
 REM slots the installer always wrote, plus the Wow6432Node class root mirror a
 REM 32-bit host resolves, and the DefaultIcon backup lives in one place.
-ECHO     Registering per-user shell handlers (HKCU)...
+ECHO     Writing the per-user file-type associations (HKCU)...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$null = [Reflection.Assembly]::LoadFrom('%TARGET%\ApkShellext2.dll'); $code = [ApkShellext2.Registration.RegistrationCommand]::Run('User','%TARGET%\ApkShellext2.dll'); exit $code" >nul 2>&1
 if errorlevel 1 (
     set "FAILMSG=per-user handler registration failed"
@@ -504,6 +612,8 @@ if not defined LATEST (
     set "FAILMSG=no backup-* folder exists in the registered install folder; /rollback only works after update.bat ran there"
     goto :failmsg
 )
+call :detect_mode
+set "BACKUP=%TARGET%\%LATEST%"
 ECHO [2/4] Restoring "%TARGET%\%LATEST%"...
 for %%F in (%PRODUCT% %LEGACY%) do (
     if exist "%TARGET%\%LATEST%\%%F" (
@@ -514,6 +624,7 @@ for %%F in (%PRODUCT% %LEGACY%) do (
         )
     )
 )
+call :restore_updater
 rmdir "%TARGET%\%LATEST%" >nul 2>&1
 ECHO [3/4] Restarting Explorer...
 taskkill /f /im explorer.exe >nul 2>&1
@@ -524,7 +635,10 @@ call :print_version
 ECHO.
 ECHO Rollback finished. The restored build keeps the existing registration.
 if not defined QUIET pause
-exit /b 0
+if not defined UPDATER_SELFDEL exit /b 0
+REM In-place mode: this window is the leftover updater itself. Deleting the file
+REM ends the script, so the deletion is the last thing this path does.
+(goto) 2>nul & del /f /q "%TARGET%\update.bat"
 
 :die_noinstall
 ECHO.
@@ -554,5 +668,6 @@ if defined RESTORED (
         ECHO Nothing in the installed copy was changed.
     )
 )
+if defined UPDATER_SELFDEL start "" /b cmd /c ping -n 3 127.0.0.1 ^>nul ^& del /f /q ^"%TARGET%\update.bat^"
 if not defined QUIET pause
 exit /b 1

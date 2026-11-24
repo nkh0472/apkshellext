@@ -86,18 +86,22 @@ ECHO.
 ECHO [5/5] Verifying...
 REM The class ids come from the regasm file, but the shell slots come from the
 REM registrar, and a slot in the wrong shape fails silently: the shell reads a
-REM slot only as a key whose default value is the class id, and ignores a value
-REM of the same name. So read the three slots back and compare their default
-REM values instead of only checking that the class id exists.
+REM slot only as a subkey whose default value is the class id, and ignores a
+REM value of the same name on ShellEx. So every slot is read back from the file
+REM class of every extension, in both class roots of this scope.
+set "VERIFYROOTS=HKCU\SOFTWARE\Classes HKCU\SOFTWARE\Classes\Wow6432Node"
 set "SLOTFAIL="
 reg query "HKCU\SOFTWARE\Classes\CLSID\{1F869CEE-4FDA-35D9-896F-43975A87D1F6}" >nul 2>&1
-if not '%errorlevel%' EQU '0' set "SLOTFAIL=1"
-call :checkslot "IconHandler" "{1F869CEE-4FDA-35D9-896F-43975A87D1F6}"
-call :checkslot "{00021500-0000-0000-C000-000000000046}" "{946435A5-FE96-416D-99DB-E94EE9FB46C8}"
-call :checkslot "{E357FCCD-A995-4576-B01F-234630154E96}" "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}"
+if errorlevel 1 (
+    ECHO     ERROR: HKCU\SOFTWARE\Classes\CLSID\{1F869CEE-4FDA-35D9-896F-43975A87D1F6} is missing
+    ECHO            the shell handler class was not registered for this account
+    set "SLOTFAIL=1"
+)
+call :verify_slots
 if defined SLOTFAIL (
-    echo WARNING: verification failed - a handler slot from the default class is
-    echo missing or does not hold our class id as its default value.
+    echo WARNING: verification failed - a handler slot above is missing or does not
+    echo hold the class id of this package as its default value. Run install_user.bat
+    echo again; if that does not help, another application may own the file class.
 ) else (
     echo Per-user install OK: handlers registered under HKCU for this account.
     echo NOTE: if a machine-wide install exists in HKLM, that registration wins.
@@ -106,8 +110,44 @@ ECHO.
 PAUSE
 exit /b 0
 
+:verify_slots
+REM Every extension in every class root of the registration scope: 8 icon slots,
+REM info-tip and context menu for the seven extensions that have them, and the
+REM thumbnail slot for .apk - 23 slots per root, 46 for a two-root scope.
+set "SLOTOK=0"
+set "SLOTBAD=0"
+for %%R in (%VERIFYROOTS%) do for %%E in (.apk .ipa .aab .appx .appxbundle .apks .apkm .xapk) do call :verify_class "%%R" "%%E"
+if not "%SLOTBAD%"=="0" set "SLOTFAIL=1"
+if "%SLOTBAD%"=="0" ECHO     %SLOTOK% handler slot(s) read back from the file class of all eight extensions
+goto :eof
+
+:verify_class
+REM %1 = classes root, %2 = extension with the dot. The shell loads a handler
+REM from the file class the extension points at (the extension key's default
+REM value), never from the extension key itself, so the class is resolved the
+REM same way the registrar wrote it - including the '<name>.1' fallback.
+set "VC_KEY=%~1\%~2"
+set "VC_CLASS="
+for /f "tokens=2,*" %%A in ('reg query "%VC_KEY%" /ve 2^>nul ^| findstr /i "REG_SZ"') do set "VC_CLASS=%%B"
+if not defined VC_CLASS set "VC_CLASS=%~2"
+if "%VC_CLASS:~0,1%"=="." set "VC_CLASS=%VC_CLASS:~1%.1"
+call :checkslot "%~1\%VC_CLASS%" "IconHandler" "{1F869CEE-4FDA-35D9-896F-43975A87D1F6}"
+if /I not "%~2"==".aab" (
+    call :checkslot "%~1\%VC_CLASS%" "{00021500-0000-0000-C000-000000000046}" "{946435A5-FE96-416D-99DB-E94EE9FB46C8}"
+    call :checkslot "%~1\%VC_CLASS%" "ContextMenuHandlers\ApkContextMenu" "{DCB629FC-F86F-456F-8E24-98B9B2643A9B}"
+)
+if /I "%~2"==".apk" call :checkslot "%~1\%VC_CLASS%" "{E357FCCD-A995-4576-B01F-234630154E96}" "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}"
+goto :eof
+
 :checkslot
+REM %1 = file class key, %2 = subkey below ShellEx, %3 = class id expected there
 set "SLOTVAL="
-for /f "tokens=2,*" %%a in ('reg query "HKCU\SOFTWARE\Classes\apk.1\ShellEx\%~1" /ve 2^>nul ^| findstr /i "REG_SZ"') do set "SLOTVAL=%%b"
-if /i not "%SLOTVAL%"=="%~2" set "SLOTFAIL=1"
-exit /b 0
+for /f "tokens=2,*" %%a in ('reg query "%~1\ShellEx\%~2" /ve 2^>nul ^| findstr /i "REG_SZ"') do set "SLOTVAL=%%b"
+if /i "%SLOTVAL%"=="%~3" (
+    set /a SLOTOK+=1
+    goto :eof
+)
+set /a SLOTBAD+=1
+if not defined SLOTVAL ECHO     ERROR: %~1\ShellEx\%~2 is missing
+if defined SLOTVAL ECHO     ERROR: %~1\ShellEx\%~2 holds "%SLOTVAL%", expected "%~3"
+goto :eof
