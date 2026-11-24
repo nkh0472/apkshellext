@@ -41,18 +41,22 @@ namespace ApkShellext2.Shell.Commands {
             bool singleSelected = paths.Length == 1;
             string appname = "";
             string singleNewName = "";
-            var copyEntries = new List<PackageClipboardEntry>(paths.Length);
+            PackageClipboardTextSet copyValues;
             if (singleSelected) {
                 // one parse feeds the app name, the rename preview and the copy values
                 using (IPackageReader reader = PackageReaderFactory.Create(paths[0])) {
                     appname = reader.AppName;
                     singleNewName = CommandRename.GetNewFileName(paths[0], paths, reader);
-                    copyEntries.Add(PackageClipboardText.ReadEntry(paths[0], reader));
+                    copyValues = PackageClipboardText.Join(new[] {
+                        PackageClipboardText.ReadEntry(paths[0], reader)
+                    });
                 }
             } else {
-                foreach (string path in paths) {
-                    copyEntries.Add(ReadCopyEntry(path));
-                }
+                // A multi-file selection can hold hundreds of packages and the shell waits for
+                // this method before it can draw the menu, so the values are not read here. The
+                // selected types decide which items are offered; the command reads the files
+                // once the user picks one, which keeps the menu instant and the text exact.
+                copyValues = PackageClipboardText.JoinPaths(paths, canExport);
             }
 
             var children = new List<CommandItem>();
@@ -79,7 +83,7 @@ namespace ApkShellext2.Shell.Commands {
                 children.Add(Leaf(Resources.menuExportCsv, CommandAction.Export));
             }
 
-            var copy = CopySubmenu(PackageClipboardText.Join(copyEntries));
+            var copy = CopySubmenu(copyValues);
             if (copy != null) children.Add(copy);
 
             // Dump submenu (Android packages only)
@@ -175,8 +179,8 @@ namespace ApkShellext2.Shell.Commands {
 
         /// <summary>
         /// The copy submenu. It exists only when at least one value is available for the whole
-        /// selection, and every item is offered only when some selected file can fill it, so
-        /// an unsupported or unreadable selection still gets the path it was selected by.
+        /// selection, and every item is offered only when the selection can fill it, so an
+        /// unsupported or unreadable selection still gets the path it was selected by.
         /// </summary>
         private static CommandItem CopySubmenu(PackageClipboardTextSet values) {
             var items = new List<CommandItem>();
@@ -188,22 +192,6 @@ namespace ApkShellext2.Shell.Commands {
             var copy = new CommandItem(Resources.menuCopyInfo);
             copy.Children = items.ToArray();
             return copy;
-        }
-
-        /// <summary>
-        /// Reads one path for the copy submenu. A file the factory rejects or cannot read
-        /// still contributes its path and leaves the value items it cannot fill empty.
-        /// </summary>
-        private static PackageClipboardEntry ReadCopyEntry(string path) {
-            IPackageReader reader = null;
-            try {
-                reader = PackageReaderFactory.Create(path);
-                return PackageClipboardText.ReadEntry(path, reader);
-            } catch (Exception) {
-                return PackageClipboardText.ReadEntry(path, null);
-            } finally {
-                if (reader != null) reader.Dispose();
-            }
         }
 
         private static string CopyText(PackageClipboardText.Field field) {

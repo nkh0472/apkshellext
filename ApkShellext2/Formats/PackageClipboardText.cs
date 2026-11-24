@@ -51,6 +51,28 @@ namespace ApkShellext2 {
             return new PackageClipboardTextSet(entries);
         }
 
+        /// <summary>
+        /// The values of a selection the menu has not read yet: every item is offered while only
+        /// the paths are known, so building the menu for many files costs nothing. The command
+        /// reads the real values after the user picks one.
+        /// </summary>
+        public static PackageClipboardTextSet JoinPaths(IEnumerable<string> paths) {
+            return JoinPaths(paths, true);
+        }
+
+        /// <summary>
+        /// Same as <see cref="JoinPaths(IEnumerable{string})"/> for a selection where no file has
+        /// a package type a reader accepts; only the path question has an answer then.
+        /// </summary>
+        public static PackageClipboardTextSet JoinPaths(IEnumerable<string> paths, bool packageValuesOffered) {
+            if (paths == null) throw new ArgumentNullException("paths");
+            var entries = new List<PackageClipboardEntry>();
+            foreach (string path in paths) {
+                entries.Add(new PackageClipboardEntry(path, "", "", ""));
+            }
+            return new PackageClipboardTextSet(entries, packageValuesOffered);
+        }
+
         /// <summary>Reads the selection with the production reader factory.</summary>
         public static string Read(Field field, IEnumerable<string> paths) {
             return Read(field, paths, null);
@@ -121,13 +143,15 @@ namespace ApkShellext2 {
     /// <summary>
     /// The four clipboard texts for one selection: the values that exist, in selection order,
     /// separated by CRLF with no trailing line break. <see cref="Has"/> is what decides
-    /// whether the submenu offers the item at all.
+    /// whether the submenu offers the item at all, and it can be true while the text is still
+    /// empty, which is how an unread multi-file selection offers every value.
     /// </summary>
     public sealed class PackageClipboardTextSet {
         private readonly string filePath;
         private readonly string appName;
         private readonly string packageName;
         private readonly string version;
+        private readonly bool[] offered = new bool[PackageClipboardText.Fields.Length];
 
         internal PackageClipboardTextSet(IEnumerable<PackageClipboardEntry> entries) {
             var filePaths = new List<string>();
@@ -144,6 +168,21 @@ namespace ApkShellext2 {
             appName = JoinLines(appNames);
             packageName = JoinLines(packageNames);
             version = JoinLines(versions);
+            for (int i = 0; i < PackageClipboardText.Fields.Length; i++) {
+                offered[i] = Get(PackageClipboardText.Fields[i]).Length > 0;
+            }
+        }
+
+        /// <summary>
+        /// The set for a selection that was not read: the package values are offered on the
+        /// strength of the selected types alone, so their text stays empty until the command
+        /// reads the files.
+        /// </summary>
+        internal PackageClipboardTextSet(IEnumerable<PackageClipboardEntry> entries, bool packageValuesOffered)
+            : this(entries) {
+            offered[(int)PackageClipboardText.Field.AppName] = packageValuesOffered;
+            offered[(int)PackageClipboardText.Field.PackageName] = packageValuesOffered;
+            offered[(int)PackageClipboardText.Field.Version] = packageValuesOffered;
         }
 
         public string FilePath {
@@ -172,9 +211,13 @@ namespace ApkShellext2 {
             }
         }
 
-        /// <summary>True when the selection produced at least one line for this value.</summary>
+        /// <summary>
+        /// True when the submenu should offer this value. An unread selection answers true from
+        /// the selected types, so the item is visible before any file was opened.
+        /// </summary>
         public bool Has(PackageClipboardText.Field field) {
-            return Get(field).Length > 0;
+            int index = (int)field;
+            return index >= 0 && index < offered.Length && offered[index];
         }
 
         private static string JoinLines(List<string> lines) {

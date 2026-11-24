@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using ApkShellext2.Shell.Commands;
 using NUnit.Framework;
 
@@ -599,6 +601,138 @@ namespace ApkShellext2.Tests
             }
         }
 
+        [Test]
+        public void CopySubmenu_OffersEveryValueForAMultiSelectionWithoutOpeningAReader()
+        {
+            using (Chinese())
+            {
+                // None of these files exists. If building the menu read them, it would learn no
+                // app name and could only offer the path, so the four items prove the build does
+                // not open the selection.
+                string folder = Path.Combine(Path.GetTempPath(), "no-such-packages-" + Guid.NewGuid().ToString("N"));
+                string[] paths =
+                {
+                    Path.Combine(folder, "one.apk"),
+                    Path.Combine(folder, "two.apk"),
+                    Path.Combine(folder, "three.apk")
+                };
+
+                Stopwatch watch = Stopwatch.StartNew();
+                CommandModel model = CommandCatalog.Build(paths);
+                watch.Stop();
+
+                Assert.That(CopyParent(model).Children.Select(c => c.Action), Is.EqualTo(new[]
+                {
+                    CommandAction.CopyFilePath,
+                    CommandAction.CopyAppName,
+                    CommandAction.CopyPackage,
+                    CommandAction.CopyVersion
+                }), "a supported type alone offers every value");
+                Assert.That(watch.ElapsedMilliseconds, Is.LessThan(300),
+                    "a multi-file menu must not wait for the files to be read");
+            }
+        }
+
+        [Test]
+        public void CopySubmenu_KeepsOnlyThePathForAMultiSelectionWithoutSupportedTypes()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[]
+                {
+                    MenuFixtures.UnknownPath(),
+                    MenuFixtures.UnknownPath()
+                });
+
+                Assert.That(CopyParent(model).Children.Select(c => c.Action),
+                    Is.EqualTo(new[] { CommandAction.CopyFilePath }),
+                    "no supported type means only the path is known to be fillable");
+            }
+        }
+
+        [Test]
+        public void Copy_MultiSelectionReturnsBeforeTheParsedTextReachesTheClipboard()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[]
+                {
+                    MenuFixtures.PlainApkPath(),
+                    MenuFixtures.PlainApkPath(),
+                    MenuFixtures.PlainApkPath()
+                });
+
+                string captured = null;
+                using (var done = new ManualResetEventSlim(false))
+                {
+                    Action<string> previous = CommandActions.ClipboardHandler;
+                    try
+                    {
+                        CommandActions.ClipboardHandler = text => { captured = text; done.Set(); };
+
+                        Stopwatch watch = Stopwatch.StartNew();
+                        Assert.That(model.Invoke(model.FindByVerb(CommandVerb.CopyAppName)), Is.True);
+                        watch.Stop();
+
+                        Assert.That(watch.ElapsedMilliseconds, Is.LessThan(300),
+                            "the calling thread must not wait for the selection to be read");
+                        Assert.That(done.Wait(TimeSpan.FromSeconds(30)), Is.True,
+                            "the parsed text still has to reach the clipboard");
+                    }
+                    finally
+                    {
+                        CommandActions.ClipboardHandler = previous;
+                    }
+                }
+
+                Assert.That(captured, Is.EqualTo("Spectroid\r\nSpectroid\r\nSpectroid"));
+            }
+        }
+
+        [Test]
+        public void Copy_SingleSelectionReachesTheClipboardBeforeTheCommandReturns()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.IpaPath() });
+
+                bool called = false;
+                string captured = null;
+                Action<string> previous = CommandActions.ClipboardHandler;
+                try
+                {
+                    CommandActions.ClipboardHandler = text => { called = true; captured = text; };
+                    model.Invoke(model.FindByVerb(CommandVerb.CopyAppName));
+                }
+                finally
+                {
+                    CommandActions.ClipboardHandler = previous;
+                }
+
+                Assert.That(called, Is.True, "one file is read on the calling thread");
+                Assert.That(captured, Is.EqualTo("My App"));
+            }
+        }
+
+        [Test]
+        public void Copy_LeavesTheClipboardAloneWhenTheSelectionFillsNoValue()
+        {
+            bool called = false;
+            Action<string> previous = CommandActions.ClipboardHandler;
+            try
+            {
+                CommandActions.ClipboardHandler = text => { called = true; };
+                Assert.That(() => CommandActions.Execute(CommandAction.CopyAppName,
+                    new[] { MenuFixtures.UnknownPath() }), Throws.Nothing);
+            }
+            finally
+            {
+                CommandActions.ClipboardHandler = previous;
+            }
+
+            Assert.That(called, Is.False, "a value no selected file fills is not written");
+        }
+
         private static CommandItem CopyParent(CommandModel model)
         {
             return model.Items.Single(i => i.Children.Any(c => c.Action == CommandAction.CopyFilePath));
@@ -607,15 +741,20 @@ namespace ApkShellext2.Tests
         private static string CaptureCopy(CommandModel model, string verb)
         {
             string captured = null;
-            Action<string> previous = CommandActions.ClipboardHandler;
-            try
+            using (var done = new ManualResetEventSlim(false))
             {
-                CommandActions.ClipboardHandler = text => { captured = text; };
-                Assert.That(model.Invoke(model.FindByVerb(verb)), Is.True);
-            }
-            finally
-            {
-                CommandActions.ClipboardHandler = previous;
+                Action<string> previous = CommandActions.ClipboardHandler;
+                try
+                {
+                    CommandActions.ClipboardHandler = text => { captured = text; done.Set(); };
+                    Assert.That(model.Invoke(model.FindByVerb(verb)), Is.True);
+                    Assert.That(done.Wait(TimeSpan.FromSeconds(30)), Is.True,
+                        "the copy command must reach the clipboard");
+                }
+                finally
+                {
+                    CommandActions.ClipboardHandler = previous;
+                }
             }
             return captured;
         }

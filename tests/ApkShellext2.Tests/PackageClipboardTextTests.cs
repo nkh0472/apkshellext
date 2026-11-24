@@ -121,6 +121,32 @@ namespace ApkShellext2.Tests
         }
 
         [Test]
+        public void JoinPaths_OffersEveryValueWithoutReadingTheFiles()
+        {
+            var set = PackageClipboardText.JoinPaths(new[] { "a.apk", "b.ipa" });
+
+            Assert.That(set.FilePath,
+                Is.EqualTo(Path.GetFullPath("a.apk") + "\r\n" + Path.GetFullPath("b.ipa")));
+            foreach (PackageClipboardText.Field field in PackageClipboardText.Fields)
+            {
+                Assert.That(set.Has(field), Is.True, "the menu offers the value before any file was read");
+            }
+            Assert.That(set.AppName, Is.Empty, "the text stays empty until the command reads the selection");
+            Assert.That(set.Get(PackageClipboardText.Field.Version), Is.Empty);
+        }
+
+        [Test]
+        public void JoinPaths_KeepsOnlyThePathWhenNoTypeIsSupported()
+        {
+            var set = PackageClipboardText.JoinPaths(new[] { "a.txt", "b.txt" }, false);
+
+            Assert.That(set.Has(PackageClipboardText.Field.FilePath), Is.True);
+            Assert.That(set.Has(PackageClipboardText.Field.AppName), Is.False);
+            Assert.That(set.Has(PackageClipboardText.Field.PackageName), Is.False);
+            Assert.That(set.Has(PackageClipboardText.Field.Version), Is.False);
+        }
+
+        [Test]
         public void Join_KeepsOneLinePerValueAndNoTrailingBreak()
         {
             var set = PackageClipboardText.Join(new[]

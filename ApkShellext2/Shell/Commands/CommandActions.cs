@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Xml;
 using ApkQuickReader;
 using ApkShellext2.Diagnostics;
@@ -113,9 +114,20 @@ namespace ApkShellext2.Shell.Commands {
         /// <summary>
         /// Puts one value of the selection on the clipboard. A selection where every file
         /// lacks the value writes nothing, and a reader or clipboard failure is logged instead
-        /// of escaping into the shell.
+        /// of escaping into the shell. A multi-file selection is read in the background so the
+        /// invocation returns at once; the clipboard write still happens where it is allowed.
         /// </summary>
         private static void copyToClipboard(PackageClipboardText.Field field, IReadOnlyList<string> selectedPaths) {
+            if (selectedPaths.Count > 1) {
+                string[] paths = new string[selectedPaths.Count];
+                for (int i = 0; i < paths.Length; i++) paths[i] = selectedPaths[i];
+                Task.Run(() => writeClipboard(field, paths));
+                return;
+            }
+            writeClipboard(field, selectedPaths);
+        }
+
+        private static void writeClipboard(PackageClipboardText.Field field, IReadOnlyList<string> selectedPaths) {
             try {
                 string text = PackageClipboardText.Read(field, selectedPaths);
                 if (text.Length == 0) return;
