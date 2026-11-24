@@ -21,69 +21,7 @@ namespace ApkShellext2 {
     [COMServerAssociation(AssociationType.ClassOfExtension, ".apk")]
     public class ApkThumbnailHandler : SharpThumbnailHandler {
         protected override Bitmap GetThumbnailImage(uint width) {
-            Bitmap m_icon = null;
-
-            //Log("Thumbnail is using setting file from: " + ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.PerUserRoamingAndLocal).FilePath);
-
-            //if (!Settings.Default.EnableThumbnail) {
-            //    return null;
-            //}
-            if (Utility.GetSetting("EnableThumbnail") != "True") {
-                return null;
-            }
-
-            try {
-                int outputSize = (int) width;
-                DbgLog.W("THUMB enter w=" + width + " stream=" + (SelectedItemStream == null ? "null" :
-                    SelectedItemStream.Length + "B seek=" + SelectedItemStream.CanSeek + " pos=" + SelectedItemStream.Position));
-                string appName = "?";
-                using (AppPackageReader reader = new ApkReader(SelectedItemStream)) {
-                    Log("Reading stream from " + reader.AppName);
-                    appName = reader.AppName;
-                    DbgLog.W("THUMB reader ok app=" + reader.AppName);
-                    // render at the requested size; the Icon property is fixed
-                    // 64px and looked blurry upscaled in the preview pane
-                    m_icon = reader.getIcon(new Size(outputSize, outputSize));
-                    DbgLog.W("THUMB getIcon -> " + DbgLog.Sample(m_icon));
-                }
-
-                if (m_icon == null)
-                    throw new Exception("Cannot find Icon from Stream, draw default");
-                if (m_icon.Height < outputSize &&
-                    //!Settings.Default.StretchThumbnail)
-                    (Utility.GetSetting("StretchThumbnail","True")!="True"))
-                    outputSize = m_icon.Height;
-
-                Log("Got icon, resizing...");
-                //if (Settings.Default.ShowOverLayIcon) {
-                Bitmap composed;
-                if (Utility.GetSetting("ShowOverlayIcon")=="True") {
-                    Log("Draw overlay");
-                    composed = Utility.CombineBitmap(m_icon,
-                           Utility.AppTypeIcon(AppPackageReader.AppType.AndroidApp),
-                           new Rectangle(0, 0, outputSize , outputSize),
-                           new Rectangle(0, (int)outputSize / 2, (int)outputSize / 2, (int)outputSize / 2),
-                           new Size(outputSize, outputSize));
-                } else {
-                    composed = Utility.ResizeBitmap(m_icon, outputSize);
-                }
-                m_icon.Dispose();
-                m_icon = composed;
-                DbgLog.W("THUMB composed -> " + DbgLog.Sample(m_icon));
-                DbgLog.Dump(m_icon, "thumb_" + appName);
-#if DEBUG
-                string p = Path.GetTempFileName();
-                m_icon.Save(p);
-                Log("Save m_icon to " + p);
-#endif
-                return m_icon;
-            } catch (Exception ex){
-                ErrorLog.Warn(this.GetType().Name, "Error in reading icon from stream, draw default", ex);
-                DbgLog.W("THUMB FAIL " + ex.GetType().Name + ": " + ex.Message.Split('\n')[0]);
-                // read error, draw the default icon
-                //m_icon = Utility.AppTypeIcon(AppPackageReader.AppType.AndroidApp);
-                return null;
-            }
+            return ThumbnailRenderer.Render(SelectedItemStream, width, GetType().Name, Log);
         }
 
         [CustomRegisterFunction]
