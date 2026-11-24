@@ -22,7 +22,7 @@ namespace ApkShellext2.Shell.Commands {
             Utility.Localize();
 
             var paths = selectedPaths.ToArray();
-            var root = new CommandItem(RootText()) {
+            var root = new CommandItem(RootTitle()) {
                 Icon = Utility.GetSetting("ShowMenuIcon", "True") == "True"
                     ? CommandIcon.PackageThumbnails
                     : CommandIcon.Logo
@@ -136,18 +136,36 @@ namespace ApkShellext2.Shell.Commands {
             return new CommandModel(root, paths);
         }
 
-        private static string RootText() {
+        /// <summary>
+        /// The label of the whole menu. The classic handler draws it as the submenu title and the
+        /// modern verb returns it from IExplorerCommand.GetTitle, so both menus read the same
+        /// resource and the same optional new-version suffix.
+        /// </summary>
+        internal static string RootTitle() {
             string newVerAvai = "";
             if (Utility.NewVersionAvailible() && Utility.GetSetting("ShowNewVersion", "True") == "True")
                 newVerAvai = " (" + string.Format(Resources.strNewVersionAvailible, Utility.GetSetting("LatestVersion")) + ")";
             return Resources.menuMain + newVerAvai;
         }
 
+        /// <summary>
+        /// True when at least one of the selected paths is a package the extension handles. This
+        /// is what decides whether the menu is offered at all, so the rule lives with the menu
+        /// model instead of in a shell adapter.
+        /// </summary>
+        internal static bool IsSupportedSelection(IEnumerable<string> selectedPaths) {
+            if (selectedPaths == null) return false;
+            foreach (string path in selectedPaths) {
+                if (!string.IsNullOrEmpty(path) && IsSupportedPackage(path)) return true;
+            }
+            return false;
+        }
+
         private static CommandItem Leaf(string text, CommandAction action) {
             return Leaf(text, action, CommandIcon.None, true);
         }
 
-        private static bool IsSupportedPackage(string path) {
+        internal static bool IsSupportedPackage(string path) {
             try {
                 PackageReaderFactory.GetAppType(path);
                 return true;

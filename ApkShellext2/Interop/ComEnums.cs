@@ -184,4 +184,50 @@ namespace ApkShellext2.Interop {
         Flush = 0x1000,
         PathUnicode = 0xA000
     }
+
+    /// <summary>IShellItem.GetDisplayName name form (<c>SIGDN_*</c>, shobjidl_core.h).</summary>
+    /// <remarks>The high bit of every file system form is set, so the value is wider than an
+    /// <see cref="int"/> can hold: the member stays unsigned and the declaration takes the
+    /// enum, which marshals as the same 4 byte slot.</remarks>
+    internal enum SIGDN : uint {
+        NormalDisplay = 0x00000000,
+        ParentRelativeParsing = 0x80018001,
+        DesktopAbsoluteParsing = 0x80028000,
+        ParentRelativeEditing = 0x80031001,
+        DesktopAbsoluteEditing = 0x8004C000,
+        FileSysPath = 0x80058000,
+        Url = 0x80068000,
+        ParentRelativeForAddressBar = 0x8007C001,
+        ParentRelative = 0x80080001,
+        ParentRelativeForUI = 0x80094001
+    }
+
+    /// <summary>IExplorerCommand.GetState command state (<c>EXPCMDSTATE</c>, shobjidl_core.h).</summary>
+    /// <remarks>A command that is not offered for the current selection reports
+    /// <see cref="Hidden"/> so the shell drops it instead of drawing a greyed row.</remarks>
+    [Flags]
+    internal enum EXPCMDSTATE : uint {
+        Enabled = 0x00000000,
+        Disabled = 0x00000001,
+        Hidden = 0x00000002,
+        Checkbox = 0x00000004,
+        Checked = 0x00000008,
+        RadioCheck = 0x00000010
+    }
+
+    /// <summary>IExplorerCommand.GetFlags command traits (<c>EXPCMDFLAGS</c>, shobjidl_core.h).</summary>
+    [Flags]
+    internal enum EXPCMDFLAGS : uint {
+        Default = 0x00000000,
+        HasSubCommands = 0x00000001,
+        HasSplitButton = 0x00000002,
+        HideLabel = 0x00000004,
+        IsSeparator = 0x00000008,
+        HasLuaShield = 0x00000010,
+        SeparatorBefore = 0x00000020,
+        SeparatorAfter = 0x00000040,
+        IsDropDown = 0x00000080,
+        Toggleable = 0x00000100,
+        AutoMenuIcons = 0x00000200
+    }
 }
