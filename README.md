@@ -88,7 +88,6 @@ The project stands on these open-source works:
 
 | Component | Role |
 |-----------|------|
-| [SharpShell](https://github.com/dwmkerr/sharpshell) | Shell extension framework |
 | [libwebp](https://chromium.googlesource.com/webm/libwebp) | WebP codec (1.6.0, built from source) |
 | [WebP-wrapper](https://github.com/JosePineiro/WebP-wrapper) | WebP C# bindings |
 | [SVG](https://github.com/vvvv/SVG) | SVG / vector-drawable rendering |

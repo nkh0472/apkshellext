@@ -82,7 +82,6 @@
 
 | 组件 | 用途 |
 |------|------|
-| [SharpShell](https://github.com/dwmkerr/sharpshell) | 外壳扩展框架 |
 | [libwebp](https://chromium.googlesource.com/webm/libwebp) | WebP 编解码（1.6.0，源码构建） |
 | [WebP-wrapper](https://github.com/JosePineiro/WebP-wrapper) | WebP C# 绑定 |
 | [SVG](https://github.com/vvvv/SVG) | SVG / 矢量 drawable 渲染 |

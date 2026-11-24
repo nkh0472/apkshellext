@@ -104,8 +104,10 @@ Notes:
   name encoding, precise lookup). The pinned PNGDecrush source names three
   SharpZipLib types by full name, so `ApkShellext2\Vendor\SharpZipLibShim.cs` provides exactly
   those (zlib/CRC-32 on `System.IO.Compression`); nothing else of SharpZipLib is compiled.
-- **SharpShell is vendored in-tree** — its sources (2.7.1) live directly under
-  `ApkShellext2\SharpShell\` and are compiled by the csproj (minus the dead code, §5.1).
+- **No shell-extension framework is compiled in** — the four handlers implement the shell
+  interfaces themselves (`ApkShellext2\Shell\Native\`, §5.5) and the registrar writes the class,
+  ProgID and association keys (`ApkShellext2\Registration\`), so nothing sits between this code and
+  the shell's own ABI.
 - **SVG is vendored in-tree** — upstream (vvvv-github/SVG **v3.5.0** @ `9d564f4`) lives at
   `ApkShellext2\SVG\Source\` together with its Roslyn generator at
   `SVG\Generators\`; the generator runs automatically as a compiler analyzer (§5).
@@ -271,7 +273,7 @@ The left column is the build the upstream 3.5.0 tree used; the right column is w
 | Satellites crash under coreclr MSBuild (`MSB4064` AL/ToolPath) → external `dotnet-satellites.targets` shim + 2 command-line flags | SDK-style projects get `GenerateSatelliteAssembliesForCore=true` automatically under coreclr (Csc-based generation); FullFramework MSBuild uses real `al.exe`. Nothing to pass |
 | Hand-kept facade DLLs for `Span`/`Unsafe` (System.Memory, System.Buffers, System.Runtime.CompilerServices.Unsafe, System.Numerics.Vectors) | not referenced: the SVG code parses plain strings (`TextSlice`) — see §8. Under coreclr, `System.Resources.Extensions` still pulls `System.Memory` in as a runtime dependency of the dev output only |
 | `-p:GenerateResourceUsePreserializedResources=true` typed by the user | inside the csproj: `Condition="'$(MSBuildRuntimeType)' == 'Core'"` — dotnet CLI uses preserialized resources, VS uses classic ones, automatically (see §8 for the one runtime consequence) |
-| the SharpPropertySheet property-page machinery and its `SharpShellNativeBridge32/64.dll` `Content` items | not part of the build: no compiled file references those namespaces, and the dead consumer directories (`NativeBridge\`, `SharpPropertySheet\`, `SharpDeskBand\`) are not in the tree. `Helpers\RegAsm.cs` and the vendored `Properties\AssemblyInfo.cs` stay on disk but are not compile inputs |
+| the context-menu property-sheet host and the native bridge DLLs it needs | not part of the build: no compiled file references those namespaces, and the dead consumer directories (`NativeBridge\`, `SharpPropertySheet\`, `SharpDeskBand\`) are not in the tree |
 
 ### 5.2 Other build settings
 
@@ -319,7 +321,7 @@ ApkShellext2\
   Utility.cs      stays at the root: every layer uses it
   Interop\        COM/PInvoke declarations (§5.5)
   Registration\   registration/unregistration (§5.5)
-  PlistCS\ PNGDecrush\ WebP-wrapper\ SVG\ SharpShell\ LibWebP\ Properties\ Resources\
+  PlistCS\ PNGDecrush\ WebP-wrapper\ SVG\ LibWebP\ Properties\ Resources\
 ```
 
 **Namespaces are unchanged by that layout** (`ApkShellext2`, `ApkShellext2.Compression`,
@@ -334,12 +336,10 @@ while deriving that name.
 
 ### 5.5 Interop and the registration layer
 
-The four CLSIDs registered with the shell are served by the native handlers in
-`ApkShellext2\Shell\Native`; the vendored SharpShell classes declare no COM identity any more and
-stay in the tree only until they are retired. `install*.bat` / `update.bat` still register the
-handlers with `regasm`. The two halves below do not depend on that implementation: `Interop\`
-declares the interfaces the shell calls, and `Registration\` writes the same keys `regasm` writes,
-from managed code.
+The four CLSIDs registered with the shell are served by the handlers in
+`ApkShellext2\Shell\Native`, which implement the shell interfaces directly. `install*.bat` /
+`update.bat` register them with `regasm`, and `ShellRegistrar` writes the same keys from managed
+code. `Interop\` declares the interfaces the shell calls; `Registration\` owns the keys.
 
 #### 5.5.1 Declaration rules (`Interop\`)
 
@@ -348,7 +348,7 @@ The layer is hand-written; no CsWin32 and no source generators (`[ComImport]` + 
 
 - **One flat interface per COM interface, no interface inheritance.** Each interface inherits
   `IUnknown` implicitly and re-declares *every* vtable slot it needs, in vtable order. The CLR
-  emits inherited methods ahead of the declared ones, so the SharpShell-style
+  emits inherited methods ahead of the declared ones, so an
   `IContextMenu3 : IContextMenu2` chain lands `HandleMenuMsg2` in the wrong slot (probe: crash
   in `0xC0000005`). Because of that, `IContextMenuFlat`, `IContextMenu2Flat` and
   `IContextMenu3Flat` are three *independent* interfaces with their own IID — a server can
@@ -385,7 +385,7 @@ eight extensions, info tip and context menu except `.aab`, thumbnail only `.apk`
 `DefaultIcon` placeholder with the `SharpShell_Backup_DefaultIcon` backup semantics of
 `install_user.bat` (back up once, never over an existing backup, never back up `%1` itself).
 `ShellGuids.cs` is the single source of truth for the four CLSIDs, the four ProgIDs, the eight
-extensions and every key/value name; the `.bat` files still carry their own copies until S3.
+extensions and every key/value name; the `.bat` files still carry their own copies.
 
 - **Scopes.** `Machine` = `HKLM\SOFTWARE\Classes` (plus `SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved`,
   only for a real machine install); `User` = `HKCU\Software\Classes`.
@@ -422,36 +422,34 @@ faithful copy of the 64-bit tree (the reference tree has no mirror at all).
 #### 5.5.3 Relation to the `.bat` installers
 
 `install.bat`, `install_user.bat`, `uninstall*.bat` and `update.bat` are **unchanged** and still
-do the `regasm` + association work; they take over the registrar only in S3, when the handlers
-move off SharpShell. Two deliberate differences from `uninstall_user.bat`'s sweep are documented
+do the `regasm` + association work themselves; the registrar is what the `[ComRegisterFunction]`
+hooks call, so a `regasm` install and a registrar install write the same keys. Two deliberate
+differences from `uninstall_user.bat`'s sweep are documented
 above: `Unregister` does not run the global `sweepzoo`/`:cleancls` cleanup (it only reverses
 `Register`), and it deletes an installer-invented `\<ext>.1` class only when nothing but the
 default value remains under it.
 
-#### 5.5.4 The native handlers and their hooks
+#### 5.5.4 The handlers and their hooks
 
-The same four handlers also exist as native classes in `Shell\Native\` (`IconHandlerNative`,
-`InfoTipHandlerNative`, `ThumbnailHandlerNative`, `ContextMenuHandler`). They implement the shell
-interfaces directly instead of inheriting the vendored base classes, and they call the renderers
-the SharpShell handlers call (`Shell\IconRenderer.cs`, `Shell\InfoTipRenderer.cs`,
-`Shell\ThumbnailRenderer.cs`), so both front ends produce the same icons, the same tip text and
-the same thumbnails.
+The four handlers are classes in `Shell\Native\` (`IconHandlerNative`, `InfoTipHandlerNative`,
+`ThumbnailHandlerNative`, `ContextMenuHandler`). They implement the shell interfaces directly and
+call the renderers in `Shell\` (`IconRenderer.cs`, `InfoTipRenderer.cs`, `ThumbnailRenderer.cs`), so
+icons, tip text and thumbnails come from one pipeline per kind.
 
 Each native class carries a `[ComRegisterFunction]`/`[ComUnregisterFunction]` pair that forwards
 to `ShellRegistrar.RegisterAssembly`/`UnregisterAssembly` with the machine scope: regasm writes
 `HKCR`, the machine hive, and `/regfile` never runs the hook - which is what the per-user
 installer relies on.
 
-The four registered class ids are served by the native handlers, and the registrar writes those
+The four registered class ids are served by the handlers, and the registrar writes those
 type names too, so an installation the registrar makes resolves the same class regasm names.
 Against `regasm /codebase /regfile` for the same build: 56 server records on both sides, no key
-written by only one of them, and no differing value. Retiring the vendored SharpShell classes is
-the next step.
+written by only one of them, and no differing value.
 
-### 5.6 The context menu: one model, two front ends
+### 5.6 The context menu: one model, one front end
 
-The menu is described as data first and rendered second, so the SharpShell handler and the
-native handler serve the same menu.
+The menu is described as data first and rendered second, so the menu the shell sees is a
+rendering of the model, not a parallel list of its own.
 
 **The model (`Shell\Commands\`).** `CommandCatalog.Build(selectedPaths)` reads the HKCU
 settings, localises, opens the one reader a single selection needs and returns a
@@ -749,14 +747,14 @@ the same script locally. It scans every `.cs` under `ApkShellext2\Formats\` and
 
 - `System.Windows.*` — the WinForms and WPF namespaces (`System.Windows.Forms`,
   `System.Windows.Media`, …);
-- `SharpShell` and its helpers (`ShellExtInitServer`, `ServerRegistration`);
+- the registration layer (`ShellRegistrar`, `RegistryWriter`);
 - the shell COM interfaces `IContextMenu*`, `IShellExtInit`, `IQueryInfo`,
   `IThumbnailProvider`, `IExtractIconW`, `IExplorerCommand`;
 - `[ComImport]`, `ComVisible`, `[Guid(...)]`.
 
 Allowed are the BCL, `System.Drawing`, the root `Utility.cs`, `Diagnostics\`, `Vendor\` and the
 project-local parser/icon helpers those files already use. COM plumbing and shell
-registration belong in `Shell\`, `Preferences\` and `SharpShell\`, which may reference the
+registration belong in `Shell\`, `Registration\` and `Preferences\`, which may reference the
 parsing layer but never the other way around. That is what lets an NUnit run or a plain
 console process load a reader, a parser, `SafeArchive` or the icon chain without explorer;
 the unit tests in `tests\ApkShellext2.Tests` rely on exactly this.
@@ -774,8 +772,8 @@ pwsh -File eng\check-layers.ps1    # "layers OK: <count> C# files ...", exits 0
 The count is the number of files the script actually scanned on this checkout, not a fixed
 expectation; adding a parser or a writer under `Formats\` changes it without editing the gate.
 
-`Formats\` and `Imaging\` therefore carry no `using SharpShell.*` and no
-`using Media = System.Windows.Media;`; both would be dead anyway.
+`Formats\` and `Imaging\` therefore carry no COM, registration or WinForms dependency
+(`using Media = System.Windows.Media;` included); all of it would be dead anyway.
 
 The gate is paired with the unit suite in §7: those tests load the parsers, `SafeArchive`
 and the icon chain from a plain NUnit process, which is only possible while this gate holds.
@@ -808,8 +806,8 @@ the tests (and the packaged handler) break.
    the context menu disappears silently). Ship and deploy VS-route builds only;
    packaging excludes `System.Resources.Extensions.dll` on both routes (§8).
 7. **snk**: gitignored; generate locally (§4.2). Public key ≠ official builds.
-8. **One leftover is expected, not broken**: the `SharpShellNativeBridge32/64.dll` natives
-   are absent because nothing compiles against them (§5.1). Do not “fix” it.
+8. **The native bridge DLLs are absent, not missing**: nothing compiles against the
+   property-sheet host (§5.1), so no bridge binary ships. Do not “fix” it.
 9. **SVG is in-tree now** (absorbed at `ApkShellext2\SVG\Source\`, §3) — the generator's
    `bin\`/`obj\` are covered by the root `.gitignore`; the one remaining submodule
    (PNGDecrush) still produces its own `bin\`/`obj\` if built standalone.

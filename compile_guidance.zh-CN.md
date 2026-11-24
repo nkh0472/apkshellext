@@ -92,8 +92,8 @@ git -C E:\src\apkshellext -c url."https://githubfast.com/".insteadOf="https://gi
   单条目字节/压缩比率上限、旧编码条目名、精确查找)。固定版本的 PNGDecrush 源码仍按全名引用
   三个 SharpZipLib 类型,由 `ApkShellext2\Vendor\SharpZipLibShim.cs` 只提供这三个
   (基于 `System.IO.Compression` 的 zlib/CRC-32);SharpZipLib 其余部分一律不编译。
-- **SharpShell 已收编进仓库** —— 其源码(2.7.1)直接在 `ApkShellext2\SharpShell\`,
-  由 csproj 编译(死代码除外,§5.1)。
+- **不编译任何外壳扩展框架** —— 四个处理器自己实现外壳接口(`ApkShellext2\Shell\Native\`,§5.5),
+  注册器自己写类键、ProgID 与关联键(`ApkShellext2\Registration\`),代码与外壳 ABI 之间没有中间层。
 - **SVG 已收编进仓库** —— 上游(vvvv-github/SVG **v3.5.0** @ `9d564f4`)位于
   `ApkShellext2\SVG\Source\`,其 Roslyn 生成器在 `SVG\Generators\`,作为编译器
   analyzer 自动运行(§5)。来源、许可证与本地裁剪(ExCSS、未使用的 SVG 子树)记录在
@@ -242,7 +242,7 @@ libwebp,因为官方 Windows 构建会额外要求一个 `libsharpyuv.dll`,而�
 | coreclr MSBuild 下卫星程序集崩(`MSB4064` AL/ToolPath)→ 外部 `dotnet-satellites.targets` shim + 2 个命令行参数 | SDK 式工程在 coreclr 下自动 `GenerateSatelliteAssembliesForCore=true`(用 Csc 生成);FullFramework MSBuild 用真 `al.exe`。什么都不用传 |
 | 手工塞进工程的 System.Memory facade 一族(`System.Memory` / `System.Buffers` / `System.Runtime.CompilerServices.Unsafe` / `System.Numerics.Vectors`) | 完全不引用:SVG 的解析走纯字符串(`TextSlice`),见 §8。coreclr 下 `System.Resources.Extensions` 仍会把它作为开发产物的运行时依赖拉进来 |
 | 用户手敲 `-p:GenerateResourceUsePreserializedResources=true` | 写进 csproj:`Condition="'$(MSBuildRuntimeType)' == 'Core'"` —— dotnet CLI 自动用预序列化资源,VS 用经典资源,自动分岔(唯一运行时后果见 §8) |
-| SharpPropertySheet 属性页机制及其 `SharpShellNativeBridge32/64.dll` `Content` 项 | 不属于构建:没有任何被编译的文件引用这些命名空间,使用它们的目录(`NativeBridge\`、`SharpPropertySheet\`、`SharpDeskBand\`)不在树里。`Helpers\RegAsm.cs` 与 vendored `Properties\AssemblyInfo.cs` 留在盘上,但不是编译输入 |
+| 右键菜单属性页宿主及其所需的原生桥 DLL | 不属于构建:没有任何被编译的文件引用这些命名空间,使用它们的目录(`NativeBridge\`、`SharpPropertySheet\`、`SharpDeskBand\`)不在树里 |
 
 ### 5.2 其他构建设置
 
@@ -287,7 +287,7 @@ ApkShellext2\
   Utility.cs      留在根目录:每一层都用它
   Interop\        COM/PInvoke 声明(§5.5)
   Registration\   注册/注销(§5.5)
-  PlistCS\ PNGDecrush\ WebP-wrapper\ SVG\ SharpShell\ LibWebP\ Properties\ Resources\
+  PlistCS\ PNGDecrush\ WebP-wrapper\ SVG\ LibWebP\ Properties\ Resources\
 ```
 
 **命名空间一律不改**(`ApkShellext2`、`ApkShellext2.Compression`、`ApkQuickReader` 等),
@@ -299,8 +299,9 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 
 ### 5.5 Interop 与注册器
 
-四个注册到 shell 的 CLSID 由 `ApkShellext2\Shell\Native` 里的原生处理器服务;vendored SharpShell 
-类已不再声明 COM 身份,只留在树里等下线。`install*.bat` / `update.bat` 也照旧用 `regasm` 注册它们。
+四个注册到 shell 的 CLSID 由 `ApkShellext2\Shell\Native` 里的处理器服务,它们直接实现外壳接口。
+`install*.bat` / `update.bat` 仍用 `regasm` 注册它们,而 `ShellRegistrar` 从托管代码写同一批键:
+`Interop\` 声明外壳调用的接口,`Registration\` 负责键。
 
 #### 5.5.1 声明规范(`Interop\`)
 
@@ -309,7 +310,7 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 
 - **一个 COM 接口 = 一个扁平接口,接口之间不继承。** 每个接口都隐式继承 `IUnknown`,然后把
   自己需要的**全部**槽按 vtable 顺序重新声明一遍。CLR 会把继承来的方法排在声明的方法之前,
-  SharpShell 那种 `IContextMenu3 : IContextMenu2` 写法会让 `HandleMenuMsg2` 落到错误的槽上
+  `IContextMenu3 : IContextMenu2` 这种链式写法会让 `HandleMenuMsg2` 落到错误的槽上
   (实测崩溃 `0xC0000005`)。因此 `IContextMenuFlat`、`IContextMenu2Flat`、`IContextMenu3Flat`
   是三个**互不继承**的接口,各带自己的 IID —— 服务端可以同时实现三个,`QueryInterface` 沿
   任一路径都能命中正确的槽位。
@@ -342,7 +343,7 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 `.aab`、缩略图仅 `.apk`),最后写 `DefaultIcon` 占位并遵循 `install_user.bat` 的
 `SharpShell_Backup_DefaultIcon` 备份语义(只备份一次、已有备份不覆盖、`%1` 本身不备份)。
 `ShellGuids.cs` 是四个 CLSID、四个 ProgID、八个扩展和全部键名/值名的唯一出处;`.bat` 里
-的同值副本保留到 S3 收敛。
+的同值副本仍在。
 
 - **作用域。** `Machine` = `HKLM\SOFTWARE\Classes`(外加
   `SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved`,只有真正的机器级安装
@@ -373,30 +374,31 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 
 #### 5.5.3 与 `.bat` 安装器的关系
 
-`install.bat`、`install_user.bat`、`uninstall*.bat`、`update.bat` **不改**,仍做 `regasm` +
-关联那套;要到 S3 handler 彻底脱离 SharpShell 时才由注册器接管。相对
+`install.bat`、`install_user.bat`、`uninstall*.bat`、`update.bat` **不改**,仍自己做 `regasm` +
+关联那套;注册器是 `[ComRegisterFunction]` 钩子调用的实现,所以 `regasm` 安装与注册器安装写出的键
+相同。相对
 `uninstall_user.bat` 的清扫有两点刻意差异,前面已说明:`Unregister` 不做全局
 `sweepzoo`/`:cleancls` 清扫(只反向 `Register`),并且只在安装器自建的 `\<ext>.1` 类下
 只剩默认值时才会删掉它。
 
-#### 5.5.4 原生处理器与注册钩子
+#### 5.5.4 处理器与注册钩子
 
-同样这四个处理器在 `Shell\Native\` 里已有原生实现(`IconHandlerNative`、`InfoTipHandlerNative`、
-`ThumbnailHandlerNative`、`ContextMenuHandler`)。它们直接实现外壳接口,不继承 vendored 基类,
-并调用 SharpShell 处理器所用的同一批渲染器(`Shell\IconRenderer.cs`、`Shell\InfoTipRenderer.cs`、
-`Shell\ThumbnailRenderer.cs`),因此两个前端给出相同的图标、相同的提示文本和相同的缩略图。
+四个处理器就是 `Shell\Native\` 里的类(`IconHandlerNative`、`InfoTipHandlerNative`、
+`ThumbnailHandlerNative`、`ContextMenuHandler`)。它们直接实现外壳接口,并调用 `Shell\` 下的
+渲染器(`IconRenderer.cs`、`InfoTipRenderer.cs`、`ThumbnailRenderer.cs`),因此图标、提示文本和
+缩略图各来自同一条管线。
 
 每个原生类都带一对 `[ComRegisterFunction]`/`[ComUnregisterFunction]`,转调
 `ShellRegistrar.RegisterAssembly`/`UnregisterAssembly` 的机器作用域:regasm 写的是 `HKCR`
 (机器 hive),而 `/regfile` 从不执行该钩子——按用户安装器正是靠这一点才安全。
 
-四个已注册 CLSID 由原生处理器服务,注册器写的也是那些类名,所以注册器安装的机器解析到同一个类。
+四个已注册 CLSID 由处理器服务,注册器写的也是那些类名,所以注册器安装的机器解析到同一个类。
 同一份构建与 `regasm /codebase /regfile` 逐键对比:两侧各 56 条服务器记录,没有任一侧独有的键,
-也没有任何值不同。让 vendored SharpShell 下线是后续一步。
+也没有任何值不同。
 
-### 5.6 右键菜单:一份模型,两个前端
+### 5.6 右键菜单:一份模型,一个前端
 
-菜单先被描述成数据、再被渲染,因此 SharpShell 处理器与原生处理器提供的是同一份菜单。
+菜单先被描述成数据、再被渲染,因此外壳看到的菜单就是这份模型的渲染结果,不是另一份平行清单。
 
 **模型(`Shell\Commands\`)。** `CommandCatalog.Build(selectedPaths)` 读取 HKCU 设置、本地化、为
 单选打开唯一需要的 reader,返回 `CommandModel`:一棵前序排列的 `CommandItem` 树,每项带
@@ -650,14 +652,14 @@ Explorer` 下的 `thumbcache_*.db` 与 `iconcache_*.db`;否则 dll 换了之后�
 
 - `System.Windows.*` —— WinForms / WPF 命名空间(`System.Windows.Forms`、
   `System.Windows.Media` 等);
-- `SharpShell` 及其辅助类(`ShellExtInitServer`、`ServerRegistration`);
+- 注册层(`ShellRegistrar`、`RegistryWriter`);
 - 外壳 COM 接口 `IContextMenu*`、`IShellExtInit`、`IQueryInfo`、`IThumbnailProvider`、
   `IExtractIconW`、`IExplorerCommand`;
 - `[ComImport]`、`ComVisible`、`[Guid(...)]`。
 
 允许的是 BCL、`System.Drawing`、根 `Utility.cs`、`Diagnostics\`、`Vendor\`,以及这些文件
-本就使用的工程内解析/图标辅助类型。COM 与外壳注册代码属于 `Shell\`、`Preferences\`、
-`SharpShell\` —— 它们可以引用解析层,反向不允许。只有这样,NUnit 或普通控制台进程才能
+本就使用的工程内解析/图标辅助类型。COM 与外壳注册代码属于 `Shell\`、`Registration\`、
+`Preferences\` —— 它们可以引用解析层,反向不允许。只有这样,NUnit 或普通控制台进程才能
 在不启动 explorer 的情况下加载 reader、parser、`SafeArchive`、图标链;`tests\ApkShellext2.Tests`
 的测试正依赖这一点。
 
@@ -673,8 +675,8 @@ pwsh -File eng\check-layers.ps1    # "layers OK: <count> C# files ...",exit 0
 这个数字是脚本在当前工作树上实际扫描到的文件数,不是固定断言;在 `Formats\` 下新增
 parser 或 writer 会让它变化,但不需要改门禁脚本。
 
-门禁要求 `Formats\` 与 `Imaging\` 既没有 `using SharpShell.*` 也没有
-`using Media = System.Windows.Media;` —— 两者在这里都只会是死引用。
+门禁要求 `Formats\` 与 `Imaging\` 既没有 COM/注册依赖,也没有
+`using Media = System.Windows.Media;` —— 这些在这里都只会是死引用。
 
 这道门和 §7 的单元测试是一对:那些测试在普通 NUnit 进程里直接加载 parser、`SafeArchive`
 和图标链,而这只在门禁成立时才行。若 `Formats\` 或 `Imaging\` 里需要用 shell 类型,门禁会
@@ -702,8 +704,8 @@ parser 或 writer 会让它变化,但不需要改门禁脚本。
    静默失败 —— 自定义文件类型图标照常工作,右键菜单整个消失。出货用 VS 路线
    产物;两条路线的打包都排除 `System.Resources.Extensions.dll`(§8)。
 7. **snk**:被 gitignore;本地生成(§4.2)。公钥 ≠ 官方构建。
-8. **一处残留是预期状态,不是坏了**:`SharpShellNativeBridge32/64.dll` 原生库不存在,因为
-   没有任何文件针对它们编译(§5.1)。不要"修"它。
+8. **原生桥 DLL 是不存在,不是漏了**:没有任何文件针对属性页宿主编译(§5.1),因此不附带桥二进制。
+   不要"修"它。
 9. **SVG 在仓内**(`ApkShellext2\SVG\Source\`,§3)—— 生成器的 `bin\`/`obj\`
    由根 `.gitignore` 覆盖;唯一剩下的子模块(PNGDecrush)独立编译时仍会
    在各自目录产生 `bin\`/`obj\`。
