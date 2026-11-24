@@ -113,14 +113,19 @@ namespace ApkShellext2.Registration {
         internal const string DefaultIconKey = "DefaultIcon";
         internal const string ExplorerCommandHandlerValue = "ExplorerCommandHandler";
 
-        /// <summary>ShellEx value name for the icon handler.</summary>
-        internal const string IconHandlerValueName = "IconHandler";
+        /// <summary>
+        /// ShellEx slot of the icon handler: a <b>subkey</b> whose default value is our CLSID.
+        /// The shell reads a handler slot only in that shape; the same name as a value on
+        /// <c>ShellEx</c> is silently ignored and leaves the shell's own tooltip and icon in
+        /// place. The three slot names below are shared with the interface GUIDs by definition.
+        /// </summary>
+        internal const string IconHandlerSlotName = "IconHandler";
 
-        /// <summary>ShellEx value name for the info tip handler (<c>IID_IQueryInfo</c>).</summary>
-        internal const string InfoTipValueName = "{00021500-0000-0000-C000-000000000046}";
+        /// <summary>ShellEx slot of the info tip handler (<c>IID_IQueryInfo</c>), same subkey shape.</summary>
+        internal const string InfoTipSlotName = "{00021500-0000-0000-C000-000000000046}";
 
-        /// <summary>ShellEx value name for the thumbnail provider (<c>IID_IThumbnailProvider</c>).</summary>
-        internal const string ThumbnailValueName = "{E357FCCD-A995-4576-B01F-234630154E96}";
+        /// <summary>ShellEx slot of the thumbnail provider (<c>IID_IThumbnailProvider</c>), same subkey shape.</summary>
+        internal const string ThumbnailSlotName = "{E357FCCD-A995-4576-B01F-234630154E96}";
 
         /// <summary>Subkey of <c>ContextMenuHandlers</c> that names this extension's menu handler.</summary>
         internal const string ContextMenuHandlerName = "ApkContextMenu";
@@ -224,6 +229,23 @@ namespace ApkShellext2.Registration {
                 throw new ArgumentException("An extension must start with a dot, got '" + extension + "'.", nameof(extension));
             }
             return extension.Substring(1) + " Application";
+        }
+
+        /// <summary>
+        /// The ShellEx subkey a handler slot lives under. The context menu is absent on purpose: its
+        /// handler lives below <c>ShellEx\ContextMenuHandlers</c>, which the registrar writes on its own.
+        /// </summary>
+        internal static string SlotName(ShellHandlerKind kind) {
+            switch (kind) {
+                case ShellHandlerKind.IconHandler:
+                    return IconHandlerSlotName;
+                case ShellHandlerKind.InfoTip:
+                    return InfoTipSlotName;
+                case ShellHandlerKind.Thumbnail:
+                    return ThumbnailSlotName;
+                default:
+                    return null;
+            }
         }
 
         /// <summary>

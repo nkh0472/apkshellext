@@ -25,9 +25,9 @@ namespace ApkShellext2.Tests
     {
         private const string HkcrPrefix = "HKEY_CLASSES_ROOT\\";
         private const string ShellExKey = "ShellEx";
-        private const string IconHandlerValue = "IconHandler";
-        private const string InfoTipValue = "{00021500-0000-0000-C000-000000000046}";
-        private const string ThumbnailValue = "{E357FCCD-A995-4576-B01F-234630154E96}";
+        private const string IconHandlerSlot = "IconHandler";
+        private const string InfoTipSlot = "{00021500-0000-0000-C000-000000000046}";
+        private const string ThumbnailSlot = "{E357FCCD-A995-4576-B01F-234630154E96}";
         private const string ContextMenuHandlersKey = "ContextMenuHandlers";
         private const string ContextMenuHandlerName = "ApkContextMenu";
         private const string DefaultIconKey = "DefaultIcon";
@@ -303,9 +303,10 @@ namespace ApkShellext2.Tests
         };
 
         /// <summary>
-        /// The association slots are what <c>install_user.bat</c> writes, and the registrar is the
-        /// managed replacement for that loop. This replays the loop from the installer's own rules
-        /// against one sandbox and compares it with what the registrar wrote into another.
+        /// The association slots of a per-user install, restated from the shell's rules rather than from
+        /// ShellGuids: a handler slot is a <b>subkey</b> whose default value is the class id. The shell
+        /// ignores the same name as a value, so an independent restatement is the only thing that can
+        /// catch a shape regression the registrar's own tests would happily agree with.
         /// </summary>
         [Test]
         public void TheAssociationSlotsMatchThePerUserInstallScript()
@@ -494,9 +495,9 @@ namespace ApkShellext2.Tests
         }
 
         /// <summary>
-        /// The registration loop of <c>ApkShellext2\Resources\install_user.bat</c>: resolve the file
-        /// class of each extension, give it the slots the handlers apply to, and point its
-        /// DefaultIcon at the handler, after backing up the icon that was there before.
+        /// Writes the association slots the way the shell reads them: resolve the file class of each
+        /// extension, give it a slot subkey whose default value is the class id, and point its
+        /// DefaultIcon at the handler after backing up the icon that was there before.
         /// </summary>
         private static void ReplayInstallScript(string root)
         {
@@ -508,16 +509,16 @@ namespace ApkShellext2.Tests
                 string classPath = classes + @"\" + className;
                 string shellEx = classPath + @"\" + ShellExKey;
 
-                WriteValue(shellEx, IconHandlerValue, IconHandlerClsid);
+                WriteDefaultValue(shellEx + @"\" + IconHandlerSlot, IconHandlerClsid);
                 if (!string.Equals(extension, ".aab", StringComparison.OrdinalIgnoreCase))
                 {
-                    WriteValue(shellEx, InfoTipValue, InfoTipClsid);
+                    WriteDefaultValue(shellEx + @"\" + InfoTipSlot, InfoTipClsid);
                     WriteDefaultValue(shellEx + @"\" + ContextMenuHandlersKey + @"\" + ContextMenuHandlerName, ContextMenuClsid);
                 }
 
                 if (string.Equals(extension, ".apk", StringComparison.OrdinalIgnoreCase))
                 {
-                    WriteValue(shellEx, ThumbnailValue, ThumbnailClsid);
+                    WriteDefaultValue(shellEx + @"\" + ThumbnailSlot, ThumbnailClsid);
                 }
 
                 string iconKey = classPath + @"\" + DefaultIconKey;

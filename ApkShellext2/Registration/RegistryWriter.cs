@@ -131,6 +131,18 @@ namespace ApkShellext2.Registration {
             }
         }
 
+        /// <summary>
+        /// Deletes a handler slot only while it is still ours: the subkey survives a default value that
+        /// belongs to another application, which is what a shared slot file class looks like.
+        /// </summary>
+        internal bool DeleteKeyIfDefaultValue(string path, string expectedValue) {
+            if (!string.Equals(GetDefaultValue(path), expectedValue, StringComparison.OrdinalIgnoreCase)) {
+                return false;
+            }
+            DeleteKey(path);
+            return true;
+        }
+
         private RegistryKey OpenBaseKey() {
             return RegistryKey.OpenBaseKey(_hive, _view);
         }
@@ -143,12 +155,16 @@ namespace ApkShellext2.Registration {
             return key;
         }
 
-        /// <summary>The default value has no name; <c>GetValueNames</c> reports it as an empty string.</summary>
+        /// <summary>
+        /// The default value has no name and <c>GetValueNames</c> reports it as an empty string. Value
+        /// names are compared the way the registry compares them: case-insensitively, so a slot written
+        /// with different casing is still found and deleted.
+        /// </summary>
         private static bool ContainsValueName(RegistryKey key, string valueName) {
             string wanted = valueName ?? string.Empty;
             string[] names = key.GetValueNames();
             for (int i = 0; i < names.Length; i++) {
-                if (string.Equals(names[i], wanted, StringComparison.Ordinal)) {
+                if (string.Equals(names[i], wanted, StringComparison.OrdinalIgnoreCase)) {
                     return true;
                 }
             }

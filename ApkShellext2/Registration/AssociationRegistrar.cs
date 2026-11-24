@@ -145,42 +145,65 @@ namespace ApkShellext2.Registration {
                         }
                         break;
                     case ShellHandlerKind.IconHandler:
-                        _writer.SetValue(shellEx, ShellGuids.IconHandlerValueName, handler.Clsid);
-                        _report.AddKey(shellEx);
-                        break;
                     case ShellHandlerKind.InfoTip:
-                        _writer.SetValue(shellEx, ShellGuids.InfoTipValueName, handler.Clsid);
-                        _report.AddKey(shellEx);
-                        break;
                     case ShellHandlerKind.Thumbnail:
-                        _writer.SetValue(shellEx, ShellGuids.ThumbnailValueName, handler.Clsid);
-                        _report.AddKey(shellEx);
+                        WriteHandlerSlot(shellEx, ShellGuids.SlotName(handler.Kind), handler.Clsid);
                         break;
                 }
             }
         }
 
+        /// <summary>
+        /// Writes one handler slot the way the shell reads it: <c>ShellEx\&lt;name&gt;</c> as a key whose
+        /// default value is the CLSID. The same name directly on <c>ShellEx</c> as a value is the shape an
+        /// earlier version wrote; the shell ignores that shape, so it is cleared here as well - but only
+        /// while it still names our CLSID.
+        /// </summary>
+        private void WriteHandlerSlot(string shellEx, string slotName, string clsid) {
+            string slotKey = shellEx + "\\" + slotName;
+            _writer.SetDefaultValue(slotKey, clsid);
+            _report.AddKey(slotKey);
+            if (IsOurs(_writer.GetValue(shellEx, slotName), clsid)) {
+                _writer.DeleteValue(shellEx, slotName);
+                _report.AddKey(shellEx);
+            }
+        }
+
         private void RemoveShellEx(ExtensionClass item) {
             string shellEx = ClassPath(item.ClassName) + "\\" + ShellGuids.ShellExKey;
-            RemoveSlotIfOurs(shellEx, ShellGuids.IconHandlerValueName, ShellGuids.IconHandlerClsid);
-            RemoveSlotIfOurs(shellEx, ShellGuids.InfoTipValueName, ShellGuids.InfoTipClsid);
-            RemoveSlotIfOurs(shellEx, ShellGuids.ThumbnailValueName, ShellGuids.ThumbnailClsid);
+            RemoveSlot(shellEx, ShellGuids.IconHandlerSlotName, ShellGuids.IconHandlerClsid);
+            RemoveSlot(shellEx, ShellGuids.InfoTipSlotName, ShellGuids.InfoTipClsid);
+            RemoveSlot(shellEx, ShellGuids.ThumbnailSlotName, ShellGuids.ThumbnailClsid);
             string contextMenuKey = shellEx + "\\" + ShellGuids.ContextMenuHandlersKey + "\\" + ShellGuids.ContextMenuHandlerName;
-            string current = _writer.GetDefaultValue(contextMenuKey);
-            if (string.Equals(current, ShellGuids.ContextMenuClsid, StringComparison.OrdinalIgnoreCase)) {
-                _writer.DeleteKey(contextMenuKey);
+            if (_writer.DeleteKeyIfDefaultValue(contextMenuKey, ShellGuids.ContextMenuClsid)) {
                 _report.AddKey(contextMenuKey);
             }
         }
 
-        private bool RemoveSlotIfOurs(string keyPath, string valueName, string expectedClsid) {
-            string current = _writer.GetValue(keyPath, valueName);
-            if (!string.Equals(current, expectedClsid, StringComparison.OrdinalIgnoreCase)) {
+        /// <summary>
+        /// Removes a handler slot in either shape it can exist in: the subkey a current install writes,
+        /// and the value an earlier version wrote. Only the shape that still names our CLSID is touched,
+        /// so another application's slot survives.
+        /// </summary>
+        private void RemoveSlot(string shellEx, string slotName, string clsid) {
+            RemoveValueIfOurs(shellEx, slotName, clsid);
+            string slotKey = shellEx + "\\" + slotName;
+            if (_writer.DeleteKeyIfDefaultValue(slotKey, clsid)) {
+                _report.AddKey(slotKey);
+            }
+        }
+
+        private bool RemoveValueIfOurs(string keyPath, string valueName, string expectedClsid) {
+            if (!IsOurs(_writer.GetValue(keyPath, valueName), expectedClsid)) {
                 return false;
             }
             _writer.DeleteValue(keyPath, valueName);
             _report.AddKey(keyPath);
             return true;
+        }
+
+        private static bool IsOurs(string registeredValue, string expectedClsid) {
+            return string.Equals(registeredValue, expectedClsid, StringComparison.OrdinalIgnoreCase);
         }
 
         //  -------------------------------------------------------------------------------------

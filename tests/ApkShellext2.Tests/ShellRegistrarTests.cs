@@ -33,6 +33,7 @@ namespace ApkShellext2.Tests
         private const string ManagedCategoryClsid = "{62C8FE65-4EBB-45E7-B440-6E39B2CDBF29}";
         private const string InfoTipSlotName = "{00021500-0000-0000-C000-000000000046}";
         private const string ThumbnailSlotName = "{e357fccd-a995-4576-b01f-234630154e96}";
+        private const string IconHandlerSlotName = "IconHandler";
         private const string ExplorerCommandClsid = "{0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}";
         private const string DefaultIconBackupValueName = "SharpShell_Backup_DefaultIcon";
         private const int Windows10Build = 19045;
@@ -192,6 +193,11 @@ namespace ApkShellext2.Tests
             return string.IsNullOrEmpty(relativePath) ? root : root + @"\" + relativePath;
         }
 
+        private bool IsSubKey(string relativePath, string subKeyName)
+        {
+            return SubKeyNames(relativePath).Any(name => string.Equals(name, subKeyName, StringComparison.OrdinalIgnoreCase));
+        }
+
         private void SeedDefault(string relativePath, string value)
         {
             using (RegistryKey baseKey = OpenBaseKey())
@@ -340,30 +346,36 @@ namespace ApkShellext2.Tests
 
                 Assert.That(Default(extension), Is.EqualTo(className), "an extension without a ProgID gets the installer's <name>.1 class");
                 Assert.That(Default(className), Is.EqualTo(name + " Application"));
-                Assert.That(Value(shellEx, "IconHandler"), Is.EqualTo(IconHandlerClsid), "all eight extensions get the icon handler");
+                Assert.That(Default(shellEx + @"\" + IconHandlerSlotName), Is.EqualTo(IconHandlerClsid), "all eight extensions get the icon handler");
+                Assert.That(IsSubKey(shellEx, IconHandlerSlotName), Is.True, "a handler slot is a subkey, the shape the shell reads");
+                Assert.That(Value(shellEx, IconHandlerSlotName), Is.Null, "the value shape of a slot is ignored by the shell");
 
                 if (extension == ".aab")
                 {
                     Assert.That(Value(shellEx, InfoTipSlotName), Is.Null, "install_user.bat skips InfoTip and ContextMenu for .aab");
+                    Assert.That(Default(shellEx + @"\" + InfoTipSlotName), Is.Null);
                     Assert.That(Default(shellEx + @"\ContextMenuHandlers\ApkContextMenu"), Is.Null);
                 }
                 else
                 {
-                    Assert.That(Value(shellEx, InfoTipSlotName), Is.EqualTo(InfoTipClsid));
+                    Assert.That(Default(shellEx + @"\" + InfoTipSlotName), Is.EqualTo(InfoTipClsid));
+                    Assert.That(IsSubKey(shellEx, InfoTipSlotName), Is.True);
                     Assert.That(Default(shellEx + @"\ContextMenuHandlers\ApkContextMenu"), Is.EqualTo(ContextMenuClsid));
                 }
 
                 if (extension == ".apk")
                 {
-                    Assert.That(Value(shellEx, ThumbnailSlotName), Is.EqualTo(ThumbnailClsid), "only .apk gets the thumbnail provider");
+                    Assert.That(Default(shellEx + @"\" + ThumbnailSlotName), Is.EqualTo(ThumbnailClsid), "only .apk gets the thumbnail provider");
+                    Assert.That(IsSubKey(shellEx, ThumbnailSlotName), Is.True);
                 }
                 else
                 {
                     Assert.That(Value(shellEx, ThumbnailSlotName), Is.Null);
+                    Assert.That(Default(shellEx + @"\" + ThumbnailSlotName), Is.Null);
                 }
 
                 Assert.That(Default(className + @"\DefaultIcon"), Is.EqualTo("%1"), "the handler's own icon replaces the extension icon");
-                Assert.That(Value(shellEx, "IconHandler", _mirrorRoot), Is.EqualTo(IconHandlerClsid), "the association slots are mirrored for 32 bit hosts");
+                Assert.That(Default(shellEx + @"\" + IconHandlerSlotName, _mirrorRoot), Is.EqualTo(IconHandlerClsid), "the association slots are mirrored for 32 bit hosts");
             }
         }
 
@@ -376,7 +388,7 @@ namespace ApkShellext2.Tests
             Register();
 
             Assert.That(Default(".apk"), Is.EqualTo("myclass.apk"), "an extension that already has a ProgID keeps it");
-            Assert.That(Value(@"myclass.apk\ShellEx", "IconHandler"), Is.EqualTo(IconHandlerClsid));
+            Assert.That(Default(@"myclass.apk\ShellEx\IconHandler"), Is.EqualTo(IconHandlerClsid));
             Assert.That(KeyExists("apk.1"), Is.False, "no invented class when the extension already points at one");
         }
 
@@ -490,30 +502,83 @@ namespace ApkShellext2.Tests
         }
 
         /// <summary>
-        /// The two GUID-named slots the registrar writes are ours, so uninstall removes both values and
-        /// leaves the extension key itself alone: an empty extension key belongs to the user.
+        /// The three named slots are ours, so uninstall removes the slot keys and both shapes of the
+        /// old value, and leaves the extension key itself alone: an empty extension key belongs to
+        /// the user.
         /// </summary>
         [Test]
-        public void UnregisterRemovesTheInfoTipAndThumbnailSlots()
+        public void UnregisterRemovesTheSlotKeysAndTheOldValueShape()
         {
             Register();
             foreach (string extension in s_extensions)
             {
-                string shellEx = extension.Substring(1) + ".1" + @"\ShellEx";
-                bool wroteInfoTip = Value(shellEx, InfoTipSlotName) != null;
+                string className = extension.Substring(1) + ".1";
+                string shellEx = className + @"\ShellEx";
+                bool wroteInfoTip = Default(shellEx + @"\" + InfoTipSlotName) != null;
                 Assert.That(wroteInfoTip, Is.EqualTo(extension != ".aab"), "precondition: the info tip slot of " + extension);
+
+                // The value shape an older release wrote: it must not survive the uninstall either.
+                SeedValue(shellEx, IconHandlerSlotName, IconHandlerClsid);
+                SeedValue(shellEx, InfoTipSlotName, InfoTipClsid);
+                SeedValue(shellEx, ThumbnailSlotName, ThumbnailClsid);
             }
 
             RegistrationApi.Unregister("User", SandboxOptions());
 
             foreach (string extension in s_extensions)
             {
-                string shellEx = extension.Substring(1) + ".1" + @"\ShellEx";
-                Assert.That(Value(shellEx, InfoTipSlotName), Is.Null, "the info tip slot is ours and goes away: " + extension);
-                Assert.That(Value(shellEx, ThumbnailSlotName), Is.Null, "the thumbnail slot is ours and goes away: " + extension);
-                Assert.That(Value(shellEx, InfoTipSlotName, _mirrorRoot), Is.Null, "the 32 bit view is cleared too: " + extension);
-                Assert.That(Value(shellEx, ThumbnailSlotName, _mirrorRoot), Is.Null, "the 32 bit view is cleared too: " + extension);
+                string className = extension.Substring(1) + ".1";
+                string shellEx = className + @"\ShellEx";
+                Assert.That(KeyExists(shellEx), Is.False, "the ShellEx key of " + extension + " holds nothing of ours any more: values=" + string.Join(",", ValueNames(shellEx)) + " keys=" + string.Join(",", SubKeyNames(shellEx)));
+                Assert.That(Default(className + @"\ShellEx\IconHandler"), Is.Null);
+                Assert.That(Default(className + @"\ShellEx\IconHandler", _mirrorRoot), Is.Null, "the 32 bit view is cleared too: " + extension);
+                Assert.That(Value(className + @"\ShellEx", IconHandlerSlotName), Is.Null, "the value shape of " + extension + " is cleared too");
             }
+        }
+
+        [Test]
+        public void RegisterReplacesTheValueShapeOfAnEarlierRelease()
+        {
+            EnsureKey("apk.1");
+            SeedValue(@"apk.1\ShellEx", IconHandlerSlotName, IconHandlerClsid);
+            SeedValue(@"apk.1\ShellEx", InfoTipSlotName, InfoTipClsid);
+            SeedValue(@"apk.1\ShellEx", ThumbnailSlotName, ThumbnailClsid);
+
+            Register();
+
+            string shellEx = @"apk.1\ShellEx";
+            Assert.That(Default(shellEx + @"\" + IconHandlerSlotName), Is.EqualTo(IconHandlerClsid));
+            Assert.That(Default(shellEx + @"\" + InfoTipSlotName), Is.EqualTo(InfoTipClsid));
+            Assert.That(Default(shellEx + @"\" + ThumbnailSlotName), Is.EqualTo(ThumbnailClsid));
+            Assert.That(Value(shellEx, IconHandlerSlotName), Is.Null, "the ignored value shape is cleaned up on install");
+            Assert.That(Value(shellEx, InfoTipSlotName), Is.Null);
+            Assert.That(Value(shellEx, ThumbnailSlotName), Is.Null);
+        }
+
+        [Test]
+        public void RegisterKeepsASlotValueThatBelongsToAnotherHandler()
+        {
+            const string foreign = "{11111111-2222-3333-4444-555555555555}";
+            EnsureKey("apk.1");
+            SeedValue(@"apk.1\ShellEx", IconHandlerSlotName, foreign);
+
+            Register();
+
+            Assert.That(Value(@"apk.1\ShellEx", IconHandlerSlotName), Is.EqualTo(foreign), "a value that is not our CLSID is somebody else's registration");
+            Assert.That(Default(@"apk.1\ShellEx\IconHandler"), Is.EqualTo(IconHandlerClsid), "our slot key is written next to it");
+        }
+
+        [Test]
+        public void UnregisterKeepsASlotKeyThatBelongsToAnotherHandler()
+        {
+            const string foreign = "{11111111-2222-3333-4444-555555555555}";
+            Register();
+            SeedDefault(@"apk.1\ShellEx\IconHandler", foreign);
+
+            RegistrationApi.Unregister("User", SandboxOptions());
+
+            Assert.That(Default(@"apk.1\ShellEx\IconHandler"), Is.EqualTo(foreign), "a slot that no longer names our CLSID is not ours to delete");
+            Assert.That(KeyExists(@"apk.1\ShellEx\IconHandler"), Is.True);
         }
 
         [Test]
