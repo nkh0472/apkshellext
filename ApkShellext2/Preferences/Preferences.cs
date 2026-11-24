@@ -19,11 +19,19 @@ namespace ApkShellext2 {
     public partial class Preferences : Form {
         public Preferences() {
             InitializeComponent();
+            // the variable panels are product data, not layout, so they are built here
+            // instead of in the designer; Preferences_Load rebuilds them once the UI
+            // language is known
+            ApplyPatternVariables();
         }
 
         public string currentFile = "";
         private bool formLoaded = false;
         private bool needClearThumbnailCache = false;
+
+        // the two pattern-variable panels, rebuilt by ApplyPatternVariables
+        private TableLayoutPanel pnlRenamePatternVariables;
+        private TableLayoutPanel pnlInfoTipPatternVariables;
 
         private void Preferences_Load(object sender, EventArgs e) {
             Utility.Localize();
@@ -126,7 +134,6 @@ namespace ApkShellext2 {
 
             #region Renaming Panel
             lblRenamePattern.Text = Resources.strRenamePattern;
-            llbPatternVariables.Text = Resources.strReferToWiki;
             txtRenamePattern.Text = Utility.GetSetting("RenamePattern", NonLocalizeResources.strRenamePatternDefault);
 
             btnResetRenamePattern.Text = Resources.btnResetPattern;
@@ -166,7 +173,9 @@ namespace ApkShellext2 {
             
             btnResetInfoTipPattern.Text = Resources.btnResetPattern;
 
-            llbInfoTipPattVar.Text = Resources.strReferToWiki;
+            // the token descriptions and the list are localized, so rebuild both panels
+            // with the UI language that was just selected
+            ApplyPatternVariables();
             #endregion
 
             #endregion
@@ -317,16 +326,8 @@ namespace ApkShellext2 {
             txtReplaceWhiteSpace.Enabled = ckReplaceSpace.Checked;
         }
 
-        private void llbPatternVariables_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
-            System.Diagnostics.Process.Start(NonLocalizeResources.urlPatternVarWiki);
-        }
-
         private void btnUpdate_Click_1(object sender, EventArgs e) {
             System.Diagnostics.Process.Start(string.Format(Properties.NonLocalizeResources.urlGithubHomeWithVersion,Assembly.GetExecutingAssembly().GetName().Version.ToString()));
-        }
-
-        private void llbInfoTipPattVar_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e) {
-            System.Diagnostics.Process.Start(NonLocalizeResources.urlPatternVarWiki);
         }
 
         private void ckStretchIcon_CheckedChanged(object sender, EventArgs e) {
@@ -398,6 +399,121 @@ namespace ApkShellext2 {
         private void Preferences_ResizeBegin(object sender, EventArgs e) {
             
         }
+
+        #region Pattern variable insertion
+        // Both pattern pages list exactly the tokens CommandRename.ReplaceVariables
+        // expands, taken from RenameVariableCatalog, so the UI cannot drift from the
+        // command. The wikilink is kept as the MoreInfo entry, but the variables are now
+        // offered in place and can be copied whole.
+        private void ApplyPatternVariables() {
+            pnlRenamePatternVariables = ReplacePatternVariablePanel(pnlRenaming, 4,
+                pnlRenamePatternVariables, "pnlRenamePatternVariables", txtRenamePattern,
+                PatternVariablePages.Rename);
+
+            pnlInfoTipPatternVariables = ReplacePatternVariablePanel(pnlInfoTip, 7,
+                pnlInfoTipPatternVariables, "pnlInfoTipPatternVariables", txtToolTipPattern,
+                PatternVariablePages.InfoTip);
+        }
+
+        private TableLayoutPanel ReplacePatternVariablePanel(TableLayoutPanel host, int row,
+                TableLayoutPanel old, string name, TextBox patternBox, PatternVariablePages page) {
+            if (old != null) {
+                host.Controls.Remove(old);
+                old.Dispose();
+            }
+            TableLayoutPanel panel = CreatePatternVariablePanel(name, patternBox, page);
+            while (host.RowStyles.Count <= row) host.RowStyles.Add(new RowStyle());
+            // a fixed row height would clip the tokens once the language changes
+            host.RowStyles[row] = new RowStyle(SizeType.AutoSize);
+            host.Controls.Add(panel, 0, row);
+            if (AppsUseDarkTheme()) ApplyDarkTheme(panel);
+            return panel;
+        }
+
+        private TableLayoutPanel CreatePatternVariablePanel(string name, TextBox patternBox,
+                PatternVariablePages page) {
+            TableLayoutPanel panel = new TableLayoutPanel();
+            panel.Name = name;
+            panel.AutoSize = true;
+            panel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            panel.ColumnCount = 1;
+            panel.ColumnStyles.Add(new ColumnStyle());
+            panel.Dock = DockStyle.Fill;
+            panel.RowCount = 3;
+            panel.RowStyles.Add(new RowStyle());
+            panel.RowStyles.Add(new RowStyle());
+            panel.RowStyles.Add(new RowStyle());
+            panel.Controls.Add(CreatePatternVariableLinks(name + "Links", patternBox, page), 0, 0);
+
+            TextBox list = new TextBox();
+            list.Name = name + "List";
+            list.Dock = DockStyle.Fill;
+            list.Multiline = true;
+            list.ReadOnly = true;
+            list.ScrollBars = ScrollBars.Vertical;
+            list.WordWrap = false;
+            list.TabStop = true;
+            // a docked multiline textbox always asks for one line: the minimum size is
+            // what keeps the whole catalog visible
+            list.MinimumSize = new Size(0, 96);
+            list.Text = RenameVariableCatalog.Describe(page);
+            toolTip1.SetToolTip(list, Resources.strPatternVariableListHint);
+            panel.Controls.Add(list, 0, 1);
+
+            LinkLabel moreInfo = new LinkLabel();
+            moreInfo.Name = name + "MoreInfo";
+            moreInfo.Text = Resources.strPatternVariablesMoreInfo;
+            moreInfo.AutoSize = true;
+            moreInfo.Margin = new Padding(0, 4, 0, 0);
+            moreInfo.TabStop = true;
+            toolTip1.SetToolTip(moreInfo, Resources.strReferToWiki);
+            moreInfo.LinkClicked += delegate {
+                Process.Start(NonLocalizeResources.urlPatternVarWiki);
+            };
+            panel.Controls.Add(moreInfo, 0, 2);
+            return panel;
+        }
+
+        private FlowLayoutPanel CreatePatternVariableLinks(string name, TextBox patternBox,
+                PatternVariablePages page) {
+            FlowLayoutPanel strip = new FlowLayoutPanel();
+            strip.Name = name;
+            strip.AutoSize = true;
+            strip.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            strip.Dock = DockStyle.Fill;
+            strip.WrapContents = true;
+            toolTip1.SetToolTip(strip, Resources.strPatternVariableInsertHint);
+            // the column is auto-sized from its widest child, so the strip has to be
+            // bounded by the pattern box width or it would widen the whole page
+            strip.MaximumSize = new Size(patternBox.Width, 0);
+            foreach (PatternVariable variable in RenameVariableCatalog.For(page)) {
+                LinkLabel link = new LinkLabel();
+                link.Text = variable.Token;
+                link.AutoSize = true;
+                link.Margin = new Padding(0, 0, 12, 2);
+                link.TabStop = true;
+                toolTip1.SetToolTip(link, variable.Description);
+                string token = variable.Token;
+                link.LinkClicked += delegate { InsertPatternVariable(patternBox, token); };
+                strip.Controls.Add(link);
+            }
+            return strip;
+        }
+
+        /// <summary>
+        /// Applies a token click: the catalog's PatternInsertion replaces the selection
+        /// when there is one, otherwise it inserts at the caret, and the caret is placed
+        /// right after the inserted token so typing can continue there.
+        /// </summary>
+        private static void InsertPatternVariable(TextBox patternBox, string token) {
+            PatternInsertion insertion = RenameVariableCatalog.Insert(patternBox.Text,
+                patternBox.SelectionStart, patternBox.SelectionLength, token);
+            patternBox.Text = insertion.Text;
+            patternBox.SelectionStart = insertion.CaretPosition;
+            patternBox.SelectionLength = 0;
+            patternBox.Focus();
+        }
+        #endregion
 
         #region Windows 10/11 dark mode
         // Follows the per-user "Choose your app mode" (Settings → Personalization → Colors).

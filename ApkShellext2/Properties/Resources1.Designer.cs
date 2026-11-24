@@ -475,6 +475,33 @@ namespace ApkShellext2.Properties {
                 return ResourceManager.GetString("strNewVersionAvailible", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Localizes &quot;Insert the variable into the pattern&quot; / 将变量插入到命名模式中.
+        /// </summary>
+        internal static string strPatternVariableInsertHint {
+            get {
+                return ResourceManager.GetString("strPatternVariableInsertHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Select and copy the whole list of variables&quot; / 可全选并复制全部变量清单.
+        /// </summary>
+        internal static string strPatternVariableListHint {
+            get {
+                return ResourceManager.GetString("strPatternVariableListHint", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;More about the variables&quot; / 变量的更多说明.
+        /// </summary>
+        internal static string strPatternVariablesMoreInfo {
+            get {
+                return ResourceManager.GetString("strPatternVariablesMoreInfo", resourceCulture);
+            }
+        }
         
         /// <summary>
         ///   查找类似 ApkShellext2 Preferences 的本地化字符串。
@@ -681,6 +708,96 @@ namespace ApkShellext2.Properties {
         internal static string strUseAppNameLang {
             get {
                 return ResourceManager.GetString("strUseAppNameLang", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;App name of the package&quot; / 应用包的应用名称.
+        /// </summary>
+        internal static string strVarAppNameDescription {
+            get {
+                return ResourceManager.GetString("strVarAppNameDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Manifest attribute, e.g. %Attr(minSdkVersion,sdkVersion)%&quot; / 清单属性，例如 %Attr(minSdkVersion,sdkVersion)%.
+        /// </summary>
+        internal static string strVarAttributeDescription {
+            get {
+                return ResourceManager.GetString("strVarAttributeDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Debug or Release&quot; / 调试版或发布版.
+        /// </summary>
+        internal static string strVarDebuggableDescription {
+            get {
+                return ResourceManager.GetString("strVarDebuggableDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;File size of the package&quot; / 安装包的文件大小.
+        /// </summary>
+        internal static string strVarFileSizeDescription {
+            get {
+                return ResourceManager.GetString("strVarFileSizeDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Last modification time of the file&quot; / 文件的最后修改时间.
+        /// </summary>
+        internal static string strVarLastModifyDescription {
+            get {
+                return ResourceManager.GetString("strVarLastModifyDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Android, iOS or Windows&quot; / Android、iOS 或 Windows.
+        /// </summary>
+        internal static string strVarOSDescription {
+            get {
+                return ResourceManager.GetString("strVarOSDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Package name, e.g. com.company.app&quot; / 包名，例如 com.company.app.
+        /// </summary>
+        internal static string strVarPackageDescription {
+            get {
+                return ResourceManager.GetString("strVarPackageDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Publisher of the package&quot; / 安装包的发布者.
+        /// </summary>
+        internal static string strVarPublisherDescription {
+            get {
+                return ResourceManager.GetString("strVarPublisherDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Version code of the package&quot; / 安装包的版本号（versionCode）.
+        /// </summary>
+        internal static string strVarRevisionDescription {
+            get {
+                return ResourceManager.GetString("strVarRevisionDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Version name of the package&quot; / 安装包的版本名称（versionName）.
+        /// </summary>
+        internal static string strVarVersionDescription {
+            get {
+                return ResourceManager.GetString("strVarVersionDescription", resourceCulture);
             }
         }
         

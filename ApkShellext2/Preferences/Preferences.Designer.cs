@@ -30,7 +30,6 @@ namespace ApkShellext2 {
             this.twLeft = new System.Windows.Forms.TreeView();
             this.lblRenamePattern = new System.Windows.Forms.Label();
             this.pnlRenaming = new System.Windows.Forms.TableLayoutPanel();
-            this.llbPatternVariables = new System.Windows.Forms.LinkLabel();
             this.txtRenamePattern = new System.Windows.Forms.TextBox();
             this.pnlRenamingReplace = new System.Windows.Forms.TableLayoutPanel();
             this.ckReplaceSpace = new System.Windows.Forms.CheckBox();
@@ -70,7 +69,6 @@ namespace ApkShellext2 {
             this.pnlInfoTip = new System.Windows.Forms.TableLayoutPanel();
             this.lblInfoTipPattern = new System.Windows.Forms.Label();
             this.txtToolTipPattern = new System.Windows.Forms.TextBox();
-            this.llbInfoTipPattVar = new System.Windows.Forms.LinkLabel();
             this.pnlMain = new System.Windows.Forms.TableLayoutPanel();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.pnlLeft.SuspendLayout();
@@ -157,35 +155,27 @@ namespace ApkShellext2 {
             this.pnlRenaming.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.pnlRenaming.ColumnCount = 1;
             this.pnlRenaming.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            this.pnlRenaming.Controls.Add(this.llbPatternVariables, 0, 4);
             this.pnlRenaming.Controls.Add(this.txtRenamePattern, 0, 1);
             this.pnlRenaming.Controls.Add(this.lblRenamePattern, 0, 0);
             this.pnlRenaming.Controls.Add(this.pnlRenamingReplace, 0, 2);
             this.pnlRenaming.Controls.Add(this.pnlAppNameLang, 0, 3);
+            // AutoSize: the pattern-variable panel added by Preferences.cs makes the page
+            // taller than the designer's fixed height, and a fixed page would clip it
+            this.pnlRenaming.AutoSize = true;
+            this.pnlRenaming.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.pnlRenaming.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlRenaming.Location = new System.Drawing.Point(3, 3);
             this.pnlRenaming.Name = "pnlRenaming";
+            // row 4 holds the pattern-variable panel, which Preferences.cs builds from
+            // RenameVariableCatalog (the designer cannot list it, the tokens are product data)
             this.pnlRenaming.RowCount = 5;
             this.pnlRenaming.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.pnlRenaming.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.pnlRenaming.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.pnlRenaming.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.pnlRenaming.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.pnlRenaming.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.pnlRenaming.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.pnlRenaming.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.pnlRenaming.Size = new System.Drawing.Size(484, 84);
             this.pnlRenaming.TabIndex = 21;
-            // 
-            // llbPatternVariables
-            // 
-            this.llbPatternVariables.AutoSize = true;
-            this.llbPatternVariables.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.llbPatternVariables.Location = new System.Drawing.Point(3, 71);
-            this.llbPatternVariables.Name = "llbPatternVariables";
-            this.llbPatternVariables.Size = new System.Drawing.Size(478, 13);
-            this.llbPatternVariables.TabIndex = 23;
-            this.llbPatternVariables.TabStop = true;
-            this.llbPatternVariables.Text = "Refer to wiki";
             // 
             // txtRenamePattern
             // 
@@ -679,7 +669,12 @@ namespace ApkShellext2 {
             this.pnlInfoTip.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.pnlInfoTip.Controls.Add(this.lblInfoTipPattern, 0, 0);
             this.pnlInfoTip.Controls.Add(this.txtToolTipPattern, 0, 1);
-            this.pnlInfoTip.Controls.Add(this.llbInfoTipPattVar, 0, 7);
+            // AutoSize: the pattern-variable panel added by Preferences.cs makes the page
+            // taller than the designer's fixed height, and a fixed page would clip it
+            this.pnlInfoTip.AutoSize = true;
+            this.pnlInfoTip.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            // row 7 holds the pattern-variable panel, built by Preferences.cs from
+            // RenameVariableCatalog like the renaming page
             this.pnlInfoTip.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlInfoTip.Location = new System.Drawing.Point(3, 535);
             this.pnlInfoTip.Name = "pnlInfoTip";
@@ -713,18 +708,6 @@ namespace ApkShellext2 {
             this.txtToolTipPattern.Size = new System.Drawing.Size(478, 84);
             this.txtToolTipPattern.TabIndex = 1;
             this.txtToolTipPattern.TextChanged += new System.EventHandler(this.txtToolTipPattern_TextChanged);
-            // 
-            // llbInfoTipPattVar
-            // 
-            this.llbInfoTipPattVar.AutoSize = true;
-            this.llbInfoTipPattVar.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.llbInfoTipPattVar.Location = new System.Drawing.Point(3, 103);
-            this.llbInfoTipPattVar.Name = "llbInfoTipPattVar";
-            this.llbInfoTipPattVar.Size = new System.Drawing.Size(478, 13);
-            this.llbInfoTipPattVar.TabIndex = 3;
-            this.llbInfoTipPattVar.TabStop = true;
-            this.llbInfoTipPattVar.Text = "refer to wiki";
-            this.llbInfoTipPattVar.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.llbInfoTipPattVar_LinkClicked);
             // 
             // pnlMain
             // 
@@ -825,13 +808,11 @@ namespace ApkShellext2 {
         private System.Windows.Forms.CheckBox ckShowAM;
         private System.Windows.Forms.Button btnUpdate;
         private System.Windows.Forms.CheckBox ckReplaceSpace;
-        private System.Windows.Forms.LinkLabel llbInfoTipPattVar;
         private System.Windows.Forms.CheckBox ckShowNewVersionInfo;
         private System.Windows.Forms.CheckBox ckStretchThumbnail;
         private System.Windows.Forms.CheckBox ckEnableThumbnail;
         private System.Windows.Forms.Button btnClearCache;
         private System.Windows.Forms.CheckBox ckAdaptiveIconSupport;
-        private System.Windows.Forms.LinkLabel llbPatternVariables;
         private System.Windows.Forms.TableLayoutPanel pnlRenamingReplace;
         private System.Windows.Forms.TableLayoutPanel pnlAppNameLang;
         private System.Windows.Forms.CheckBox ckUseAppNameLang;
