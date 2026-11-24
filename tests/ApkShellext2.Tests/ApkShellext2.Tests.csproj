@@ -34,6 +34,10 @@
     <!-- ZipArchive: the tests build the archives they parse. The SDK-style net48
          implicit references do not include System.IO.Compression. -->
     <Reference Include="System.IO.Compression" />
+    <!-- PreferencesPatternVariableTests drives the real Settings window on an STA
+         thread; SDK-style net48 does not reference WinForms implicitly. -->
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
   </ItemGroup>
 
   <ItemGroup>

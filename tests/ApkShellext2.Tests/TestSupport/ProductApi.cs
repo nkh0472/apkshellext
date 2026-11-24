@@ -544,5 +544,135 @@ namespace ApkShellext2.Tests
                 throw; // unreachable: Throw() always rethrows
             }
         }
+        // --- Rename-pattern variable catalog (ApkShellext2\Preferences\RenameVariableCatalog.cs) ---
+
+        private static Type RenameVariableCatalogType
+        {
+            get { return RequireType("ApkShellext2.RenameVariableCatalog"); }
+        }
+
+        private static IReadOnlyList<object> RenameVariables(object list)
+        {
+            List<object> items = new List<object>();
+            foreach (object item in (IEnumerable)list)
+            {
+                items.Add(item);
+            }
+            return items;
+        }
+
+        private static IReadOnlyList<string> RenameVariableProperty(string propertyName)
+        {
+            PropertyInfo variables = RenameVariableCatalogType.GetProperty("Variables", StaticAnyVisibility);
+            Assert.That(
+                variables,
+                Is.Not.Null,
+                "RenameVariableCatalog.Variables was not found. The catalog was renamed or moved; " +
+                "update TestSupport/ProductApi.cs together with it.");
+            List<string> values = new List<string>();
+            foreach (object variable in RenameVariables(variables.GetValue(null, null)))
+            {
+                values.Add((string)RequireInstanceProperty(variable, propertyName).GetValue(variable, null));
+            }
+            return values;
+        }
+
+        /// <summary>The ordered "%token%" strings the Settings window offers.</summary>
+        public static IReadOnlyList<string> RenameVariableTokens()
+        {
+            return RenameVariableProperty("Token");
+        }
+
+        /// <summary>The ordered one-line descriptions shown next to the tokens.</summary>
+        public static IReadOnlyList<string> RenameVariableDescriptions()
+        {
+            return RenameVariableProperty("Description");
+        }
+
+        /// <summary>The ordered tokens a given page accepts ("Rename", "InfoTip", "Both").</summary>
+        public static IReadOnlyList<string> RenameVariableTokensFor(string pageName)
+        {
+            Type pages = RequireType("ApkShellext2.PatternVariablePages");
+            MethodInfo forPage = RenameVariableCatalogType.GetMethod("For", StaticAnyVisibility);
+            Assert.That(
+                forPage,
+                Is.Not.Null,
+                "RenameVariableCatalog.For was not found. The catalog was renamed or moved; " +
+                "update TestSupport/ProductApi.cs together with it.");
+            object page = Enum.Parse(pages, pageName);
+            List<string> tokens = new List<string>();
+            foreach (object variable in RenameVariables(forPage.Invoke(null, new[] { page })))
+            {
+                tokens.Add((string)RequireInstanceProperty(variable, "Token").GetValue(variable, null));
+            }
+            return tokens;
+        }
+
+        /// <summary>The copyable list a page shows: one "%token% - description" line each.</summary>
+        public static string RenameVariableDescribe(string pageName)
+        {
+            Type pages = RequireType("ApkShellext2.PatternVariablePages");
+            MethodInfo describe = RenameVariableCatalogType.GetMethod("Describe", StaticAnyVisibility);
+            Assert.That(
+                describe,
+                Is.Not.Null,
+                "RenameVariableCatalog.Describe was not found. The catalog was renamed or moved; " +
+                "update TestSupport/ProductApi.cs together with it.");
+            return (string)describe.Invoke(null, new[] { Enum.Parse(pages, pageName) });
+        }
+
+        /// <summary>
+        /// The catalog's pure insertion: returns the resulting text plus the caret
+        /// position, so tests can pin both without touching a control.
+        /// </summary>
+        public static object RenameVariableInsert(string text, int selectionStart, int selectionLength, string token)
+        {
+            MethodInfo insert = RenameVariableCatalogType.GetMethod("Insert", StaticAnyVisibility);
+            Assert.That(
+                insert,
+                Is.Not.Null,
+                "RenameVariableCatalog.Insert was not found. The catalog was renamed or moved; " +
+                "update TestSupport/ProductApi.cs together with it.");
+            try
+            {
+                return insert.Invoke(null, new object[] { text, selectionStart, selectionLength, token });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw; // unreachable: Throw() always rethrows
+            }
+        }
+
+        public static string PatternInsertionText(object insertion)
+        {
+            return (string)GetInstanceProperty(insertion, "Text");
+        }
+
+        public static int PatternInsertionCaret(object insertion)
+        {
+            return (int)GetInstanceProperty(insertion, "CaretPosition");
+        }
+
+        // --- %variable% constants ReplaceVariables compares against (NonLocalizeResources.resx) ---
+
+        /// <summary>
+        /// The var* string constants of Properties.NonLocalizeResources, name to value.
+        /// CommandRename.ReplaceVariables compares a pattern token against these, so a
+        /// renamed constant is exactly the drift the catalog cross-check must catch.
+        /// </summary>
+        public static IReadOnlyDictionary<string, string> NonLocalizeVariableConstants()
+        {
+            Type type = RequireType("ApkShellext2.Properties.NonLocalizeResources");
+            Dictionary<string, string> values = new Dictionary<string, string>();
+            foreach (PropertyInfo property in type.GetProperties(StaticAnyVisibility))
+            {
+                if (property.PropertyType == typeof(string) && property.Name.StartsWith("var", StringComparison.Ordinal))
+                {
+                    values[property.Name] = (string)property.GetValue(null, null);
+                }
+            }
+            return values;
+        }
     }
 }
