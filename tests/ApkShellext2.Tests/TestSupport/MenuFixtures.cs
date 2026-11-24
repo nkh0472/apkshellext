@@ -178,6 +178,25 @@ namespace ApkShellext2.Tests
             return this;
         }
 
+        public SettingsScope SetDword(string name, int value)
+        {
+            using (RegistryKey key = Registry.CurrentUser.CreateSubKey(KeyPath))
+            {
+                if (!names.Contains(name))
+                {
+                    names.Add(name);
+                    values.Add(key.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames));
+                    kinds.Add(key.GetValue(name, null) == null
+                        ? RegistryValueKind.Unknown
+                        : key.GetValueKind(name));
+                }
+
+                key.SetValue(name, value, RegistryValueKind.DWord);
+            }
+
+            return this;
+        }
+
         public void Dispose()
         {
             using (RegistryKey key = Registry.CurrentUser.CreateSubKey(KeyPath))

@@ -95,7 +95,7 @@ namespace ApkShellext2 {
             ckStretchThumbnail.Text = Resources.strStretchThumbnail;
             ckStretchThumbnail.Checked = Utility.GetSetting("StretchThumbnail","True") == "True";
             ckEnableThumbnail.Text = Resources.strEnableThumbnail;
-            ckEnableThumbnail.Checked = Utility.GetSetting("EnableThumbnail", "True") == "True";
+            ckEnableThumbnail.Checked = Utility.GetSettingBool("EnableThumbnail", true);
             ckAdaptiveIconSupport.Text = Resources.strSupportAdaptiveIcon;
             ckAdaptiveIconSupport.Checked = Utility.GetSetting("SupportAdaptiveIcon", "False") == "True";
 
@@ -216,7 +216,7 @@ namespace ApkShellext2 {
             Utility.SaveSetting("ShowOverLayIcon", ckShowOverlay.Checked);
             if (formLoaded) {
                 SharpShell.Interop.Shell32.SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
-                if (Utility.GetSetting("EnableThumbnail")=="True")
+                if (Utility.GetSettingBool("EnableThumbnail"))
                     needClearThumbnailCache = true;
             }
         }

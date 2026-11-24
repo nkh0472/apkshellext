@@ -129,6 +129,40 @@ namespace ApkShellext2 {
             }
         }
 
+        /// <summary>
+        /// Reads a setting that switches a feature on or off. A numeric value (the DWORD form,
+        /// 0 or non-zero) and the text forms "true"/"yes"/"on"/"1", "false"/"no"/"off"/"0" all
+        /// mean what their writer intended, so a value written by an older build or by hand
+        /// still switches the feature the same way. An empty string reads as off; a value this
+        /// method does not recognise keeps <paramref name="defvalue"/>.
+        /// </summary>
+        public static bool GetSettingBool(string key, bool defvalue = false) {
+            object raw;
+            if (UseRegisteryForSettings) {
+                raw = getRegisterySetting(key, null);
+            } else {
+                raw = Settings.Default[key];
+            }
+            if (raw == null) return defvalue;
+            if (raw is bool) return (bool)raw;
+            if (raw is int) return (int)raw != 0;
+            return ParseBoolean(raw.ToString(), defvalue);
+        }
+
+        private static bool ParseBoolean(string text, bool defvalue) {
+            text = (text ?? string.Empty).Trim();
+            if (text.Length == 0) return false;
+            if (text == "1" || text.Equals("true", StringComparison.OrdinalIgnoreCase)
+                || text.Equals("yes", StringComparison.OrdinalIgnoreCase)
+                || text.Equals("on", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (text == "0" || text.Equals("false", StringComparison.OrdinalIgnoreCase)
+                || text.Equals("no", StringComparison.OrdinalIgnoreCase)
+                || text.Equals("off", StringComparison.OrdinalIgnoreCase))
+                return false;
+            return defvalue;
+        }
+
         public static void SaveSetting(string key, object value) {
             if (UseRegisteryForSettings) {
                 setRegistrySettingString(key, value.ToString());

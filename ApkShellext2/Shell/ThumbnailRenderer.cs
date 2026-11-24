@@ -21,7 +21,7 @@ namespace ApkShellext2 {
         /// <paramref name="log"/> receives the handler's own progress messages when it has any.
         /// </summary>
         internal static Bitmap Render(Stream stream, uint width, string module, Action<string> log = null) {
-            if (Utility.GetSetting("EnableThumbnail") != "True") return null;
+            if (!Utility.GetSettingBool("EnableThumbnail")) return null;
 
             Bitmap m_icon = null;
             try {
