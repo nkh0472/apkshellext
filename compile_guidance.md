@@ -711,10 +711,18 @@ assemblies), copies the new files in and repairs the same
 registration scope in place. If the package folder *is* the registered folder the files
 are swapped in place; otherwise they are copied into the registered folder and `CodeBase`
 is left pointing there. It never overwrites an existing `SharpShell_Backup_DefaultIcon`,
-and it clears the Windows blocked list for all five server class ids. `/rollback` restores the
-newest backup and restarts Explorer; a failed step also moves the backup back and
-restarts Explorer. `update.bat` itself is not backed up (Windows holds a running .bat
-open), so a rollback restores the product files only.
+and it clears the Windows blocked list for all five server class ids. Once the registration
+is written it reads every handler slot back — the default values of `ShellEx\IconHandler`,
+`ShellEx\{00021500-0000-0000-C000-000000000046}`, `ShellEx\{e357fccd-a995-4576-b01f-234630154e96}`
+and `ShellEx\ContextMenuHandlers\ApkContextMenu` of the file class of all eight extensions, in
+both class roots of the scope — and compares them with this package's class ids; any mismatch
+prints the registry path and makes the update exit 1. `/rollback` restores the newest backup
+and restarts Explorer; a failed step also moves the backup back and restarts Explorer. A
+migration update (the package folder is not the registered folder) moves the installed
+`update.bat` into the backup before copying the new one in, so a rollback restores the previous
+file set exactly — without an updater when the old install shipped none. An in-place update
+cannot move the running script, so its rollback deletes `update.bat` whenever the backup does
+not contain one.
 Because the local snk differs from upstream's, never mix DLLs from a local build with an
 official package in the same GAC/registration state.
 

@@ -617,9 +617,14 @@ Explorer` 下的 `thumbcache_*.db` 与 `iconcache_*.db`;否则 dll 换了之后�
 已不再出货的文件(3.5.1 安装里还有 `ExCSS.dll` 和四个 Span facade 程序集)一起移进
 `backup-<旧版本>-<时间戳>\`,复制新文件并**就地修复同一注册作用域**。包目录就是已注册
 目录时就地换文件;否则复制进已注册目录,`CodeBase` 保持指向它。它不会覆盖已有的
-`SharpShell_Backup_DefaultIcon`,并清掉五个服务器类 id 在 Windows 阻止列表里的项。`/rollback`
-还原最近一份备份并重启资源管理器;任何一步失败也会把备份移回并重启。`update.bat` 本身
-不备份(Windows 占着正在运行的 .bat),所以回滚只还原产品文件。
+`SharpShell_Backup_DefaultIcon`,并清掉五个服务器类 id 在 Windows 阻止列表里的项。注册写完后
+它会把每个处理器槽位回读一遍——八个扩展名的文件类在作用域两个类根下,`ShellEx\IconHandler`、
+`ShellEx\{00021500-0000-0000-C000-000000000046}`、`ShellEx\{e357fccd-a995-4576-b01f-234630154e96}`
+与 `ShellEx\ContextMenuHandlers\ApkContextMenu` 的默认值——逐个和本包的类 id 比对,对不上就打印
+注册表路径并以退出码 1 结束。`/rollback` 还原最近一份备份并重启资源管理器;任何一步失败也会把
+备份移回并重启。迁移式升级(包目录不是已注册目录)会先把已装的 `update.bat` 移进备份再复制新版,
+所以回滚能精确还原旧文件集——旧安装本来没有升级器时,回滚后也没有。就地升级无法移动正在运行的
+脚本,其回滚在备份里没有 `update.bat` 时会把它删掉。
 
 ## 9. 编译结果验证
 

@@ -28,7 +28,9 @@ A Windows shell extension that shows the real app icon, package info tip and a m
 - Modern rendering pipeline: VectorDrawable → SVG rasterization (linear/radial gradients, nested groups, clip paths), adaptive icons with Android's 1.5x center-crop zoom, framework color references — pixel-consistent with Android's own output
 - Localized app names: labels follow your UI language, or a language you pick in Preferences (since 3.3.0)
 - Info tip with version, package name, size, target platform and other parsed metadata
-- Context menu: batch rename with custom patterns, export the selected packages to one CSV file (UTF-8 with BOM, one row per file), open the app's store page
+- Context menu: batch rename with custom patterns, export the selected packages to one CSV file (UTF-8 with BOM, one row per file, with a status column so an unreadable file still gets a row), open the app's store page
+- Menu integration written in this repository: the icon, info-tip and thumbnail handlers plus the context menu run on the Windows shell interfaces directly, Windows 11 22H2+ gets the modern `IExplorerCommand` menu, and Windows 10 as well as the Windows 11 "Show more options" entry keep the classic menu with the same items in the same order
+- Preferences lists the rename-pattern variables next to the field; clicking one inserts it at the caret
 - Overlay badges distinguishing app types
 - Localized UI in 19 languages — translation pull requests welcome
 - Hardened archive parsing: decompression-ratio and size caps on every read path (since 3.4.0), libwebp 1.6.0 (since 3.1.0)
@@ -67,6 +69,7 @@ Full bilingual release notes are on the [Releases page](https://github.com/nkh04
 
 | Version | Summary |
 |---------|---------|
+| 4.0.0 | Shell layer moved in-repo: the four handlers and the context menu are implemented against the shell interfaces directly instead of a vendored third-party shell framework, `IExplorerCommand` supplies the modern Windows 11 22H2+ menu while Windows 10 and "Show more options" keep the classic one; new "Export info (CSV)…" command; Preferences inserts rename variables by click; `update.bat` reads all handler slots back and `/rollback` restores exactly the previous file set — dll 1,165,312 B → 909,312 B, 7z 746,997 B → 698,946 B |
 | 3.6.0 | Dependency modernization: the source-embedded SharpZipLib is replaced by the BCL `ZipArchive` behind one capped `ZipSafety` reader (new 65,535-entry guard), ExCSS is removed, the unused SVG text/filter/extensibility/raster-image subtrees are trimmed, and the Span-based parsers are rewritten on plain strings to drop the System.Memory facade family — deployment 3.24 MiB → 2.24 MiB, 7z 1.00 MB → 0.73 MB, no behavior change (87 sample icons byte-identical) |
 | 3.5.1 | Hardening pass: malformed packages no longer crash Explorer, failures are logged for diagnosis, 32-bit-view registration and per-store Preferences fixed |
 | 3.5.0 | Adaptive icons out of beta: Android-exact 1.5x zoom, framework color references, case-exact zip entries, DPI-independent vector rendering; `<bitmap>` support |
