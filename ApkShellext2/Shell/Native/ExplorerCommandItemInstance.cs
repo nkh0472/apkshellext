@@ -12,7 +12,7 @@ namespace ApkShellext2.Shell.Native {
     /// The shell asks each item for its own title, state and flags, so this class is only a
     /// projection of a <see cref="CommandItem"/>: the text, the order, the enabled state and the
     /// action all come from <see cref="CommandCatalog"/>, which is the same model the classic
-    /// HMENU handler and the SharpShell adapter render. Nothing about the menu is decided here.
+    /// HMENU handler renders. Nothing about the menu is decided here.
     /// </remarks>
     [ComVisible(true)]
     [ClassInterface(ClassInterfaceType.None)]
