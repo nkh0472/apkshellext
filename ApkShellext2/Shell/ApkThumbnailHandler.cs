@@ -15,9 +15,12 @@ using ApkQuickReader;
 using System.Configuration;
 
 namespace ApkShellext2 {
-    [Guid("d747c5a7-2f66-4b7d-8301-8531838e4ed3")]
-    [ComVisible(true)]
-    [ClassInterface(ClassInterfaceType.None)]
+    /// <summary>
+    /// The thumbnail provider the shell used to activate. It declares no COM identity any more: the
+    /// class id and the ProgID belong to
+    /// <see cref="ApkShellext2.Shell.Native.ThumbnailHandlerNative"/>. This class stays until the
+    /// SharpShell dependency is removed.
+    /// </summary>
     [COMServerAssociation(AssociationType.ClassOfExtension, ".apk")]
     public class ApkThumbnailHandler : SharpThumbnailHandler {
         protected override Bitmap GetThumbnailImage(uint width) {

@@ -33,10 +33,9 @@ namespace ApkShellext2.Registration {
         internal string Clsid { get; }
 
         /// <summary>
-        /// ProgID, which is also the managed type full name that <c>mscoree.dll</c> has to activate
-        /// (<c>InprocServer32\Class</c>). In the current registration these two strings are equal -
-        /// regasm derived the ProgID from the class name because the handlers declare no
-        /// <c>[ProgId]</c> attribute.
+        /// ProgID, which is also the managed type full name that <c>mscoree.dll</c> activates
+        /// (<c>InprocServer32\Class</c>). The native handler declares the same string with
+        /// <c>[ProgId]</c>, so a regasm run and this registrar record one ProgID per class id.
         /// </summary>
         internal string ProgId { get; }
 
@@ -51,20 +50,22 @@ namespace ApkShellext2.Registration {
     /// ProgIDs, the eight file extensions, the ShellEx subkey and value names, and the two guard
     /// lists (<c>Approved</c> / <c>Blocked</c>).
     ///
-    /// These values are duplicates of what the command line installers still hard code -
-    /// <c>Resources\install.bat</c>, <c>Resources\install_user.bat</c>,
-    /// <c>Resources\uninstall.bat</c> and <c>Resources\uninstall_user.bat</c> keep their own copies.
-    /// When changing a value here, change it there too, and
-    /// update the CLSID/GUID mapping in <c>ApkShellext2\Shell\*.cs</c> (the <c>[Guid]</c> attributes
-    /// are the source of truth: the registrar only repeats them).
+    /// Each CLSID is declared exactly once, by the handler class in
+    /// <c>ApkShellext2\Shell\Native</c> that carries the <c>[Guid]</c> and the <c>[ProgId]</c>
+    /// attribute; this class only repeats the values. The SharpShell derived handlers in
+    /// <c>ApkShellext2\Shell</c> declare no COM identity, so regasm emits one block per CLSID and no
+    /// second class competes for the same class id.
+    ///
+    /// The command line installers in <c>Resources</c> hard code the same values, so a change here
+    /// has to be made there too.
     /// </summary>
     internal static class ShellGuids {
         //  ------------------------------------------------------------------------------------
-        //  Handler CLSIDs. Each one equals the [Guid] attribute of the handler class:
-        //    Shell\ApkContextMenu.cs:27      dcb629fc-f86f-456f-8e24-98b9b2643a9b
-        //    Shell\ApkIconHandler.cs:23      1F869CEE-4FDA-35D9-896F-43975A87D1F6
-        //    Shell\ApkInfoTipHandler.cs:17   946435a5-fe96-416d-99db-e94ee9fb46c8
-        //    Shell\ApkThumbnailHandler.cs:18 d747c5a7-2f66-4b7d-8301-8531838e4ed3
+        //  Handler CLSIDs. Each one is the [Guid] of the class that serves it:
+        //    Shell\Native\ContextMenuHandler.cs:28    DCB629FC-F86F-456F-8E24-98B9B2643A9B
+        //    Shell\Native\IconHandlerNative.cs:18     1F869CEE-4FDA-35D9-896F-43975A87D1F6
+        //    Shell\Native\InfoTipHandlerNative.cs:16  946435A5-FE96-416D-99DB-E94EE9FB46C8
+        //    Shell\Native\ThumbnailHandlerNative.cs:19 D747C5A7-2F66-4B7D-8301-8531838E4ED3
         //  These CLSIDs survive handler rewrites on purpose: an update of the installed extension
         //  must never force a re-registration of the file associations.
         //  ------------------------------------------------------------------------------------
@@ -79,14 +80,6 @@ namespace ApkShellext2.Registration {
         /// and keeps using the classic verbs.
         /// </summary>
         internal const string ExplorerCommandClsid = "{7C2F1A44-3D51-4E8B-9C0A-5B6D2E3F4A11}";
-
-        /// <summary>
-        /// CLSID of the native menu handler (<c>Shell\Native\ContextMenuHandler</c>). It is not part of
-        /// the file associations: every extension still activates <see cref="ContextMenuClsid"/>, and
-        /// this identifier exists so a harness can activate the native class on its own and compare its
-        /// menu with the one the registered handler produces. Nothing in the registrar writes it.
-        /// </summary>
-        internal const string NativeMenuClsid = "{A8D3F2E1-6C4B-4D9A-B7F5-2E1D0C9B8A76}";
 
         internal const string ContextMenuProgId = "ApkShellext2.ApkContextMenu";
         internal const string IconHandlerProgId = "ApkShellext2.ApkIconHandler";

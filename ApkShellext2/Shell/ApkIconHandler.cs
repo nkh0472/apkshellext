@@ -14,10 +14,11 @@ using ApkShellext2.Diagnostics;
 namespace ApkShellext2 {
     /// <summary>
     /// This is the icon handler, not only supporting apk, but also other type of apps.
+    ///
+    /// The class declares no COM identity: the icon handler the shell activates is
+    /// <see cref="ApkShellext2.Shell.Native.IconHandlerNative"/>, which owns the class id and the
+    /// ProgID. This class stays until the SharpShell dependency is removed.
     /// </summary>
-    [Guid("1F869CEE-4FDA-35D9-896F-43975A87D1F6")]
-    [ComVisible(true)]
-    [ClassInterface(ClassInterfaceType.None)]
     [COMServerAssociation(AssociationType.ClassOfExtension, ".apk")]
     [COMServerAssociation(AssociationType.ClassOfExtension, ".ipa")]
     [COMServerAssociation(AssociationType.ClassOfExtension, ".aab")]

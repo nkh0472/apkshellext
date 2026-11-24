@@ -47,9 +47,6 @@ namespace ApkShellext2.Tests
         private const string InfoTipClsid = "{946435A5-FE96-416D-99DB-E94EE9FB46C8}";
         private const string ThumbnailClsid = "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}";
 
-        // The class id the native menu handler carries. The registrar does not write it: a caller
-        // that wants the native menu chooses that class id itself.
-        private const string NativeMenuClsid = "{A8D3F2E1-6C4B-4D9A-B7F5-2E1D0C9B8A76}";
 
         private static readonly string[] s_clsids =
         {
@@ -64,8 +61,9 @@ namespace ApkShellext2.Tests
             "ApkShellext2.ApkThumbnailHandler",
         };
 
-        // The type that serves a class id today. The registrar writes these names as the
-        // InprocServer32 "Class" value, and they are what regasm's first block says as well.
+        // The SharpShell derived class the registrar names for a class id: it is the managed type
+        // its InprocServer32 "Class" value holds. regasm names the native handler instead, which is
+        // the class that declares the class id.
         private static readonly (string Clsid, string ServingType)[] s_servingTypes =
         {
             (ContextMenuClsid, "ApkShellext2.ApkContextMenu"),
@@ -74,10 +72,10 @@ namespace ApkShellext2.Tests
             (ThumbnailClsid, "ApkShellext2.ApkThumbnailHandler"),
         };
 
-        // The native classes and the class id / ProgId regasm finds on them.
+        // The native classes, the class id each one declares and the ProgId it records for it.
         private static readonly (string TypeName, string Clsid)[] s_nativeHandlers =
         {
-            ("ContextMenuHandler", NativeMenuClsid),
+            ("ContextMenuHandler", ContextMenuClsid),
             ("IconHandlerNative", IconHandlerClsid),
             ("InfoTipHandlerNative", InfoTipClsid),
             ("ThumbnailHandlerNative", ThumbnailClsid),
@@ -221,12 +219,11 @@ namespace ApkShellext2.Tests
 
         /// <summary>
         /// The server registration is what a regasm run and what the registrar write. Both describe
-        /// the same classes, the same InprocServer32 values, the same version sub key and the same
-        /// ProgId links. The assembly also contains a native class per class id next to the
-        /// SharpShell class that serves it today, and regasm writes both blocks; a .reg import
-        /// applies the last one, so regasm's file names the native type in the four places that
-        /// record which class serves a class id, while the registrar keeps naming the class that
-        /// actually runs.
+        /// the same four classes, the same InprocServer32 values, the same version sub key and the
+        /// same ProgId links. They disagree on the four values that name a class: regasm names the
+        /// native handler that declares the class id, the registrar names the SharpShell derived
+        /// handler class it has always activated. An import of either record points the class id at
+        /// a type of this assembly, and the native one is the class the class id belongs to.
         /// </summary>
         [Test]
         public void TheRegasmFileAndTheRegistrarDescribeTheSameServerRegistration()
@@ -249,10 +246,9 @@ namespace ApkShellext2.Tests
                 Assert.That(regasmOnly, Is.Empty, "regasm writes server values the registrar does not: " + string.Join("; ", regasmOnly));
                 Assert.That(registrarOnly, Is.Empty, "the registrar writes server values regasm does not: " + string.Join("; ", registrarOnly));
 
-                // The only values the two disagree on, and the values they must hold. regasm writes
-                // one block per class; for a class id the native handler shares with the SharpShell
-                // handler the last block names the native type in the four places that record which
-                // class serves the id. The registrar keeps naming the class that runs today.
+                // The only values the two disagree on, and the values they must hold: the four
+                // places that record the managed type of a class id (the CLSID default value, the
+                // InprocServer32 Class value in both keys, and the ProgID key).
                 string version = AssemblyName.GetAssemblyName(ProductDllPath).Version.ToString();
                 Dictionary<string, (string Regasm, string Registrar)> expectedDiffering =
                     new Dictionary<string, (string Regasm, string Registrar)>(StringComparer.OrdinalIgnoreCase);
@@ -276,26 +272,26 @@ namespace ApkShellext2.Tests
                 Assert.That(
                     differing,
                     Is.EquivalentTo(expectedDiffering.Keys),
-                    "the only values the two disagree on are the ones that name the class of a class id the native handlers share with the SharpShell handlers." +
+                    "the only values the two disagree on are the ones that name the managed type of a class id." +
                     Environment.NewLine + report);
 
                 foreach (KeyValuePair<string, (string Regasm, string Registrar)> expected in expectedDiffering)
                 {
-                    Assert.That(fromRegasm[expected.Key], Is.EqualTo(expected.Value.Regasm), "regasm's last block names the native class: " + expected.Key);
-                    Assert.That(fromRegistrar[expected.Key], Is.EqualTo(expected.Value.Registrar), "the registrar names the class that serves today: " + expected.Key);
+                    Assert.That(fromRegasm[expected.Key], Is.EqualTo(expected.Value.Regasm), "regasm names the native handler: " + expected.Key);
+                    Assert.That(fromRegistrar[expected.Key], Is.EqualTo(expected.Value.Registrar), "the registrar names the SharpShell derived class: " + expected.Key);
                 }
 
-                // The native menu handler is registered by regasm under its own class id; the
-                // registrar deliberately writes nothing there, so a caller can reach the native
-                // class without the product advertising it.
-                Assert.That(
-                    ReadRegFile(regFile).Keys.Any(k => k.IndexOf(NativeMenuClsid, StringComparison.OrdinalIgnoreCase) >= 0),
-                    Is.True,
-                    "regasm must register the native menu handler with its own class id.");
-                Assert.That(
-                    DumpRecords(root).Any(r => r.IndexOf(NativeMenuClsid, StringComparison.OrdinalIgnoreCase) >= 0),
-                    Is.False,
-                    "the registrar must not write the native menu class id.");
+                // One class declares each class id, so regasm writes one block per class id: a .reg
+                // import has no second block for the same class id that could win.
+                string[] lines = File.ReadAllLines(regFile);
+                foreach (string clsid in s_clsids)
+                {
+                    string header = "[HKEY_CLASSES_ROOT\\CLSID\\" + clsid + "]";
+                    Assert.That(
+                        lines.Count(line => string.Equals(line.Trim(), header, StringComparison.OrdinalIgnoreCase)),
+                        Is.EqualTo(1),
+                        "regasm must write exactly one block for " + clsid);
+                }
             }
             finally
             {
@@ -322,11 +318,10 @@ namespace ApkShellext2.Tests
             Assert.That(mirror, Is.EquivalentTo(main), "the Wow6432Node mirror must be a copy of the 64 bit tree.");
         }
 
-        // The native handlers that carry the class id of a handler that serves today, and the type
-        // regasm names for them. Both classes are in one assembly, so regasm writes two blocks for
-        // one class id and a .reg import applies the last one.
+        // The native handler that declares a class id, and the type regasm records for it.
         private static readonly (string Clsid, string NativeType)[] s_sharedClsids =
         {
+            (ContextMenuClsid, "ApkShellext2.Shell.Native.ContextMenuHandler"),
             (IconHandlerClsid, "ApkShellext2.Shell.Native.IconHandlerNative"),
             (InfoTipClsid, "ApkShellext2.Shell.Native.InfoTipHandlerNative"),
             (ThumbnailClsid, "ApkShellext2.Shell.Native.ThumbnailHandlerNative"),

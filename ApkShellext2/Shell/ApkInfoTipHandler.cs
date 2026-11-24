@@ -12,9 +12,11 @@ using ApkShellext2.Diagnostics;
 
 namespace ApkShellext2 {
 
-    [Guid("946435a5-fe96-416d-99db-e94ee9fb46c8")]
-    [ComVisible(true)]
-    [ClassInterface(ClassInterfaceType.None)]
+    /// <summary>
+    /// The info tip handler the shell used to activate. It declares no COM identity any more: the
+    /// class id and the ProgID belong to <see cref="ApkShellext2.Shell.Native.InfoTipHandlerNative"/>.
+    /// This class stays until the SharpShell dependency is removed.
+    /// </summary>
     [COMServerAssociation(AssociationType.ClassOfExtension, ".apk")]
     [COMServerAssociation(AssociationType.ClassOfExtension, ".ipa")]
     [COMServerAssociation(AssociationType.ClassOfExtension, ".appxbundle")]

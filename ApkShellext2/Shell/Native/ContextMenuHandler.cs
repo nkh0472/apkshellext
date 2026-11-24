@@ -25,7 +25,8 @@ namespace ApkShellext2.Shell.Native {
     /// </summary>
     [ComVisible(true)]
     [ClassInterface(ClassInterfaceType.None)]
-    [Guid("A8D3F2E1-6C4B-4D9A-B7F5-2E1D0C9B8A76")]
+    [Guid("DCB629FC-F86F-456F-8E24-98B9B2643A9B")]
+    [ProgId(ShellGuids.ContextMenuProgId)]
     public sealed class ContextMenuHandler : IShellExtInitNative, IContextMenuNative, IContextMenu2Native, IContextMenu3Native {
         private const string ModuleName = "ContextMenuHandler";
         private static readonly int InvokeInfoSize = Marshal.SizeOf(typeof(CMINVOKECOMMANDINFO));

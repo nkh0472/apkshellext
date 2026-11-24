@@ -18,10 +18,11 @@ namespace ApkShellext2 {
     /// The WinForms face of the shell context menu. It renders the model built by
     /// <see cref="CommandCatalog"/> and forwards every click back to the model, so the menu
     /// content and the command ids live in one place.
+    ///
+    /// The class declares no COM identity any more: the menu handler the shell activates is
+    /// <see cref="ApkShellext2.Shell.Native.ContextMenuHandler"/>. This class stays until the
+    /// SharpShell dependency is removed.
     /// </summary>
-    [Guid("dcb629fc-f86f-456f-8e24-98b9b2643a9b")]
-    [ComVisible(true)]
-    [ClassInterface(ClassInterfaceType.None)]
     [COMServerAssociation(AssociationType.ClassOfExtension, ".apk")]
     [COMServerAssociation(AssociationType.ClassOfExtension, ".ipa")]
     [COMServerAssociation(AssociationType.ClassOfExtension, ".appxbundle")]
