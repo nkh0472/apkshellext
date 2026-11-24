@@ -87,6 +87,19 @@ namespace ApkShellext2.Tests
             return Describe(Invoke(method, null, new object[] { ParseScope(scopeName), options }));
         }
 
+        /// <summary>ShellRegistrar.RegisterAssembly: the batch entry point the COM hooks call.</summary>
+        public static RegistrationRun RegisterAssembly(string scopeName, Assembly assembly, object options)
+        {
+            MethodInfo method = RequireRegistrarMethod("RegisterAssembly");
+            return Describe(Invoke(method, null, new[] { ParseScope(scopeName), (object)assembly, options }));
+        }
+
+        public static RegistrationRun UnregisterAssembly(string scopeName, Assembly assembly, object options)
+        {
+            MethodInfo method = RequireRegistrarMethod("UnregisterAssembly");
+            return Describe(Invoke(method, null, new[] { ParseScope(scopeName), (object)assembly, options }));
+        }
+
         public static string[] AllClsids()
         {
             return ReadShellGuidsList("AllClsids");

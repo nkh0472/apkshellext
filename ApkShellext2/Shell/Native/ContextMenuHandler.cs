@@ -289,5 +289,20 @@ namespace ApkShellext2.Shell.Native {
                 //  A finalizer must not throw; there is nothing left to report to.
             }
         }
+
+        /// <summary>
+        /// regasm runs this once for every class it registers. The batch entry point writes the
+        /// handlers the product owns - this class is reachable only through the class id a caller
+        /// chooses for it, so registering it here would write a class id nothing points at.
+        /// </summary>
+        [ComRegisterFunction]
+        public static void Register(Type serverType) {
+            ShellRegistrar.RegisterFromComRegistration(serverType);
+        }
+
+        [ComUnregisterFunction]
+        public static void Unregister(Type serverType) {
+            ShellRegistrar.UnregisterFromComUnregistration(serverType);
+        }
     }
 }

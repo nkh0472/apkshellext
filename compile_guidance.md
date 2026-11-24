@@ -426,6 +426,28 @@ above: `Unregister` does not run the global `sweepzoo`/`:cleancls` cleanup (it o
 `Register`), and it deletes an installer-invented `\<ext>.1` class only when nothing but the
 default value remains under it.
 
+#### 5.5.4 The native handlers and their hooks
+
+The same four handlers also exist as native classes in `Shell\Native\` (`IconHandlerNative`,
+`InfoTipHandlerNative`, `ThumbnailHandlerNative`, `ContextMenuHandler`). They implement the shell
+interfaces directly instead of inheriting the vendored base classes, and they call the renderers
+the SharpShell handlers call (`Shell\IconRenderer.cs`, `Shell\InfoTipRenderer.cs`,
+`Shell\ThumbnailRenderer.cs`), so both front ends produce the same icons, the same tip text and
+the same thumbnails.
+
+Each native class carries a `[ComRegisterFunction]`/`[ComUnregisterFunction]` pair that forwards
+to `ShellRegistrar.RegisterAssembly`/`UnregisterAssembly` with the machine scope: regasm writes
+`HKCR`, the machine hive, and `/regfile` never runs the hook - which is what the per-user
+installer relies on.
+
+The four registered class ids are still served by the vendored SharpShell classes, and the
+registrar still writes those type names, so an installation the registrar makes resolves exactly
+as it does today. Against `regasm /codebase /regfile` for the same build: 56 server records on
+both sides, no key written by only one of them, and the 12 remaining differences all name the
+native class on regasm's side, because both classes sit in one assembly and an import applies the
+last block. Moving the class ids onto the native classes, and retiring SharpShell, is the next
+step.
+
 ### 5.6 The context menu: one model, two front ends
 
 The menu is described as data first and rendered second, so the SharpShell handler and the

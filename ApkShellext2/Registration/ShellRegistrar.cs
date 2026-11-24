@@ -104,6 +104,74 @@ namespace ApkShellext2.Registration {
         }
 
         //  -------------------------------------------------------------------------------------
+        //  Assembly-level entry points and the regasm hooks
+        //  -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Registers every handler in <paramref name="assembly"/>, the way one
+        /// <c>regasm</c> run registers every class in it.
+        /// </summary>
+        internal static RegistrationReport RegisterAssembly(RegistrationScope scope, Assembly assembly, RegistrationOptions options = null) {
+            return Register(scope, AssemblyPathOf(assembly), options);
+        }
+
+        /// <summary>
+        /// Removes what <see cref="RegisterAssembly"/> wrote.
+        /// </summary>
+        internal static RegistrationReport UnregisterAssembly(RegistrationScope scope, Assembly assembly, RegistrationOptions options = null) {
+            // Unregister deletes keys, it never resolves anything from the file, so an assembly
+            // that has already been replaced by a newer build still unregisters cleanly.
+            AssemblyPathOf(assembly);
+            return Unregister(scope, options);
+        }
+
+        /// <summary>
+        /// The body of the handlers' <c>[ComRegisterFunction]</c>. regasm runs the hook only when it
+        /// writes the registry itself; <c>/regfile</c> generates a file and never calls it, which is
+        /// what the per-user installer relies on. A regasm run registers into HKCR, i.e. the machine
+        /// hive, so the associations go next to the server registration regasm just wrote.
+        ///
+        /// regasm calls the hook once per class in the assembly, so this batch runs several times per
+        /// install. That is deliberate: registration is idempotent and tested to be, and a
+        /// process-wide "already ran" flag would be state nobody can reset between test cases.
+        /// </summary>
+        internal static void RegisterFromComRegistration(Type serverType) {
+            if (serverType == null) {
+                throw new ArgumentNullException(nameof(serverType));
+            }
+            RegisterAssembly(RegistrationScope.Machine, serverType.Assembly);
+        }
+
+        /// <summary>
+        /// The body of the handlers' <c>[ComUnregisterFunction]</c>, mirroring
+        /// <see cref="RegisterFromComRegistration"/>.
+        /// </summary>
+        internal static void UnregisterFromComUnregistration(Type serverType) {
+            if (serverType == null) {
+                throw new ArgumentNullException(nameof(serverType));
+            }
+            UnregisterAssembly(RegistrationScope.Machine, serverType.Assembly);
+        }
+
+        private static string AssemblyPathOf(Assembly assembly) {
+            if (assembly == null) {
+                throw new ArgumentNullException(nameof(assembly));
+            }
+            string location;
+            try {
+                location = assembly.Location;
+            } catch (NotSupportedException) {
+                // A dynamic assembly has no file, and its Location getter throws instead of
+                // returning an empty string.
+                location = null;
+            }
+            if (string.IsNullOrEmpty(location)) {
+                throw new ArgumentException("The assembly '" + assembly.FullName + "' has no file location; pass the deployment path instead.", nameof(assembly));
+            }
+            return location;
+        }
+
+        //  -------------------------------------------------------------------------------------
         //  COM server registration (the regasm /codebase shape)
         //  -------------------------------------------------------------------------------------
 

@@ -380,6 +380,23 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 `sweepzoo`/`:cleancls` 清扫(只反向 `Register`),并且只在安装器自建的 `\<ext>.1` 类下
 只剩默认值时才会删掉它。
 
+#### 5.5.4 原生处理器与注册钩子
+
+同样这四个处理器在 `Shell\Native\` 里已有原生实现(`IconHandlerNative`、`InfoTipHandlerNative`、
+`ThumbnailHandlerNative`、`ContextMenuHandler`)。它们直接实现外壳接口,不继承 vendored 基类,
+并调用 SharpShell 处理器所用的同一批渲染器(`Shell\IconRenderer.cs`、`Shell\InfoTipRenderer.cs`、
+`Shell\ThumbnailRenderer.cs`),因此两个前端给出相同的图标、相同的提示文本和相同的缩略图。
+
+每个原生类都带一对 `[ComRegisterFunction]`/`[ComUnregisterFunction]`,转调
+`ShellRegistrar.RegisterAssembly`/`UnregisterAssembly` 的机器作用域:regasm 写的是 `HKCR`
+(机器 hive),而 `/regfile` 从不执行该钩子——按用户安装器正是靠这一点才安全。
+
+四个已注册 CLSID 目前仍由 vendored SharpShell 类服务,注册器写的也仍是那些类名,所以注册器安装的
+机器解析结果与今天一致。同一份构建与 `regasm /codebase /regfile` 逐键对比:两侧各 56 条服务器记录,
+没有任一侧独有的键,剩下的 12 处差异都只是 regasm 一侧写了原生类名(两个类在同一程序集里,导入时后
+一个块生效);关联层与 `install_user.bat` 的循环逐条一致。把 CLSID 切到原生类、并让 SharpShell
+下线是后续一步。
+
 ### 5.6 右键菜单:一份模型,两个前端
 
 菜单先被描述成数据、再被渲染,因此 SharpShell 处理器与原生处理器提供的是同一份菜单。

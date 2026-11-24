@@ -67,5 +67,19 @@ namespace ApkShellext2.Shell.Native {
                 return HResult.S_FALSE;
             }
         }
+
+        /// <summary>
+        /// regasm runs this once for every class it registers. The batch entry point writes every
+        /// handler in the assembly, so one run registers the whole product, not just this class.
+        /// </summary>
+        [ComRegisterFunction]
+        public static void Register(Type serverType) {
+            ShellRegistrar.RegisterFromComRegistration(serverType);
+        }
+
+        [ComUnregisterFunction]
+        public static void Unregister(Type serverType) {
+            ShellRegistrar.UnregisterFromComUnregistration(serverType);
+        }
     }
 }

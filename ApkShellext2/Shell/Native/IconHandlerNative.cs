@@ -63,5 +63,19 @@ namespace ApkShellext2.Shell.Native {
         private static IntPtr HandleOf(Icon icon) {
             return icon == null ? IntPtr.Zero : icon.Handle;
         }
+
+        /// <summary>
+        /// regasm runs this once for every class it registers. The batch entry point writes every
+        /// handler in the assembly, so one run registers the whole product, not just this class.
+        /// </summary>
+        [ComRegisterFunction]
+        public static void Register(Type serverType) {
+            ShellRegistrar.RegisterFromComRegistration(serverType);
+        }
+
+        [ComUnregisterFunction]
+        public static void Unregister(Type serverType) {
+            ShellRegistrar.UnregisterFromComUnregistration(serverType);
+        }
     }
 }
