@@ -1,5 +1,4 @@
 using Microsoft.Win32;
-using SharpShell.Diagnostics;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -12,9 +11,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Web;
-using SharpShell.Extensions;
-using SharpShell.Interop;
 using ApkShellext2.Diagnostics;
+using ApkShellext2.Interop;
 using ApkShellext2.Properties;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
@@ -421,7 +419,7 @@ namespace ApkShellext2 {
         }
 
         public static void refreshShell() {
-            SharpShell.Interop.Shell32.SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+            NativeMethods.NotifyAssociationsChanged();
         }
 
         public static void Log(object caller, string title, string message) {
@@ -433,17 +431,12 @@ namespace ApkShellext2 {
                 output += "<" + caller.GetType().Name + ">";
             if (title != "")
                 output += "|" + title + "|";
-#if DEBUG
-            // Debug builds keep the SharpShell trace sink unchanged.
-            SharpShell.Diagnostics.Logging.Log(output + message);
-#else
-            // Release has no trace sink. Informational call sites (the handlers' Log()
-            // overrides, localization progress, ...) go to the opt-in verbose channel only:
-            // the default-on ErrorLog is reserved for failures (see its Error/Warn call
-            // sites), otherwise every ordinary right-click would write error-log lines.
+            // Informational call sites (the handlers' Log() overrides, localization progress, ...)
+            // go to the opt-in verbose channel only: the default-on ErrorLog is reserved for
+            // failures (see its Error/Warn call sites), otherwise every ordinary right-click would
+            // write error-log lines.
             if (DbgLog.Enabled)
                 DbgLog.W(output + message);
-#endif
         }
 
         

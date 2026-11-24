@@ -419,7 +419,7 @@ namespace ApkShellext2.Tests
             Assert.That(
                 Value(@"apk.1\DefaultIcon", DefaultIconBackupValueName),
                 Is.EqualTo("old.ico"),
-                "a repeated run must not overwrite the backup with %1 (SharpShell's own SetIconHandlerDefaultIcon does - the bat did not)");
+                "a repeated run must not overwrite the backup with the placeholder it wrote itself");
         }
 
         [Test]
@@ -444,7 +444,75 @@ namespace ApkShellext2.Tests
             Assert.That(
                 KeyExists(@"CLSID\" + IconHandlerClsid + @"\InprocServer32\1.0.0.0"),
                 Is.False,
-                "the handlers' ComRegisterFunction deleted stale version subkeys (Shell\\ApkIconHandler.cs:167-178); an upgrade must not leave them behind");
+                "mscoree resolves the assembly from whichever version subkey it finds, so an upgrade must not leave the previous one behind");
+        }
+
+        /// <summary>
+        /// An install of the first generation handlers left its class key behind. The class id it
+        /// points at has no server any more, but the shell keeps offering the dead handler for as long
+        /// as the class key resolves, so the install removes the class key, the orphaned class id and
+        /// the <c>Approved</c> entry - in both class roots, because regasm wrote the 32 bit one too.
+        /// </summary>
+        [Test]
+        public void RegisterRemovesTheClassKeyOfAnEarlierVersion()
+        {
+            const string legacyClass = "KKHomeProj.ApkShellExt.ApkShellExt";
+            const string legacyClsid = "{1B0F3C21-0000-4C4E-9E64-6F4D0A6E1C11}";
+
+            foreach (string root in new[] { _classesRoot, _mirrorRoot })
+            {
+                using (RegistryKey baseKey = OpenBaseKey())
+                using (RegistryKey classKey = baseKey.CreateSubKey(Combine(root, legacyClass)))
+                using (RegistryKey clsidValue = classKey.CreateSubKey("CLSID"))
+                {
+                    classKey.SetValue(string.Empty, legacyClass, RegistryValueKind.String);
+                    clsidValue.SetValue(string.Empty, legacyClsid, RegistryValueKind.String);
+                }
+
+                using (RegistryKey baseKey = OpenBaseKey())
+                using (RegistryKey deadServer = baseKey.CreateSubKey(Combine(root, @"CLSID\" + legacyClsid + @"\InprocServer32")))
+                {
+                    deadServer.SetValue(string.Empty, "mscoree.dll", RegistryValueKind.String);
+                }
+            }
+
+            // Explorer lists an approved handler as a value; one early installer wrote a subkey here.
+            SeedAbsoluteValue(_approvedRoot, legacyClsid, legacyClass);
+            using (RegistryKey baseKey = OpenBaseKey())
+            using (RegistryKey approvedSubKey = baseKey.CreateSubKey(Combine(_approvedRoot, legacyClsid)))
+            {
+                approvedSubKey.SetValue("Note", legacyClass, RegistryValueKind.String);
+            }
+
+            Register();
+
+            Assert.That(KeyExists(legacyClass), Is.False, "the class key of the earlier version must be gone");
+            Assert.That(KeyExists(legacyClass, _mirrorRoot), Is.False, "and its 32 bit copy");
+            Assert.That(KeyExists(@"CLSID\" + legacyClsid), Is.False, "the class id the dead key pointed at has no server");
+            Assert.That(KeyExists(@"CLSID\" + legacyClsid, _mirrorRoot), Is.False);
+            Assert.That(Value(string.Empty, legacyClsid, _approvedRoot), Is.Null, "an approved entry would keep the dead handler enabled");
+            Assert.That(KeyExists(legacyClsid, _approvedRoot), Is.False, "the subkey shape is removed too");
+        }
+
+        [Test]
+        public void RegisterReportsTheLegacyKeysItRemovedOnlyOnce()
+        {
+            const string legacyClass = "KKHomeProj.ApkShellExt.ApkShellExt";
+            using (RegistryKey baseKey = OpenBaseKey())
+            using (RegistryKey classKey = baseKey.CreateSubKey(Combine(_classesRoot, legacyClass)))
+            {
+                classKey.SetValue(string.Empty, legacyClass, RegistryValueKind.String);
+            }
+
+            RegistrationRun first = Register();
+            Assert.That(
+                first.KeysWritten,
+                Has.Some.EqualTo(Combine(_classesRoot, legacyClass)).IgnoreCase,
+                "the install reports what it removed, so an installer can log it");
+
+            RegistrationRun second = Register();
+            Assert.That(second.KeysWritten, Is.SubsetOf(first.KeysWritten), "a second run finds nothing left to remove");
+            Assert.That(second.KeysWritten, Has.None.Contains(legacyClass), "and does not report the cleanup again");
         }
 
         [Test]

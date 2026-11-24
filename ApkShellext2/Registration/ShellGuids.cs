@@ -61,9 +61,8 @@ namespace ApkShellext2.Registration {
     ///
     /// Each CLSID is declared exactly once, by the handler class in
     /// <c>ApkShellext2\Shell\Native</c> that carries the <c>[Guid]</c> and the <c>[ProgId]</c>
-    /// attribute; this class only repeats the values. The SharpShell derived handlers in
-    /// <c>ApkShellext2\Shell</c> declare no COM identity, so regasm emits one block per CLSID and no
-    /// second class competes for the same class id.
+    /// attribute; this class only repeats the values, and no second class competes for the same
+    /// class id.
     ///
     /// The command line installers in <c>Resources</c> hard code the same values, so a change here
     /// has to be made there too.
@@ -167,6 +166,14 @@ namespace ApkShellext2.Registration {
         /// <summary>Under <c>Software\Microsoft\Windows\CurrentVersion\Shell Extensions</c>.</summary>
         internal const string ApprovedKeyName = "Approved";
         internal const string BlockedKeyName = "Blocked";
+
+        /// <summary>
+        /// Class key of the first generation of the extension. Its class id has no server behind it
+        /// any more, so the install removes the whole key; the shell would otherwise keep the dead
+        /// handler in the list for <c>.apk</c> files. See
+        /// <c>ShellRegistrar.RemoveLegacyInstallation</c>.
+        /// </summary>
+        internal const string LegacyHandlerClassName = "KKHomeProj.ApkShellExt.ApkShellExt";
 
         /// <summary>
         /// File extensions the extension advertises, in the order the installers list them.

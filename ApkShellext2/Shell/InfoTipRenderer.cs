@@ -2,10 +2,11 @@ using System;
 using ApkQuickReader;
 using ApkShellext2.Diagnostics;
 using ApkShellext2.Properties;
+using ApkShellext2.Shell.Commands;
 
 namespace ApkShellext2 {
     /// <summary>
-    /// The tooltip text shared by the SharpShell handler and the native handler.
+    /// The tooltip text the info tip handler shows.
     ///
     /// The text is whatever the localised ToolTipPattern setting expands to for the package; a
     /// package that cannot be read still produces text (the "read failed" resource) because the
@@ -21,7 +22,7 @@ namespace ApkShellext2 {
                 Utility.Localize();
                 string tipPattern = Utility.GetSetting("ToolTipPattern", NonLocalizeResources.strInfoTipDefault);
                 using (IPackageReader reader = PackageReaderFactory.Create(path)) {
-                    return ApkContextMenu.ReplaceVariables(tipPattern, reader);
+                    return CommandRename.ReplaceVariables(tipPattern, reader);
                 }
             } catch (Exception ex) {
                 ErrorLog.Warn(module, "Error happened during GetInfo", ex);

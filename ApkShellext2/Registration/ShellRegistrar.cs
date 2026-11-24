@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using ApkShellext2.Diagnostics;
 using ApkShellext2.Interop;
 using Microsoft.Win32;
 
@@ -22,8 +23,10 @@ namespace ApkShellext2.Registration {
     /// <item>on a Windows 11 22H2+ host, <c>ExplorerCommandHandler</c> on the classes that received a
     /// context menu slot.</item>
     /// </list>
-    /// It also unblocks the four CLSIDs in all three <c>Shell Extensions\Blocked</c> lists and, for
-    /// the machine scope, approves them in the 64 bit <c>Approved</c> list - a blocked CLSID would
+    /// It also retires what an install of the first generation handlers left behind - the old class
+    /// key, its class id and the <c>Approved</c> entry that keeps the dead handler enabled - and
+    /// unblocks the four CLSIDs in all three <c>Shell Extensions\Blocked</c> lists; for the machine
+    /// scope it approves them in the 64 bit <c>Approved</c> list, because a blocked CLSID would
     /// silently disable the freshly registered handlers.
     ///
     /// <see cref="Unregister"/> removes exactly that, and only where the values still belong to us.
@@ -64,6 +67,8 @@ namespace ApkShellext2.Registration {
             RegistrationOptions effective = options ?? RegistrationOptions.ForScope(scope);
             RegistryWriter writer = new RegistryWriter(effective.Target.Hive, effective.Target.View);
             RegistrationReport report = new RegistrationReport(scope, effective.EffectiveBuildNumber);
+
+            RemoveLegacyInstallation(writer, effective.Target, report);
 
             foreach (string classRoot in effective.Target.ClassRoots()) {
                 WriteServerRegistration(writer, classRoot, assemblyFullName, version.ToString(), codeBase, report);
@@ -175,6 +180,66 @@ namespace ApkShellext2.Registration {
         //  COM server registration (the regasm /codebase shape)
         //  -------------------------------------------------------------------------------------
 
+        //  -------------------------------------------------------------------------------------
+        //  Leftovers of the first generation install
+        //  -------------------------------------------------------------------------------------
+
+        /// <summary>
+        /// Retires the class key, class id and <c>Approved</c> entry that an install of the first
+        /// generation handlers left behind. The class id those handlers registered is dead, but the
+        /// shell keeps offering the handler for <c>.apk</c> files for as long as the class key still
+        /// resolves, and no step of the registration below ever touches these keys: the install is the
+        /// only place that can remove them. A clean machine has none of them, so the pass writes
+        /// nothing there. A hive this process may not write leaves the registration itself intact -
+        /// the leftovers are cosmetic next to a missing handler - so a failure is logged, not thrown.
+        /// </summary>
+        private static void RemoveLegacyInstallation(RegistryWriter writer, RegistryTarget target, RegistrationReport report) {
+            try {
+                HashSet<string> classIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (string classRoot in target.ClassRoots()) {
+                    string classKey = classRoot + "\\" + ShellGuids.LegacyHandlerClassName;
+                    // The class id is read before the key holding it is deleted; the reading works the
+                    // same on a key that is about to go away as on one that is shared with something
+                    // else, and an old install may have written it under either class root.
+                    string classId = writer.GetDefaultValue(classKey + "\\" + ShellGuids.ClsidKey);
+                    if (!string.IsNullOrEmpty(classId)) {
+                        classIds.Add(classId);
+                    }
+                    if (writer.KeyExists(classKey)) {
+                        writer.DeleteKey(classKey);
+                        report.AddKey(classKey);
+                    }
+                }
+
+                foreach (string classId in classIds) {
+                    foreach (string classRoot in target.ClassRoots()) {
+                        string classIdKey = classRoot + "\\" + ShellGuids.ClsidKey + "\\" + classId;
+                        if (writer.KeyExists(classIdKey)) {
+                            writer.DeleteKey(classIdKey);
+                            report.AddKey(classIdKey);
+                        }
+                    }
+                    // The shell lists approved handlers as values, but at least one early installer
+                    // wrote the class id as a subkey here; remove both shapes so the dead class id
+                    // cannot keep the handler enabled.
+                    if (writer.DeleteValue(target.ApprovedPath, classId)) {
+                        report.AddKey(target.ApprovedPath);
+                    }
+                    string approvedSubKey = target.ApprovedPath + "\\" + classId;
+                    if (writer.KeyExists(approvedSubKey)) {
+                        writer.DeleteKey(approvedSubKey);
+                        report.AddKey(approvedSubKey);
+                    }
+                }
+            } catch (UnauthorizedAccessException ex) {
+                ErrorLog.Warn("ShellRegistrar", "The installation of an earlier version could not be cleaned up", ex);
+            } catch (System.Security.SecurityException ex) {
+                ErrorLog.Warn("ShellRegistrar", "The installation of an earlier version could not be cleaned up", ex);
+            } catch (IOException ex) {
+                ErrorLog.Warn("ShellRegistrar", "The installation of an earlier version could not be cleaned up", ex);
+            }
+        }
+
         private static void WriteServerRegistration(RegistryWriter writer, string classRoot, string assemblyFullName, string version, string codeBase, RegistrationReport report) {
             foreach (ShellHandler handler in ShellGuids.Handlers) {
                 string clsidKey = classRoot + "\\" + ShellGuids.ClsidKey + "\\" + handler.Clsid;
@@ -225,9 +290,9 @@ namespace ApkShellext2.Registration {
         }
 
         /// <summary>
-        /// Keeps only the current version subkey under <c>InprocServer32</c>. The handlers'
-        /// <c>ComRegisterFunction</c> did the same (Shell\ApkIconHandler.cs:167-178), otherwise an
-        /// upgrade leaves the previous version's subkey behind and mscoree keeps resolving it.
+        /// Keeps only the current version subkey under <c>InprocServer32</c>. mscoree resolves the
+        /// assembly from whichever subkey carries its version, so an upgrade that left the previous
+        /// version's subkey behind would keep loading the old <c>CodeBase</c>.
         /// </summary>
         private static void RemoveStaleVersionKeys(RegistryWriter writer, string inprocKey, string currentVersion, RegistrationReport report) {
             foreach (string subKeyName in writer.GetSubKeyNames(inprocKey)) {

@@ -1,4 +1,3 @@
-using SharpShell.Diagnostics;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -9,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
+using ApkShellext2.Interop;
 using ApkShellext2.Properties;
 using System.Globalization;
 using System.Configuration;
@@ -209,13 +209,13 @@ namespace ApkShellext2 {
         private void ckShowAppxIcon_CheckedChanged(object sender, EventArgs e) {
 
             Utility.SaveSetting("ShowAppxIcon",ckShowAppxIcon.Checked);       
-            SharpShell.Interop.Shell32.SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+            NativeMethods.NotifyAssociationsChanged();
         }
 
         private void ckShowOverlay_CheckedChanged(object sender, EventArgs e) {
             Utility.SaveSetting("ShowOverLayIcon", ckShowOverlay.Checked);
             if (formLoaded) {
-                SharpShell.Interop.Shell32.SHChangeNotify(0x08000000, 0, IntPtr.Zero, IntPtr.Zero);
+                NativeMethods.NotifyAssociationsChanged();
                 if (Utility.GetSettingBool("EnableThumbnail"))
                     needClearThumbnailCache = true;
             }

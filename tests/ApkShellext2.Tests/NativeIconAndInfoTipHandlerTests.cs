@@ -10,9 +10,8 @@ namespace ApkShellext2.Tests
     /// <summary>
     /// Drives the native icon handler the way the shell does: IPersistFile::Load first, then
     /// IExtractIconW, and reads the HICON sizes back so a handler that ignored the requested size
-    /// cannot pass. The info-tip tests compare every tip with the text the SharpShell handler
-    /// produces for the same path, so the two implementations cannot drift apart while both are
-    /// registered.
+    /// cannot pass. The info-tip tests pin the exact tooltip text for a fixed corpus, so a change
+    /// that users would see while hovering a package cannot slip through unnoticed.
     /// </summary>
     [TestFixture]
     public class NativeIconAndInfoTipHandlerTests
@@ -179,56 +178,44 @@ namespace ApkShellext2.Tests
             return (string)field.GetRawConstantValue();
         }
 
+        /// <summary>
+        /// Pins the exact tip text of the corpus. The tooltip is the first thing a user reads when
+        /// hovering a package, so the expected strings are written out here rather than derived from
+        /// the code they check. The first two samples carry the resources of a real package, which is
+        /// what makes their name, package id and version rows meaningful; the rest cover the shapes
+        /// that have no package to read.
+        /// </summary>
         [Test]
-        public void TipTextIsIdenticalToTheSharpShellHandler()
+        public void TipTextIsThePackageSummary()
         {
             using (new SettingsScope().Set("Language", "en-US"))
             {
-                AssertSameTip("a plain apk", MenuFixtures.PlainApkPath());
-                AssertSameTip("an apk that cannot be read", MenuFixtures.HostileApkPath());
-                AssertSameTip("an ipa", MenuFixtures.IpaPath());
-                AssertSameTip("an aab", MenuFixtures.AabPath());
-                AssertSameTip("an unknown extension", MenuFixtures.UnknownPath());
-                AssertSameTip("a file that does not exist", @"C:\apkshellext-tests\does-not-exist.apk");
+                // The default pattern in the English resources: name, package id and version on three
+                // lines. A package that cannot be read still gets a tip - the shell draws the tooltip
+                // either way and an empty string looks like a broken handler - so the unreadable field
+                // is the name and the rest still comes out.
+                AssertTip("a plain apk", MenuFixtures.PlainApkPath(),
+                    "Spectroid\r\norg.intoorbit.spectrum\r\nVersion: 1.1.2 31");
+                AssertTip("an apk that cannot be read", MenuFixtures.HostileApkPath(),
+                    "(0x7F090007)\r\norg.intoorbit.spectrum\r\nVersion: 1.1.2 31");
+                AssertTip("an ipa", MenuFixtures.IpaPath(),
+                    "My App\r\ncom.example.app\r\nVersion: 2.0.1 42");
+                AssertTip("an aab", MenuFixtures.AabPath(),
+                    "2131296263\r\norg.intoorbit.spectrum\r\nVersion: 1.1.2 31");
+                // No reader claims these, so the "read failed" resource is the whole tip.
+                AssertTip("an unknown extension", MenuFixtures.UnknownPath(), "Fail to read file");
+                AssertTip("a file that does not exist", @"C:\apkshellext-tests\does-not-exist.apk", "Fail to read file");
             }
         }
 
-        private static void AssertSameTip(string label, string path)
+        private static void AssertTip(string label, string path, string expected)
         {
-            string expected = SharpShellTip(path);
             InfoTipHandlerNative handler = new InfoTipHandlerNative();
-            Assert.That(handler.Load(path, 0), Is.EqualTo(S_OK));
+            Assert.That(handler.Load(path, 0), Is.EqualTo(S_OK), "Load failed for " + label);
             string actual;
-            int hr = handler.GetInfoTip(0, out actual);
-            Assert.That(hr, Is.EqualTo(S_OK), "GetInfoTip failed for " + label);
-            Assert.That(actual, Is.EqualTo(expected), "the tip text differs from the SharpShell handler for " + label);
+            Assert.That(handler.GetInfoTip(0, out actual), Is.EqualTo(S_OK), "GetInfoTip failed for " + label);
+            Assert.That(actual, Is.EqualTo(expected), "the tip text changed for " + label);
         }
-
-        /// <summary>
-        /// Calls the still-registered SharpShell handler the way its COM server does, through
-        /// reflection: SelectedItemPath is the only state it keeps and GetInfo is protected.
-        /// The path is written through the auto-property's backing field because the setter is
-        /// private and reflection on an inherited private setter is unreliable on .NET Framework.
-        /// </summary>
-        private static string SharpShellTip(string path)
-        {
-            Type type = ProductApi.Assembly.GetType("ApkShellext2.ApkInfoTipHandler", true);
-            object handler = Activator.CreateInstance(type);
-            FieldInfo selectedPath = null;
-            for (Type t = type; t != null && selectedPath == null; t = t.BaseType)
-            {
-                selectedPath = t.GetField("<SelectedItemPath>k__BackingField",
-                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            }
-            Assert.That(selectedPath, Is.Not.Null, "the SharpShell SelectedItemPath backing field was not found");
-            selectedPath.SetValue(handler, path);
-            MethodInfo getInfo = type.GetMethod("GetInfo", BindingFlags.Instance | BindingFlags.NonPublic);
-            Assert.That(getInfo, Is.Not.Null, "ApkInfoTipHandler.GetInfo was not found");
-            ParameterInfo[] parameters = getInfo.GetParameters();
-            object infoType = Enum.Parse(parameters[0].ParameterType, "InfoTip");
-            return (string)getInfo.Invoke(handler, new object[] { infoType, false });
-        }
-
         [Test]
         public void GetInfoTipWithoutAPathReturnsNoTip()
         {
