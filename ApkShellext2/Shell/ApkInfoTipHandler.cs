@@ -1,4 +1,3 @@
-using ApkQuickReader;
 using Microsoft.Win32;
 using SharpShell.Attributes;
 using SharpShell.Diagnostics;
@@ -10,7 +9,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using ApkShellext2.Diagnostics;
-using ApkShellext2.Properties;
 
 namespace ApkShellext2 {
 
@@ -34,19 +32,7 @@ namespace ApkShellext2 {
         /// Specified info for the selected file.
         /// </returns>
         protected override string GetInfo(RequestedInfoType infoType, bool singleLine) {
-            try {
-                Utility.Localize();
-                string TipPattern = Utility.GetSetting("ToolTipPattern", NonLocalizeResources.strInfoTipDefault);
-                bool isapk = SelectedItemPath.EndsWith(".apk", StringComparison.OrdinalIgnoreCase);
-                bool isipa = SelectedItemPath.EndsWith(".ipa", StringComparison.OrdinalIgnoreCase);
-                
-                using (IPackageReader reader = PackageReaderFactory.Create(SelectedItemPath)) {
-                    return ApkContextMenu.ReplaceVariables(TipPattern, reader);
-                }
-            } catch (Exception ex) {
-                ErrorLog.Warn(this.GetType().Name, "Error happened during GetInfo", ex);
-                return Properties.Resources.strReadFileFailed;
-            }
+            return InfoTipRenderer.Render(SelectedItemPath, GetType().Name);
         }
 
         [CustomRegisterFunction]
