@@ -8,6 +8,7 @@ namespace ApkShellext2.Shell.Commands {
         /// <summary>No operation; separators and submenu parents carry this value.</summary>
         None = 0,
         Rename,
+        Export,
         DumpManifest,
         DumpXml,
         GooglePlay,

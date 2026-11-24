@@ -24,12 +24,19 @@ namespace ApkShellext2.Shell.Commands {
         private static readonly ApkContextMenu LogCaller = new ApkContextMenu();
 
         private static Action<IReadOnlyList<string>> preferencesHandler;
+        private static Action<IReadOnlyList<string>> exportHandler;
         private static Func<string, string, string> promptHandler;
 
         /// <summary>Opens the Preferences form; replaceable so tests can observe the routing.</summary>
         public static Action<IReadOnlyList<string>> PreferencesHandler {
             get { return preferencesHandler ?? (preferencesHandler = StaUiHost.ShowPreferences); }
             set { preferencesHandler = value; }
+        }
+
+        /// <summary>Exports the selection to CSV; replaceable so tests never show a dialog.</summary>
+        public static Action<IReadOnlyList<string>> ExportHandler {
+            get { return exportHandler ?? (exportHandler = StaUiHost.ExportCsv); }
+            set { exportHandler = value; }
         }
 
         /// <summary>Asks the user for the XML file name; replaceable so tests never show a dialog.</summary>
@@ -43,6 +50,13 @@ namespace ApkShellext2.Shell.Commands {
             switch (action) {
                 case CommandAction.Rename:
                     renameWithVersion(paths);
+                    break;
+                case CommandAction.Export:
+                    try {
+                        ExportHandler(paths);
+                    } catch (Exception ex) {
+                        ErrorLog.Error(LogCaller.GetType().Name, "Error happens during CSV export", ex);
+                    }
                     break;
                 case CommandAction.DumpManifest:
                     foreach (var path in paths) dumpXML(path, "androidmanifest.xml", paths);

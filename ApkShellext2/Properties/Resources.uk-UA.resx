@@ -352,4 +352,16 @@
   <data name="strDebugLog" xml:space="preserve">
     <value>Записувати журнал налагодження (перезапустіть Провідник)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>Експорт інформації (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>Експорт відомостей про пакет</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>Експорт {0} з {1}</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>Не вдалося записати файл CSV. Докладніше див. apkshellext-error.log.</value>
+  </data>
 </root>

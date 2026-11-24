@@ -341,4 +341,16 @@ Standardmäßig wird das Menü nur angezeigt, wenn eine Datei ausgewählt ist</v
   <data name="strDebugLog" xml:space="preserve">
     <value>Debug-Protokoll schreiben (Explorer neu starten)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>Informationen exportieren (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>Paketinformationen exportieren</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>Exportiere {0} von {1}</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>Die CSV-Datei konnte nicht geschrieben werden. Details stehen in apkshellext-error.log.</value>
+  </data>
 </root>

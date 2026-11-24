@@ -398,4 +398,16 @@
   <data name="strDebugLog" xml:space="preserve">
     <value>Εγγραφή αρχείου εντοπισμού σφαλμάτων (Επανεκκίνηση Εξερεύνησης)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>Εξαγωγή πληροφοριών (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>Εξαγωγή πληροφοριών πακέτου</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>Εξαγωγή {0} από {1}</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>Δεν ήταν δυνατή η εγγραφή του αρχείου CSV. Δείτε το apkshellext-error.log για λεπτομέρειες.</value>
+  </data>
 </root>

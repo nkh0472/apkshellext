@@ -350,4 +350,16 @@ Per impostazione predefinita il Menu verrà mostrato quando si seleziona solo un
   <data name="strDebugLog" xml:space="preserve">
     <value>Scrivi log di debug (riavvia Esplora risorse)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>Esporta informazioni (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>Esporta informazioni pacchetto</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>Esportazione di {0} su {1}</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>Impossibile scrivere il file CSV. Vedi apkshellext-error.log per i dettagli.</value>
+  </data>
 </root>

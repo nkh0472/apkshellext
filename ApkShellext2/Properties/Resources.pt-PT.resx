@@ -350,4 +350,16 @@ Verificando isso, renomeie o arquivo app como %AppName%_%Version%_%Revision%, ca
   <data name="strDebugLog" xml:space="preserve">
     <value>Escrever registo de depuração (reiniciar o Explorador)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>Exportar informações (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>Exportar informações do pacote</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>A exportar {0} de {1}</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>Não foi possível escrever o ficheiro CSV. Consulte apkshellext-error.log para obter detalhes.</value>
+  </data>
 </root>

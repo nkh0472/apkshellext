@@ -350,4 +350,16 @@ Zaznaczając to, w przypadku gdy numer subwersji będzie się różnił, wykorzy
   <data name="strDebugLog" xml:space="preserve">
     <value>Zapisuj dziennik debugowania (wymaga restartu Eksploratora)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>Eksportuj informacje (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>Eksportuj informacje o pakiecie</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>Eksportowanie {0} z {1}</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>Nie można zapisać pliku CSV. Szczegóły w apkshellext-error.log.</value>
+  </data>
 </root>

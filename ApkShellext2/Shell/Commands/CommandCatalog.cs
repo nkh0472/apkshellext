@@ -29,11 +29,13 @@ namespace ApkShellext2.Shell.Commands {
             };
 
             bool hasapk = false, hasipa = false, hasappx = false, hasappxbundle = false;
+            bool canExport = false;
             foreach (var p in paths) {
                 if (p.EndsWith(AppPackageReader.extAPK)) hasapk = true;
                 if (p.EndsWith(AppPackageReader.extIPA)) hasipa = true;
                 if (p.EndsWith(AppPackageReader.extAPPX)) hasappx = true;
                 if (p.EndsWith(AppPackageReader.extAPPXBUNDLE)) hasappxbundle = true;
+                if (!canExport && IsSupportedPackage(p)) canExport = true;
             }
 
             bool singleSelected = paths.Length == 1;
@@ -64,6 +66,12 @@ namespace ApkShellext2.Shell.Commands {
             }
             rename.Verb = CommandVerb.Rename;
             children.Add(rename);
+
+            // Export: available when at least one selected file has a package type the
+            // reader factory accepts, so a mixed selection still exports its readable files.
+            if (canExport) {
+                children.Add(Leaf(Resources.menuExportCsv, CommandAction.Export));
+            }
 
             // Dump submenu (Android packages only)
             if (hasapk) {
@@ -137,6 +145,17 @@ namespace ApkShellext2.Shell.Commands {
 
         private static CommandItem Leaf(string text, CommandAction action) {
             return Leaf(text, action, CommandIcon.None, true);
+        }
+
+        private static bool IsSupportedPackage(string path) {
+            try {
+                PackageReaderFactory.GetAppType(path);
+                return true;
+            } catch (NotSupportedException) {
+                return false;
+            } catch (ArgumentException) {
+                return false;
+            }
         }
 
         private static CommandItem Leaf(string text, CommandAction action, CommandIcon icon, bool enabled) {

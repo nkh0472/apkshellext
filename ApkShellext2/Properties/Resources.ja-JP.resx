@@ -366,4 +366,16 @@
   <data name="strDebugLog" xml:space="preserve">
     <value>デバッグログを記録（エクスプローラーの再起動後に有効）</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>情報をエクスポート (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>パッケージ情報をエクスポート</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>{1} 件中 {0} 件をエクスポート中</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>CSV ファイルを書き込めませんでした。詳細は apkshellext-error.log を参照してください。</value>
+  </data>
 </root>

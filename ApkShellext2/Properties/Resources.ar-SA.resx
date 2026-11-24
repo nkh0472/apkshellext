@@ -350,4 +350,16 @@
   <data name="strDebugLog" xml:space="preserve">
     <value>كتابة سجل التصحيح (أعد تشغيل مستكشف الملفات)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>تصدير المعلومات (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>تصدير معلومات الحزمة</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>جارٍ تصدير {0} من {1}</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>تعذّر كتابة ملف CSV. راجع apkshellext-error.log للتفاصيل.</value>
+  </data>
 </root>

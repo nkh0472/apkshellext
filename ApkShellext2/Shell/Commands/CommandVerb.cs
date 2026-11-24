@@ -7,6 +7,7 @@ namespace ApkShellext2.Shell.Commands {
     /// </summary>
     public static class CommandVerb {
         public const string Rename = "ApkShellext2.Rename";
+        public const string ExportCsv = "ApkShellext2.ExportCsv";
         public const string DumpManifest = "ApkShellext2.DumpManifest";
         public const string DumpXml = "ApkShellext2.DumpXml";
         public const string GooglePlay = "ApkShellext2.GoToGooglePlay";
@@ -23,6 +24,7 @@ namespace ApkShellext2.Shell.Commands {
         public static string For(CommandAction action) {
             switch (action) {
                 case CommandAction.Rename: return Rename;
+                case CommandAction.Export: return ExportCsv;
                 case CommandAction.DumpManifest: return DumpManifest;
                 case CommandAction.DumpXml: return DumpXml;
                 case CommandAction.GooglePlay: return GooglePlay;

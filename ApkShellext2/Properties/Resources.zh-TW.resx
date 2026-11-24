@@ -351,4 +351,16 @@
   <data name="strDebugLog" xml:space="preserve">
     <value>寫入偵錯記錄（重新啟動資源管理器後生效）</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>匯出資訊 (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>匯出封裝資訊</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>正在匯出第 {0} 個，共 {1} 個</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>無法寫入 CSV 檔案。詳情請見 apkshellext-error.log。</value>
+  </data>
 </root>

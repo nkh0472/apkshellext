@@ -349,4 +349,16 @@ Standaard, toon het menu alleen met één geselecteerd bestand</value>
   <data name="strDebugLog" xml:space="preserve">
     <value>Foutlogboek schrijven (Verkenner opnieuw opstarten)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>Informatie exporteren (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>Pakketinformatie exporteren</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>{0} van {1} exporteren</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>Het CSV-bestand kon niet worden geschreven. Zie apkshellext-error.log voor details.</value>
+  </data>
 </root>

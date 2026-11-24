@@ -350,4 +350,16 @@ Tildando eso, cambia el nombre del archivo de app a %AppName%_%Version%_%Revisio
   <data name="strDebugLog" xml:space="preserve">
     <value>Escribir registro de depuración (reiniciar el Explorador)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>Exportar información (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>Exportar información del paquete</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>Exportando {0} de {1}</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>No se pudo escribir el archivo CSV. Consulte apkshellext-error.log para obtener más información.</value>
+  </data>
 </root>

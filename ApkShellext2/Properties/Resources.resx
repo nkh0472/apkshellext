@@ -340,4 +340,16 @@ By checking this, rename app file as %AppName%_%Version%_%Revision%, otherwise, 
   <data name="strDebugLog" xml:space="preserve">
     <value>Write debug log (restart Explorer to apply)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>Export info (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>Export package info</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>Exporting {0} of {1}</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>The CSV file could not be written. See apkshellext-error.log for details.</value>
+  </data>
 </root>

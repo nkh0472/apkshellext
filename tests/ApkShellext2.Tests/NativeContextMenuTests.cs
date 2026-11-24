@@ -168,8 +168,8 @@ namespace ApkShellext2.Tests
                 int unknownHr;
                 string[] unknownTable = Query(unknown, out unknownHr, out menu);
 
-                Assert.That(aabTable.Length, Is.EqualTo(5));
-                Assert.That(aabHr & 0xFFFF, Is.EqualTo(5));
+                Assert.That(aabTable.Length, Is.EqualTo(6));
+                Assert.That(aabHr & 0xFFFF, Is.EqualTo(6));
                 Assert.That(unknownTable.Length, Is.EqualTo(0));
                 Assert.That(unknownHr, Is.EqualTo(E_FAIL));
             }
@@ -227,10 +227,11 @@ namespace ApkShellext2.Tests
                 Prepare(handler);
 
                 Assert.That(ReadCommandString(handler, IdCmdFirst + 1), Is.EqualTo(CommandVerb.Rename));
-                Assert.That(ReadCommandString(handler, IdCmdFirst + 3), Is.EqualTo(CommandVerb.DumpManifest));
-                Assert.That(ReadCommandString(handler, IdCmdFirst + 4), Is.EqualTo(CommandVerb.DumpXml));
-                Assert.That(ReadCommandString(handler, IdCmdFirst + 7), Is.EqualTo(CommandVerb.GooglePlay));
-                Assert.That(ReadCommandString(handler, IdCmdFirst + 10), Is.EqualTo(CommandVerb.Preferences));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 2), Is.EqualTo(CommandVerb.ExportCsv));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 4), Is.EqualTo(CommandVerb.DumpManifest));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 5), Is.EqualTo(CommandVerb.DumpXml));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 8), Is.EqualTo(CommandVerb.GooglePlay));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 11), Is.EqualTo(CommandVerb.Preferences));
             }
         }
 
@@ -243,7 +244,7 @@ namespace ApkShellext2.Tests
                 Prepare(handler);
 
                 Assert.That(RequestCommandString(handler, IdCmdFirst, GcsVerbW, 260), Is.EqualTo(E_FAIL));
-                Assert.That(RequestCommandString(handler, IdCmdFirst + 2, GcsVerbW, 260), Is.EqualTo(E_FAIL));
+                Assert.That(RequestCommandString(handler, IdCmdFirst + 6, GcsVerbW, 260), Is.EqualTo(E_FAIL));
                 Assert.That(RequestCommandString(handler, IdCmdFirst + 200, GcsVerbW, 260), Is.EqualTo(E_FAIL));
                 Assert.That(RequestCommandString(handler, IdCmdFirst + 1, 0, 260), Is.EqualTo(E_FAIL),
                     "an ANSI request is refused instead of filled with UTF-16");
@@ -260,7 +261,7 @@ namespace ApkShellext2.Tests
                 ContextMenuHandler handler = CreateHandler(MenuFixtures.PlainApkPath());
                 Prepare(handler);
 
-                Assert.That(InvokeIndex(handler, 2), Is.EqualTo(0), "the separator is a no-op success");
+                Assert.That(InvokeIndex(handler, 6), Is.EqualTo(0), "the separator is a no-op success");
                 Assert.That(InvokeIndex(handler, 200), Is.EqualTo(E_FAIL));
                 Assert.That(InvokeIndex(handler, 0), Is.EqualTo(E_FAIL),
                     "a zero verb pointer means 'the default item', and this menu has no default item");
@@ -333,8 +334,8 @@ namespace ApkShellext2.Tests
                 int secondHr;
                 string[] second = Query(handler, out secondHr, out menu);
 
-                Assert.That(first.Length, Is.EqualTo(11));
-                Assert.That(second.Length, Is.EqualTo(6));
+                Assert.That(first.Length, Is.EqualTo(12));
+                Assert.That(second.Length, Is.EqualTo(7));
                 Assert.That(second.Where(l => l.Contains("Appstore")).Count(), Is.EqualTo(1));
             }
         }

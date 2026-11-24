@@ -205,6 +205,15 @@ namespace ApkShellext2.Properties {
         }
         
         /// <summary>
+        ///   查找类似 Export info (CSV)… 的本地化字符串。
+        /// </summary>
+        internal static string menuExportCsv {
+            get {
+                return ResourceManager.GetString("menuExportCsv", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 Search {0} in Amazon Appstore 的本地化字符串。
         /// </summary>
         internal static string menuGotoAmazonAppStore {
@@ -374,6 +383,33 @@ namespace ApkShellext2.Properties {
         internal static string strEnableThumbnail {
             get {
                 return ResourceManager.GetString("strEnableThumbnail", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 The CSV file could not be written. See apkshellext-error.log for details. 的本地化字符串。
+        /// </summary>
+        internal static string strExportCsvFailed {
+            get {
+                return ResourceManager.GetString("strExportCsvFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Exporting {0} of {1} 的本地化字符串。
+        /// </summary>
+        internal static string strExportCsvProgress {
+            get {
+                return ResourceManager.GetString("strExportCsvProgress", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Export package info 的本地化字符串。
+        /// </summary>
+        internal static string strExportCsvTitle {
+            get {
+                return ResourceManager.GetString("strExportCsvTitle", resourceCulture);
             }
         }
         

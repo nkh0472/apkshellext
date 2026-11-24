@@ -62,15 +62,16 @@ namespace ApkShellext2.Tests
                 {
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK文件助手\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"更名为 Spectroid_1.1.2.apk\"",
-                    "  [1] id=102 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"提取文件\"",
-                    "    [0] id=103 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取 androidmanifest.xml\"",
-                    "    [1] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取XML文件...\"",
-                    "  [2] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [3] id=106 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"搜索商店\"",
-                    "    [0] id=107 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Google Play网页上查看Spectroid\"",
-                    "    [1] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Amazon Appstore上查看Spectroid\"",
-                    "  [4] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [5] id=110 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
+                    "  [1] id=102 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"导出信息 (CSV)…\"",
+                    "  [2] id=103 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"提取文件\"",
+                    "    [0] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取 androidmanifest.xml\"",
+                    "    [1] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取XML文件...\"",
+                    "  [3] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [4] id=107 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"搜索商店\"",
+                    "    [0] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Google Play网页上查看Spectroid\"",
+                    "    [1] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Amazon Appstore上查看Spectroid\"",
+                    "  [5] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [6] id=111 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
                 }));
             }
         }
@@ -86,15 +87,16 @@ namespace ApkShellext2.Tests
                 {
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK Shell Extension\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Rename to Spectroid_1.1.2.apk\"",
-                    "  [1] id=102 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Dump\"",
-                    "    [0] id=103 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Dump androidmanifest.xml\"",
-                    "    [1] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Dump XML ...\"",
-                    "  [2] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [3] id=106 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Search in Stores\"",
-                    "    [0] id=107 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in GooglePlay\"",
-                    "    [1] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in Amazon Appstore\"",
-                    "  [4] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [5] id=110 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Preferences\""
+                    "  [1] id=102 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Export info (CSV)…\"",
+                    "  [2] id=103 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Dump\"",
+                    "    [0] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Dump androidmanifest.xml\"",
+                    "    [1] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Dump XML ...\"",
+                    "  [3] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [4] id=107 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Search in Stores\"",
+                    "    [0] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in GooglePlay\"",
+                    "    [1] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in Amazon Appstore\"",
+                    "  [5] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [6] id=111 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Preferences\""
                 }));
             }
         }
@@ -106,7 +108,7 @@ namespace ApkShellext2.Tests
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.HostileApkPath() });
 
-                Assert.That(model.Count, Is.EqualTo(11), "the hostile table does not remove any entry");
+                Assert.That(model.Count, Is.EqualTo(12), "the hostile table does not remove any entry");
                 Assert.That(model.Items[1].Enabled, Is.True);
                 Assert.That(model.Items[1].Text, Does.StartWith("更名为 ").And.EndWith("_1.1.2.apk"));
             }
@@ -123,10 +125,11 @@ namespace ApkShellext2.Tests
                 {
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK文件助手\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"更名为 My App_2.0.1.ipa\"",
-                    "  [1] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [2] id=103 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Appstore上查看 My App\"",
-                    "  [3] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [4] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
+                    "  [1] id=102 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"导出信息 (CSV)…\"",
+                    "  [2] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [3] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Appstore上查看 My App\"",
+                    "  [4] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [5] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
                 }));
             }
         }
@@ -142,12 +145,13 @@ namespace ApkShellext2.Tests
                 {
                     CommandAction.None,
                     CommandAction.Rename,
+                    CommandAction.Export,
                     CommandAction.None,
                     CommandAction.MicrosoftStore,
                     CommandAction.None,
                     CommandAction.Preferences
                 }));
-                Assert.That(model.Items[3].Text, Is.EqualTo("在Microsoft Store上查看Test App"));
+                Assert.That(model.Items[4].Text, Is.EqualTo("在Microsoft Store上查看Test App"));
                 Assert.That(model.Items[1].Text, Is.EqualTo("更名为 Test App_1.2.3.4.appx"));
                 Assert.That(model.Items[1].Children, Is.Empty);
             }
@@ -160,9 +164,9 @@ namespace ApkShellext2.Tests
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.AppxBundlePath() });
 
-                Assert.That(model.Count, Is.EqualTo(6));
+                Assert.That(model.Count, Is.EqualTo(7));
                 Assert.That(model.Items[1].Text, Is.EqualTo("更名为 Test App_1.2.3.4.appxbundle"));
-                Assert.That(model.Items[3].Action, Is.EqualTo(CommandAction.MicrosoftStore));
+                Assert.That(model.Items[4].Action, Is.EqualTo(CommandAction.MicrosoftStore));
             }
         }
 
@@ -173,13 +177,14 @@ namespace ApkShellext2.Tests
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.AabPath() });
 
-                Assert.That(model.Count, Is.EqualTo(5),
-                    "an .aab shows the rename, two separators and the preferences entry");
+                Assert.That(model.Count, Is.EqualTo(6),
+                    "an .aab shows the rename, the export, two separators and the preferences entry");
                 Assert.That(model.Items.Count(i => i.IsSeparator), Is.EqualTo(2));
                 Assert.That(model.Items.Select(i => i.Action), Is.EqualTo(new[]
                 {
                     CommandAction.None,
                     CommandAction.Rename,
+                    CommandAction.Export,
                     CommandAction.None,
                     CommandAction.None,
                     CommandAction.Preferences
@@ -195,7 +200,7 @@ namespace ApkShellext2.Tests
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.ApksPath() });
 
-                Assert.That(model.Count, Is.EqualTo(5));
+                Assert.That(model.Count, Is.EqualTo(6));
                 Assert.That(model.Items[1].Text, Is.EqualTo("更名为 Spectroid_1.1.2.apks"));
             }
         }
@@ -289,7 +294,9 @@ namespace ApkShellext2.Tests
                 Assert.That(model.FindByIndex(CommandIds.First), Is.SameAs(model.Root));
                 Assert.That(model.FindByIndex(1).Verb, Is.EqualTo(CommandVerb.Rename));
                 Assert.That(model.FindByVerb(CommandVerb.Rename), Is.SameAs(model.FindByIndex(1)));
-                Assert.That(model.FindByVerb(CommandVerb.Preferences).Index, Is.EqualTo(10));
+                Assert.That(model.FindByIndex(2).Verb, Is.EqualTo(CommandVerb.ExportCsv));
+                Assert.That(model.FindByVerb(CommandVerb.ExportCsv), Is.SameAs(model.FindByIndex(2)));
+                Assert.That(model.FindByVerb(CommandVerb.Preferences).Index, Is.EqualTo(11));
                 Assert.That(model.FindByVerb("nope"), Is.Null);
                 Assert.That(model.FindByIndex(CommandIds.Last + 1), Is.Null);
             }
@@ -304,8 +311,7 @@ namespace ApkShellext2.Tests
 
                 Assert.That(model.Invoke(null), Is.False);
                 Assert.That(model.Invoke(model.Root), Is.True, "a submenu parent is a valid id that does nothing");
-                Assert.That(model.Invoke(model.Items[2]), Is.True, "a separator is a valid id that does nothing");
-
+                Assert.That(model.Invoke(model.Items[6]), Is.True, "a separator is a valid id that does nothing");
                 bool reached = false;
                 Action<IReadOnlyList<string>> previous = CommandActions.PreferencesHandler;
                 try
@@ -317,6 +323,92 @@ namespace ApkShellext2.Tests
                 finally
                 {
                     CommandActions.PreferencesHandler = previous;
+                }
+            }
+        }
+        [Test]
+        public void Export_IsTheItemRightAfterRename()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.PlainApkPath() });
+
+                CommandItem export = model.FindByVerb(CommandVerb.ExportCsv);
+                Assert.That(export, Is.Not.Null);
+                Assert.That(export.Action, Is.EqualTo(CommandAction.Export));
+                Assert.That(export.Index, Is.EqualTo(2));
+                Assert.That(export.Text, Is.EqualTo("导出信息 (CSV)…"));
+                Assert.That(export.Icon, Is.EqualTo(CommandIcon.None));
+                Assert.That(export.Enabled, Is.True);
+                Assert.That(model.Items[1].Action, Is.EqualTo(CommandAction.Rename));
+            }
+        }
+
+        [TestCase("ipa")]
+        [TestCase("appx")]
+        [TestCase("appxbundle")]
+        [TestCase("aab")]
+        [TestCase("apks")]
+        public void Export_IsOfferedForEverySupportedPackageKind(string kind)
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[] { SamplePath(kind) });
+
+                Assert.That(model.FindByVerb(CommandVerb.ExportCsv).Action,
+                    Is.EqualTo(CommandAction.Export));
+            }
+        }
+
+        private static string SamplePath(string kind)
+        {
+            switch (kind)
+            {
+                case "ipa": return MenuFixtures.IpaPath();
+                case "appx": return MenuFixtures.AppxPath();
+                case "appxbundle": return MenuFixtures.AppxBundlePath();
+                case "aab": return MenuFixtures.AabPath();
+                case "apks": return MenuFixtures.ApksPath();
+                default: throw new ArgumentOutOfRangeException("kind", kind, "unknown sample");
+            }
+        }
+
+        [Test]
+        public void Export_IsOfferedWhenOnlyOneFileOfAMixedSelectionIsSupported()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[]
+                {
+                    MenuFixtures.PlainApkPath(),
+                    MenuFixtures.UnknownPath()
+                });
+
+                Assert.That(model.FindByVerb(CommandVerb.ExportCsv), Is.Not.Null,
+                    "one readable package keeps the export available for the whole selection");
+            }
+        }
+
+        [Test]
+        public void Invoke_ExportsThroughTheInjectableSeam()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.PlainApkPath() });
+
+                IReadOnlyList<string> reached = null;
+                Action<IReadOnlyList<string>> previous = CommandActions.ExportHandler;
+                try
+                {
+                    CommandActions.ExportHandler = paths => { reached = paths; };
+                    Assert.That(model.Invoke(model.FindByVerb(CommandVerb.ExportCsv)), Is.True);
+                    Assert.That(reached, Is.Not.Null);
+                    Assert.That(reached.Count, Is.EqualTo(1));
+                    Assert.That(reached[0], Is.EqualTo(MenuFixtures.PlainApkPath()));
+                }
+                finally
+                {
+                    CommandActions.ExportHandler = previous;
                 }
             }
         }

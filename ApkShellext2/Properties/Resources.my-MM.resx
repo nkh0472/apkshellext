@@ -409,4 +409,16 @@
   <data name="strDebugLog" xml:space="preserve">
     <value>debug မှတျတမ်းရေးရန် (Explorer ကိုပွနျစရနျ)</value>
   </data>
+  <data name="menuExportCsv" xml:space="preserve">
+    <value>အချက်အလက် ထုတ်ယူရန် (CSV)…</value>
+  </data>
+  <data name="strExportCsvTitle" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ် အချက်အလက် ထုတ်ယူရန်</value>
+  </data>
+  <data name="strExportCsvProgress" xml:space="preserve">
+    <value>{1} ခုအနက် {0} ခု ထုတ်ယူနေသည်</value>
+  </data>
+  <data name="strExportCsvFailed" xml:space="preserve">
+    <value>CSV ဖိုင်ကို ရေး၍ မရပါ။ အသေးစိတ်အတွက် apkshellext-error.log ကို ကြည့်ပါ။</value>
+  </data>
 </root>

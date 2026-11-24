@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Windows.Forms;
 using ApkShellext2.Diagnostics;
@@ -49,6 +50,125 @@ namespace ApkShellext2.Shell {
         /// </summary>
         public static void ShowPreferences(IReadOnlyList<string> selectedPaths) {
             Send(() => ShowPreferencesCore(selectedPaths));
+        }
+
+        /// <summary>
+        /// Asks for a destination with the save dialog, then writes the selected files' package
+        /// information on a background thread while a modeless progress window stays on this
+        /// thread. Failures are logged and reported with a message box instead of escaping to
+        /// the shell.
+        /// </summary>
+        public static void ExportCsv(IReadOnlyList<string> selectedPaths) {
+            if (selectedPaths == null || selectedPaths.Count == 0) return;
+            var paths = new List<string>(selectedPaths);
+
+            string target = Send(() => AskExportPath(paths));
+            if (string.IsNullOrEmpty(target)) return;
+
+            var cancellation = new CancellationTokenSource();
+            CsvExportProgressForm progress = null;
+            try {
+                progress = Send(() => ShowExportProgress(paths.Count, cancellation));
+            } catch (Exception ex) {
+                ErrorLog.Warn(typeof(StaUiHost).Name, "Could not show the CSV export progress window", ex);
+            }
+
+            CsvExportProgressForm window = progress;
+            ThreadPool.QueueUserWorkItem(state => WriteCsvFile(paths, target, cancellation, window));
+        }
+
+        private static string AskExportPath(IReadOnlyList<string> paths) {
+            using (var dialog = new SaveFileDialog()) {
+                dialog.Title = Resources.strExportCsvTitle;
+                dialog.FileName = PackageCsvWriter.DefaultFileName;
+                dialog.DefaultExt = "csv";
+                dialog.AddExtension = true;
+                dialog.OverwritePrompt = true;
+                dialog.Filter = "CSV (*.csv)|*.csv|All files (*.*)|*.*";
+                try {
+                    string folder = Path.GetDirectoryName(Path.GetFullPath(paths[0]));
+                    if (!string.IsNullOrEmpty(folder) && Directory.Exists(folder)) {
+                        dialog.InitialDirectory = folder;
+                    }
+                } catch (Exception) {
+                    // an unusable first path leaves the dialog at its default folder
+                }
+                return dialog.ShowDialog() == DialogResult.OK ? dialog.FileName : null;
+            }
+        }
+
+        private static CsvExportProgressForm ShowExportProgress(int total, CancellationTokenSource cancellation) {
+            var form = new CsvExportProgressForm(total, cancellation);
+            form.Show();
+            return form;
+        }
+
+        private static void WriteCsvFile(
+            IReadOnlyList<string> paths,
+            string target,
+            CancellationTokenSource cancellation,
+            CsvExportProgressForm progress) {
+            string temp = null;
+            try {
+                // The export goes to a temporary file in the destination folder and replaces
+                // the destination only after every row has been written, so a failure never
+                // leaves a half-written CSV under the name the user chose.
+                string folder = Path.GetDirectoryName(target);
+                temp = Path.Combine(folder,
+                    Path.GetFileName(target) + "." + Guid.NewGuid().ToString("N") + ".tmp");
+
+                using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None)) {
+                    PackageCsvWriter.Write(stream, paths, null, cancellation.Token,
+                        (done, total) => ReportProgress(progress, done, total));
+                }
+
+                if (File.Exists(target)) File.Replace(temp, target, null);
+                else File.Move(temp, target);
+                temp = null;
+            } catch (Exception ex) {
+                ErrorLog.Error(typeof(StaUiHost).Name, "Could not export the package list to " + target, ex);
+                ShowExportFailed();
+            } finally {
+                if (temp != null) {
+                    try {
+                        File.Delete(temp);
+                    } catch (Exception) {
+                        // the temporary file is already best-effort cleanup
+                    }
+                }
+                CloseProgress(progress);
+            }
+        }
+
+        private static void ReportProgress(CsvExportProgressForm form, int done, int total) {
+            if (form == null || form.IsDisposed) return;
+            try {
+                form.BeginInvoke((Action)(() => form.SetProgress(done, total)));
+            } catch (ObjectDisposedException) {
+                // the window is gone
+            } catch (InvalidOperationException) {
+                // the progress window was closed while the export was still running
+            }
+        }
+
+        private static void CloseProgress(CsvExportProgressForm form) {
+            if (form == null || form.IsDisposed) return;
+            try {
+                Send(() => {
+                    if (!form.IsDisposed) form.Close();
+                });
+            } catch (Exception ex) {
+                ErrorLog.Warn(typeof(StaUiHost).Name, "Could not close the CSV export progress window", ex);
+            }
+        }
+
+        private static void ShowExportFailed() {
+            try {
+                Send(() => MessageBox.Show(Resources.strExportCsvFailed, Resources.strExportCsvTitle,
+                    MessageBoxButtons.OK, MessageBoxIcon.Error));
+            } catch (Exception ex) {
+                ErrorLog.Warn(typeof(StaUiHost).Name, "Could not show the CSV export error", ex);
+            }
         }
 
         public static void Send(Action action) {
