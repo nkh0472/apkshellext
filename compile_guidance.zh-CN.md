@@ -402,9 +402,19 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 单选打开唯一需要的 reader,返回 `CommandModel`:一棵前序排列的 `CommandItem` 树,每项带
 `Index`(相对 `idCmdFirst` 的偏移)、`Text`、`Verb`、`HelpText`、`Action`、`Icon`、`Enabled`、
 `IsSeparator` 和 `Children`。该目录里没有任何代码碰 WinForms;与 UI 相邻的只有
-`CommandActions`(执行重命名、导出、商店与首选项命令)、`CommandIconResolver`(把图标标记变成
-`Bitmap`)和 `Shell\StaUiHost.cs`(在带消息泵的专用 STA 线程上打开首选项窗口和导出提示框,因此
-查询菜单不会加载 UI 栈)。
+`CommandActions`(执行重命名、导出 CSV、提取文件、商店与首选项命令)、`CommandIconResolver`(把图标标记变成
+`Bitmap`)和 `Shell\StaUiHost.cs`(在带消息泵的专用 STA 线程上打开首选项窗口、CSV 保存/进度窗口
+和提取文件提示框,因此查询菜单不会加载 UI 栈)。
+
+**导出所选文件。** 只要 `PackageReaderFactory.GetAppType` 能识别至少一个选中文件,
+`Shell\Commands\CommandCatalog.cs` 就在重命名项之后加一个 `Export` 项;只选中不受支持的文件时
+没有导出项。执行后在 STA 线程上打开 `SaveFileDialog`(默认 `apk-info.csv`),随后在线程池线程
+写文件,上百个文件也不会卡住菜单。`Formats\PackageCsvWriter.cs` 负责写表:UTF-8 带 BOM、CRLF
+(主要读者是 Excel)、RFC 4180 引号规则、每个选中路径一行且保持选择顺序,列固定为 `File`、
+`Folder`、`AppName`、`Package`、`Version`、`Revision`、`Publisher`、`AppID`、`Type`、
+`SizeBytes`、`Modified`、`Status`。`Status` 为 `ok`、`unsupported type`、`unreadable` 或
+`cancelled`;混合选择里每个路径都保留一行,CSV 自己说明跳过了什么。进度窗口显示当前计数,
+并通过 `CancellationToken` 取消;写失败记入 `ErrorLog` 并弹出消息框,绝不越过 COM 边界抛出。
 
 **id 与 verb。** `CommandIds` 固定区间(`First = 0`,`MaxItems = 0x100`);菜单写入
 `wID = idCmdFirst + Index`,分隔符完全不携带 id,与改造前的输出一致。`CommandVerb` 把每条命令
@@ -657,8 +667,11 @@ Explorer` 下的 `thumbcache_*.db` 与 `iconcache_*.db`;否则 dll 换了之后�
 Add-Content ApkShellext2\Formats\AppxReader.cs 'using System.Windows.Forms;'
 pwsh -File eng\check-layers.ps1    # 打印 "Formats\AppxReader.cs:<行号>: ...",exit 1
 git checkout -- ApkShellext2\Formats\AppxReader.cs
-pwsh -File eng\check-layers.ps1    # "layers OK: 19 C# files ...",exit 0
+pwsh -File eng\check-layers.ps1    # "layers OK: <count> C# files ...",exit 0
 ```
+
+这个数字是脚本在当前工作树上实际扫描到的文件数,不是固定断言;在 `Formats\` 下新增
+parser 或 writer 会让它变化,但不需要改门禁脚本。
 
 门禁要求 `Formats\` 与 `Imaging\` 既没有 `using SharpShell.*` 也没有
 `using Media = System.Windows.Media;` —— 两者在这里都只会是死引用。

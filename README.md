@@ -28,7 +28,7 @@ A Windows shell extension that shows the real app icon, package info tip and a m
 - Modern rendering pipeline: VectorDrawable → SVG rasterization (linear/radial gradients, nested groups, clip paths), adaptive icons with Android's 1.5x center-crop zoom, framework color references — pixel-consistent with Android's own output
 - Localized app names: labels follow your UI language, or a language you pick in Preferences (since 3.3.0)
 - Info tip with version, package name, size, target platform and other parsed metadata
-- Context menu: batch rename with custom patterns, open the app's store page
+- Context menu: batch rename with custom patterns, export the selected packages to one CSV file (UTF-8 with BOM, one row per file), open the app's store page
 - Overlay badges distinguishing app types
 - Localized UI in 19 languages — translation pull requests welcome
 - Hardened archive parsing: decompression-ratio and size caps on every read path (since 3.4.0), libwebp 1.6.0 (since 3.1.0)

@@ -458,10 +458,23 @@ settings, localises, opens the one reader a single selection needs and returns a
 `CommandModel`: a tree of `CommandItem`s in pre-order, each carrying `Index` (its offset from
 `idCmdFirst`), `Text`, `Verb`, `HelpText`, `Action`, `Icon`, `Enabled`, `IsSeparator` and
 `Children`. Nothing in the folder touches WinForms; the UI-adjacent pieces are
-`CommandActions` (runs the rename, dump, store and preferences commands),
+`CommandActions` (runs the rename, CSV export, dump, store and preferences commands),
 `CommandIconResolver` (turns an icon token into a `Bitmap`) and `Shell\StaUiHost.cs` (runs the
-Preferences window and the dump prompt on a dedicated STA thread with a message pump, so a menu
-query never loads the UI stack).
+Preferences window, the CSV save dialog with its progress window and the dump prompt on a
+dedicated STA thread with a message pump, so a menu query never loads the UI stack).
+
+**Exporting the selection.** `Shell\Commands\CommandCatalog.cs` adds one `Export` item right
+after the rename entry when `PackageReaderFactory.GetAppType` accepts at least one selected
+path; a selection of only unsupported files has no export item. Invoking it opens a
+`SaveFileDialog` (default `apk-info.csv`) on the STA thread and then writes the file on a
+thread-pool thread, so a large selection never blocks the menu. `Formats\PackageCsvWriter.cs`
+writes the table: UTF-8 with a BOM and CRLF because Excel is the main reader, RFC 4180 quoting,
+one row per selected path in selection order, and the fixed columns `File`, `Folder`, `AppName`,
+`Package`, `Version`, `Revision`, `Publisher`, `AppID`, `Type`, `SizeBytes`, `Modified`,
+`Status`. `Status` is `ok`, `unsupported type`, `unreadable` or `cancelled`; a mixed selection
+keeps every path as a row, so the CSV explains what was skipped. The progress window reports
+the running count and cancels through a `CancellationToken`; a write failure goes to
+`ErrorLog` and to a message box, never across the COM boundary.
 
 **Ids and verbs.** `CommandIds` fixes the range (`First = 0`, `MaxItems = 0x100`); the menu
 writes `wID = idCmdFirst + Index` and separators carry no id at all, which is what the previous
@@ -755,8 +768,11 @@ verified, not just how a violation looks):
 Add-Content ApkShellext2\Formats\AppxReader.cs 'using System.Windows.Forms;'
 pwsh -File eng\check-layers.ps1    # prints "Formats\AppxReader.cs:<line>: ...", exits 1
 git checkout -- ApkShellext2\Formats\AppxReader.cs
-pwsh -File eng\check-layers.ps1    # "layers OK: 19 C# files ...", exits 0
+pwsh -File eng\check-layers.ps1    # "layers OK: <count> C# files ...", exits 0
 ```
+
+The count is the number of files the script actually scanned on this checkout, not a fixed
+expectation; adding a parser or a writer under `Formats\` changes it without editing the gate.
 
 `Formats\` and `Imaging\` therefore carry no `using SharpShell.*` and no
 `using Media = System.Windows.Media;`; both would be dead anyway.
