@@ -139,9 +139,12 @@ namespace ApkShellext2.Shell.Commands {
         /// <summary>
         /// The label of the whole menu. The classic handler draws it as the submenu title and the
         /// modern verb returns it from IExplorerCommand.GetTitle, so both menus read the same
-        /// resource and the same optional new-version suffix.
+        /// resource and the same optional new-version suffix. The language setting is applied here
+        /// because GetTitle reaches this method without building the menu first.
         /// </summary>
         internal static string RootTitle() {
+            Utility.Localize();
+
             string newVerAvai = "";
             if (Utility.NewVersionAvailible() && Utility.GetSetting("ShowNewVersion", "True") == "True")
                 newVerAvai = " (" + string.Format(Resources.strNewVersionAvailible, Utility.GetSetting("LatestVersion")) + ")";
