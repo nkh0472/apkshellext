@@ -384,8 +384,9 @@ plus its `CLSID` sub-key), then the association slots from `ShellGuids.AppliesTo
 eight extensions, info tip and context menu except `.aab`, thumbnail only `.apk`), and the
 `DefaultIcon` placeholder with the `SharpShell_Backup_DefaultIcon` backup semantics of
 `install_user.bat` (back up once, never over an existing backup, never back up `%1` itself).
-`ShellGuids.cs` is the single source of truth for the four CLSIDs, the four ProgIDs, the eight
-extensions and every key/value name; the `.bat` files still carry their own copies.
+`ShellGuids.cs` is the single source of truth for the four handler CLSIDs, the command CLSID,
+the four ProgIDs, the eight extensions and every key/value name; the `.bat` files still carry
+their own copies.
 
 - **Scopes.** `Machine` = `HKLM\SOFTWARE\Classes` (plus `SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved`,
   only for a real machine install); `User` = `HKCU\Software\Classes`.
@@ -396,18 +397,32 @@ extensions and every key/value name; the `.bat` files still carry their own copi
   missing exactly this). The registrar always opens `RegistryView.Registry64` and writes the
   32-bit tree through its explicit `Wow6432Node` path, so behaviour is the same in a 32-bit and a
   64-bit host.
-- **Windows 11 commands are gated on the real build.** `ExplorerCommandHandler` (the
-  `IExplorerCommand` value under the class's `ShellEx`) is written only when
-  `RtlGetVersion().BuildNumber >= 22621`; `RegistrationOptions.BuildNumber` /
-  `ExplorerCommandBuildThreshold` exist so tests can exercise both sides of the gate on any
-  machine. The CLSID it points at is still a placeholder marked S4/S2 in `ShellGuids`.
+- **Windows 11 commands are gated on the real build.** On 22621 and later the registrar writes
+  the verb key `{class}\shell\ApkShellext2` with `ExplorerCommandHandler` =
+  `{0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}` and `MultiSelectModel` = `Player` (activate once with
+  the whole selection), and registers that CLSID as a COM server with the same
+  `InprocServer32` shape as the four handlers but no `ProgID`, because a verb names its class id.
+  Both writes are behind `RtlGetVersion().BuildNumber >= 22621`; `RegistrationOptions.BuildNumber`
+  / `ExplorerCommandBuildThreshold` exist so tests can exercise both sides of the gate on any
+  machine. The four classic slots are untouched, so a Windows 10 machine and the Windows 11
+  "show more options" list keep the old path. Older releases put the same value under
+  `{class}\ShellEx`; `Register` and `Unregister` remove that value only when it is ours.
+  `regasm /regfile` registers the command CLSID on every build because it iterates every
+  `ComVisible` class; the block alone is inert, nothing points at it until the verb key exists.
+- **The Windows 11 menu itself is unverified.** This machine runs Windows 10 22H2, so the build
+  of this document could only check the registry shape, the vtable and the command's return
+  values, not what Explorer draws. Before a release, install on a Windows 11 machine and confirm
+  by hand: the verb appears in the main context menu for a `.apk`, its subcommands open, a
+  selection without a supported file hides it, and a multi-selection still activates once.
+  Submenus inside a subcommand are the known risk: Explorer does not support a subcommand that
+  has subcommands of its own, and the dump/store groups are such submenus.
 - **Idempotent and symmetric.** A second `Register` produces a byte-identical tree (only the
   keys it still needs to create are reported in `RegistrationReport.KeysWritten`); `Unregister`
   removes exactly what `Register` wrote, and restores a `DefaultIcon` it had displaced.
   Stale version sub-keys under `InprocServer32` are pruned on every `Register` (current-version
-  only, matching the existing `CustomRegisterFunction`). The four CLSIDs are also removed from
-  the three `Shell Extensions\Blocked` lists on `Register`; a per-user run silently skips the
-  machine lists it cannot open.
+  only, matching the existing `CustomRegisterFunction`). The five server class ids (four handlers
+  plus the command) are also removed from the three `Shell Extensions\Blocked` lists on `Register`;
+  a per-user run silently skips the machine lists it cannot open.
 - **`RegistrationTarget` isolates the registry.** `RegistryTarget.ForScope` returns the real
   roots; `RegistryTarget.Sandbox(rootPath)` returns the same shape under `HKCU\Software\<root>`,
   which is how `ShellRegistrarTests` and the equivalence harness run without touching a real
@@ -421,9 +436,15 @@ faithful copy of the 64-bit tree (the reference tree has no mirror at all).
 
 #### 5.5.3 Relation to the `.bat` installers
 
-`install.bat`, `install_user.bat`, `uninstall*.bat` and `update.bat` are **unchanged** and still
-do the `regasm` + association work themselves; the registrar is what the `[ComRegisterFunction]`
-hooks call, so a `regasm` install and a registrar install write the same keys. Two deliberate
+`install.bat`, `install_user.bat` and `update.bat` are **unchanged** and still do the `regasm` +
+association work themselves; the registrar is what the `[ComRegisterFunction]` hooks call, so a
+`regasm` install and a registrar install write the same keys. The registrar is the only writer of
+the Windows 11 verb, which is why the installers do not check it: a build-aware `reg`
+probe in batch would duplicate the gate. `uninstall.bat` and `uninstall_user.bat` did gain the
+verb: both sweeps delete the command CLSID, and a `:dropverb` subroutine deletes
+`{class}\shell\ApkShellext2` only when the class id in it is ours, so a machine where another
+product took the verb over keeps it. That also covers the per-extension fallback path, where no
+`regasm` ran and the class may still have to be removed as an invented one. Two deliberate
 differences from `uninstall_user.bat`'s sweep are documented
 above: `Unregister` does not run the global `sweepzoo`/`:cleancls` cleanup (it only reverses
 `Register`), and it deletes an installer-invented `\<ext>.1` class only when nothing but the
@@ -690,7 +711,7 @@ assemblies), copies the new files in and repairs the same
 registration scope in place. If the package folder *is* the registered folder the files
 are swapped in place; otherwise they are copied into the registered folder and `CodeBase`
 is left pointing there. It never overwrites an existing `SharpShell_Backup_DefaultIcon`,
-and it clears the Windows blocked list for all four CLSIDs. `/rollback` restores the
+and it clears the Windows blocked list for all five server class ids. `/rollback` restores the
 newest backup and restarts Explorer; a failed step also moves the backup back and
 restarts Explorer. `update.bat` itself is not backed up (Windows holds a running .bat
 open), so a rollback restores the product files only.

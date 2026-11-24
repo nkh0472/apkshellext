@@ -342,8 +342,8 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 子键),然后按 `ShellGuids.AppliesTo` 写关联槽(图标 8 个扩展全写、信息提示与右键菜单除
 `.aab`、缩略图仅 `.apk`),最后写 `DefaultIcon` 占位并遵循 `install_user.bat` 的
 `SharpShell_Backup_DefaultIcon` 备份语义(只备份一次、已有备份不覆盖、`%1` 本身不备份)。
-`ShellGuids.cs` 是四个 CLSID、四个 ProgID、八个扩展和全部键名/值名的唯一出处;`.bat` 里
-的同值副本仍在。
+`ShellGuids.cs` 是四个 handler CLSID、命令 CLSID、四个 ProgID、八个扩展和全部键名/值名的唯一
+出处;`.bat` 里的同值副本仍在。
 
 - **作用域。** `Machine` = `HKLM\SOFTWARE\Classes`(外加
   `SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved`,只有真正的机器级安装
@@ -354,15 +354,26 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
   `0x80040154` 失败(已实测;`D:` 上那份真实 per-user 安装缺的正是这个)。注册器一律用
   `RegistryView.Registry64` 打开,32 位树通过显式 `Wow6432Node` 路径写,因此在 32 位和 64 位
   宿主里行为一致。
-- **Win11 命令按真实 build 门控。** 只有 `RtlGetVersion().BuildNumber >= 22621` 才写
-  `ExplorerCommandHandler`(类 `ShellEx` 下的 `IExplorerCommand` 值);
+- **Win11 命令按真实 build 门控。** 22621 及以后,注册器写动词键
+  `{类}\shell\ApkShellext2`,其中 `ExplorerCommandHandler` =
+  `{0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}`、`MultiSelectModel` = `Player`(整个选中集只激活
+  一次),并把该 CLSID 按与四个 handler 相同的 `InprocServer32` 形状注册成 COM 服务器,但没有
+  `ProgID` —— 动词靠类 id 指名。两处写入都在 `RtlGetVersion().BuildNumber >= 22621` 之后;
   `RegistrationOptions.BuildNumber` / `ExplorerCommandBuildThreshold` 让测试在任何机器上都能
-  走门控两侧。它指向的 CLSID 目前仍是 `ShellGuids` 里标注 S4/S2 的占位值。
+  走门控两侧。四个经典槽完全不动,所以 Windows 10 和 Win11 的「显示更多选项」仍走老路径。
+  更早的版本把同一个值写在 `{类}\ShellEx` 下;`Register` 与 `Unregister` 只在这个值属于我们时
+  才删它。`regasm /regfile` 会遍历所有 `ComVisible` 类,因此任何 build 都会写这个 CLSID 块,
+  但单有它不起作用 —— 没有动词键,没有任何东西指向它。
+- **Win11 菜单本身未经验证。** 写这份文档的机器是 Windows 10 22H2,只验证了注册表形状、
+  vtable 和命令的返回值,没有验证 Explorer 实际画出来的菜单。发布前必须在 Windows 11 机器上
+  装一次并人工确认:`.apk` 的主菜单里出现该动词、子命令能展开、选中项里没有受支持文件时它
+  隐藏、多选时仍只激活一次。已知风险是子命令里再套子菜单:Explorer 不支持这种结构,而
+  提取/商店两组正是这样的子菜单。
 - **幂等且对称。** 第二次 `Register` 产出的树逐字节一致(只报告仍需创建/删除的键,
   见 `RegistrationReport.KeysWritten`);`Unregister` 只删 `Register` 写过的东西,并把它顶掉过
   的 `DefaultIcon` 回灌。每次 `Register` 都会清掉 `InprocServer32` 下非当前版本的子键(只留
-  当前版,与现有 `CustomRegisterFunction` 一致);四个 CLSID 也会从三处
-  `Shell Extensions\Blocked` 名单里删除,per-user 无权限打开的机器级名单静默跳过。
+  当前版,与现有 `CustomRegisterFunction` 一致);五个服务器类 id(四个 handler 加命令)也会从
+  三处 `Shell Extensions\Blocked` 名单里删除,per-user 无权限打开的机器级名单静默跳过。
 - **`RegistrationTarget` 把注册表隔离出来。** `RegistryTarget.ForScope` 给真实根;
   `RegistryTarget.Sandbox(rootPath)` 在 `HKCU\Software\<root>` 下给出同样形状的根,
   `ShellRegistrarTests` 与等价性 harness 靠它跑,不碰任何真实安装。
@@ -374,9 +385,13 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 
 #### 5.5.3 与 `.bat` 安装器的关系
 
-`install.bat`、`install_user.bat`、`uninstall*.bat`、`update.bat` **不改**,仍自己做 `regasm` +
-关联那套;注册器是 `[ComRegisterFunction]` 钩子调用的实现,所以 `regasm` 安装与注册器安装写出的键
-相同。相对
+`install.bat`、`install_user.bat`、`update.bat` **不改**,仍自己做 `regasm` + 关联那套;注册器是
+`[ComRegisterFunction]` 钩子调用的实现,所以 `regasm` 安装与注册器安装写出的键相同。Win11 动词
+只有注册器会写,安装器因此不检查它:在批处理里按 build 判一遍等于把门控抄两遍。
+`uninstall.bat` 与 `uninstall_user.bat` 则加上了动词:两者的清扫都删命令 CLSID,并有
+`:dropverb` 子过程,只在键里的类 id 是我们的时候才删 `{类}\shell\ApkShellext2`——别的产品接管
+过这个动词的机器不会被连坐。这也覆盖了不跑 `regasm` 的按扩展名回退路径(那里类可能还得按
+安装器自建类来删)。相对
 `uninstall_user.bat` 的清扫有两点刻意差异,前面已说明:`Unregister` 不做全局
 `sweepzoo`/`:cleancls` 清扫(只反向 `Register`),并且只在安装器自建的 `\<ext>.1` 类下
 只剩默认值时才会删掉它。
@@ -602,7 +617,7 @@ Explorer` 下的 `thumbcache_*.db` 与 `iconcache_*.db`;否则 dll 换了之后�
 已不再出货的文件(3.5.1 安装里还有 `ExCSS.dll` 和四个 Span facade 程序集)一起移进
 `backup-<旧版本>-<时间戳>\`,复制新文件并**就地修复同一注册作用域**。包目录就是已注册
 目录时就地换文件;否则复制进已注册目录,`CodeBase` 保持指向它。它不会覆盖已有的
-`SharpShell_Backup_DefaultIcon`,并清掉四个 CLSID 在 Windows 阻止列表里的项。`/rollback`
+`SharpShell_Backup_DefaultIcon`,并清掉五个服务器类 id 在 Windows 阻止列表里的项。`/rollback`
 还原最近一份备份并重启资源管理器;任何一步失败也会把备份移回并重启。`update.bat` 本身
 不备份(Windows 占着正在运行的 .bat),所以回滚只还原产品文件。
 
