@@ -8,8 +8,8 @@ namespace ApkShellext2.Interop {
     /// Vtable: slot 3 <c>GetIconLocation</c>, slot 4 <c>Extract</c>.
     /// </summary>
     /// <remarks>
-    /// Mirrors <c>ApkShellext2\SharpShell\SharpShell\SharpShell\Interop\IExtractIconW.cs</c>
-    /// (:11 guid, :25 GetIconLocation, :39 Extract).
+    /// Slot numbers follow the shlobj_core.h vtable: the shell calls 3 then 4 by offset, so those
+    /// numbers, not the method names, are the contract.
     /// </remarks>
     [ComImport]
     [Guid("000214fa-0000-0000-c000-000000000046")]
@@ -41,10 +41,11 @@ namespace ApkShellext2.Interop {
     /// 7 <c>SaveCompleted</c>, 8 <c>GetCurFile</c>.
     /// </summary>
     /// <remarks>
-    /// SharpShell has no declaration for this interface (it uses the BCL
-    /// <c>System.Runtime.InteropServices.ComTypes.IPersistFile</c>), so the slot list comes from
-    /// the objidl.h definition. Handlers that need the file path are initialised through this
-    /// interface, which is why it is declared here.
+    /// The BCL exposes the same interface as
+    /// <c>System.Runtime.InteropServices.ComTypes.IPersistFile</c>; it is declared here flat so a
+    /// handler can keep one interface list instead of mixing both marshalling styles. Slot list
+    /// from objidl.h. Handlers that need the file path are initialised through this interface,
+    /// which is why it is declared here.
     /// </remarks>
     [ComImport]
     [Guid("0000010b-0000-0000-c000-000000000046")]

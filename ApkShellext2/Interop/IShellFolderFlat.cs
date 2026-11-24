@@ -11,10 +11,9 @@ namespace ApkShellext2.Interop {
     /// 12 <c>SetNameOf</c>.
     /// </summary>
     /// <remarks>
-    /// Mirrors <c>ApkShellext2\SharpShell\SharpShell\SharpShell\Interop\IShellFolder.cs</c>
-    /// (:10 guid, method comments at :24 onward) - the vendored file also declares the optional
-    /// IShellFolder2 extension, which this code does not need. PIDLs stay <see cref="IntPtr"/>: the
-    /// shell frees them with <c>ILFree</c>, the handler never owns them.
+    /// Slot numbers follow the shlobj_core.h vtable; only the twelve members below are declared
+    /// because the optional IShellFolder2 extension is not needed here. PIDLs stay
+    /// <see cref="IntPtr"/>: the shell frees them with <c>ILFree</c>, the handler never owns them.
     /// </remarks>
     [ComImport]
     [Guid("000214e6-0000-0000-c000-000000000046")]

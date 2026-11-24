@@ -23,11 +23,9 @@ namespace ApkShellext2.Interop {
     /// <c>IContextMenu</c> (shlobj_core.h), flat declaration.
     /// </summary>
     /// <remarks>
-    /// Slot order and parameter list mirror the vendored declaration at
-    /// <c>ApkShellext2\SharpShell\SharpShell\SharpShell\Interop\IContextMenu.cs</c>
-    /// (:12 guid, :25 QueryContextMenu, :33 InvokeCommand, :45 GetCommandString), except that every
-    /// method here is <c>[PreserveSig]</c> so a handler can return an HRESULT encoded item count
-    /// instead of the CLR translating it into an exception.
+    /// Slot order and parameter list follow the shlobj_core.h vtable. Every method here is
+    /// <c>[PreserveSig]</c> so a handler can return an HRESULT encoded item count instead of the
+    /// CLR translating it into an exception.
     /// </remarks>
     [ComImport]
     [Guid("000214e4-0000-0000-c000-000000000046")]

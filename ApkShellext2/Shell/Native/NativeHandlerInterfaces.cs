@@ -15,7 +15,7 @@ namespace ApkShellext2.Shell.Native {
     //  [PreserveSig] the runtime turns an HRESULT into an exception instead of a return value.
     //
     //  Flag parameters stay raw uint: these signatures describe the shell's ABI, and Shell\Native
-    //  must not take a dependency on the vendored SharpShell enums it is replacing.
+    //  must not take a dependency on the internal enums the flat declarations use.
 
     /// <summary>
     /// <c>IExtractIconW</c>: report where the icon lives, then hand back its handles. The icon

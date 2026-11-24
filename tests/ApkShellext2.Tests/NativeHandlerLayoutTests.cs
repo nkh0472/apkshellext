@@ -11,8 +11,7 @@ namespace ApkShellext2.Tests
 {
     /// <summary>
     /// Pins the native handler interfaces in ApkShellext2.Shell.Native against the shell contracts
-    /// the vendored SharpShell handlers answer today, and against the vtable the CLR really hands
-    /// the shell.
+    /// they implement, and against the vtable the CLR really hands the shell.
     ///
     /// Three things can drift silently here: an IID that no longer matches the shell's interface,
     /// a declaration order that moves a method to the wrong slot, and a missing [PreserveSig] that

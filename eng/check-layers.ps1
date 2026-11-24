@@ -3,8 +3,8 @@
 # ApkShellext2\Formats (the package readers and the arsc/axml parsers) and
 # ApkShellext2\Imaging (the safe archive and the icon chain) are the testable core: a plain
 # console process or NUnit run must be able to load and drive them without explorer, COM
-# registration, WinForms or WPF. Everything shell-shaped lives in Shell\, Preferences\ and
-# SharpShell\ and is allowed to reference these layers, never the other way around.
+# registration, WinForms or WPF. Everything shell-shaped lives in Shell\, Registration\ and
+# Preferences\ and is allowed to reference these layers, never the other way around.
 #
 # The scan is textual and deliberately conservative: it flags a forbidden namespace or type
 # token anywhere in the code (comments excluded), so a future `using System.Windows.Forms;`
@@ -25,9 +25,8 @@ $layers = @('Formats', 'Imaging')
 # explorer host (and make the layer untestable outside it).
 $forbidden = @(
     @{ Pattern = 'System\.Windows\.';            Reason = 'WinForms/WPF namespace' },
-    @{ Pattern = '\bSharpShell\b';               Reason = 'SharpShell shell-extension framework' },
-    @{ Pattern = '\bShellExtInitServer\b';       Reason = 'SharpShell server base class' },
-    @{ Pattern = '\bServerRegistration\b';       Reason = 'SharpShell registration helper' },
+    @{ Pattern = '\bShellRegistrar\b';           Reason = 'shell registration layer' },
+    @{ Pattern = '\bRegistryWriter\b';           Reason = 'shell registration layer' },
     @{ Pattern = '\bIContextMenu[0-9]?\b';       Reason = 'shell context-menu COM interface' },
     @{ Pattern = '\bIShellExtInit\b';            Reason = 'shell extension COM interface' },
     @{ Pattern = '\bIQueryInfo\b';               Reason = 'shell info-tip COM interface' },

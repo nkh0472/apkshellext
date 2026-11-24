@@ -11,8 +11,8 @@ namespace ApkShellext2.Tests
     /// <summary>
     /// Pins the data model behind the context menu: the items, their ids, verbs, flags and
     /// nesting for every package kind, the two shipped languages, and the rename pattern
-    /// expansion. Both menu implementations - the SharpShell adapter and the native handler -
-    /// read this model, so these tests are their shared contract.
+    /// expansion. The native handler renders this model, so these tests pin the contract between
+    /// the model and the menu the shell sees.
     /// </summary>
     [TestFixture]
     public class ContextMenuModelTests

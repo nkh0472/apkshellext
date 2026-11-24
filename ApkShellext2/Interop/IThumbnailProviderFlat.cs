@@ -7,9 +7,9 @@ namespace ApkShellext2.Interop {
     /// Vtable: slot 3 <c>GetThumbnail</c>.
     /// </summary>
     /// <remarks>
-    /// Mirrors <c>ApkShellext2\SharpShell\SharpShell\SharpShell\Interop\IThumbnailProvider.cs</c>
-    /// (:11 guid, :22 GetThumbnail). The returned HBITMAP must be a 32bpp top-down DIB with
-    /// premultiplied alpha (<c>WTS_ALPHATYPE.Argb</c>); the shell owns it and calls DeleteObject.
+    /// Slot numbers follow the thumbcache.h vtable. The returned HBITMAP must be a 32bpp top-down
+    /// DIB with premultiplied alpha (<c>WTS_ALPHATYPE.Argb</c>); the shell owns it and calls
+    /// DeleteObject.
     /// </remarks>
     [ComImport]
     [Guid("e357fccd-a995-4576-b01f-234630154e96")]
@@ -24,9 +24,8 @@ namespace ApkShellext2.Interop {
     /// Vtable: slot 3 <c>Initialize</c>.
     /// </summary>
     /// <remarks>
-    /// Mirrors <c>ApkShellext2\SharpShell\SharpShell\SharpShell\Interop\IInitializeWithStream.cs</c>
-    /// (:11 guid, :20 Initialize). <paramref name="pstream"/> is a raw <c>IStream*</c> owned by the
-    /// caller; the handler must not release it.
+    /// Slot numbers follow the propsys.h vtable. <paramref name="pstream"/> is a raw
+    /// <c>IStream*</c> owned by the caller; the handler must not release it.
     /// </remarks>
     [ComImport]
     [Guid("b824b49d-22ac-4161-ac8a-9916e8fa3f7f")]

@@ -11,11 +11,10 @@ namespace ApkShellext2.Diagnostics {
     /// <summary>
     /// Default-on error/warning log for the shell extension.
     ///
-    /// SharpShell reports handler failures through LogError -> Diagnostics.Logging (a Trace
-    /// listener), which is invisible in release builds and inside the host processes
-    /// (explorer.exe / dllhost.exe) where this assembly actually runs. That is why the
-    /// v3.4.x explorer-crash and every "the menu did nothing" report left no evidence.
-    /// This channel records only failures - errors and warnings, never progress chatter -
+    /// A COM handler that fails inside explorer.exe / dllhost.exe has nowhere to report: the host
+    /// swallows the HRESULT, no managed exception surfaces and a release build has no trace sink,
+    /// which is why the v3.4.x explorer crashes and every "the menu did nothing" report left no
+    /// evidence. This channel records only failures - errors and warnings, never progress chatter -
     /// to %PUBLIC%\apkshellext-error.log so one file can be attached to a bug report.
     ///
     /// Layout: one line per entry, fields separated by " | ":

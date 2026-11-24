@@ -58,8 +58,8 @@ namespace ApkShellext2.Interop {
         }
 
         /// <summary>
-        /// Vtable contract per declaration. The IID strings are the Win32 literals (the comment in
-        /// each declaration names the SharpShell file it corresponds to).
+        /// Vtable contract per declaration. The IID strings are the Win32 literals; each declaration
+        /// documents the interface it mirrors.
         /// </summary>
         private static readonly InterfaceContract[] InterfaceContracts = {
             new InterfaceContract(typeof(IContextMenuFlat), "000214e4-0000-0000-c000-000000000046",

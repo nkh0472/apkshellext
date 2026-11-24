@@ -93,11 +93,11 @@
     <Compile Include="Diagnostics\**\*.cs" />
     <!-- Shell\: the four COM handlers (context menu, icon, info tip, thumbnail). -->
     <Compile Include="Shell\**\*.cs" />
-    <!-- Interop\: the hand written COM declarations and P/Invokes that replace the vendored
-         SharpShell interop layer, plus the layout contract in ComLayout.cs. -->
+    <!-- Interop\: the hand written COM declarations and P/Invokes, plus the layout contract
+         in ComLayout.cs that the handlers and the registrar both depend on. -->
     <Compile Include="Interop\**\*.cs" />
-    <!-- Registration\: the self contained shell registrar that will replace the SharpShell
-         registration hooks; see compile_guidance.md "Interop and the registrar". -->
+    <!-- Registration\: the shell registrar that writes the class, ProgID and association keys
+         itself; see compile_guidance.md "Interop and the registrar". -->
     <Compile Include="Registration\**\*.cs" />
     <!-- Preferences\: the WinForms settings form and its designer file; the .resx stays
          at the project root so its embedded resource name is unchanged. -->
@@ -142,22 +142,6 @@
          System.Web consumer; it also calls an obsolete SvgDocument.Open overload with no
          successor API (its csproj Reference to System.Web goes with it) -->
     <Compile Remove="SVG\Source\Web\**\*.cs" />
-
-    <!-- SharpShell 2.7.1 (vendored sources). Excluded: RegAsm.cs + Properties\AssemblyInfo.cs
-         + SharpDeskBand\. Nothing compiles against the property-sheet host
-         (NativeBridge\, SharpPropertySheet\) or the SharpShellNativeBridge\ native project,
-         so none of them is in the tree and the SharpShellNativeBridge32/64.dll binaries
-         they need are not shipped. -->
-    <Compile Include="SharpShell\SharpShell\SharpShell\**\*.cs" />
-    <Compile Remove="SharpShell\SharpShell\SharpShell\Properties\AssemblyInfo.cs" />
-    <Compile Remove="SharpShell\SharpShell\SharpShell\Helpers\RegAsm.cs" />
-    <Compile Remove="SharpShell\SharpShell\SharpShell\SharpDeskBand\**\*.cs" />
-    <Compile Update="SharpShell\SharpShell\SharpShell\SharpPreviewHandler\PreviewHandlerControl.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Update="SharpShell\SharpShell\SharpShell\SharpPreviewHandler\PreviewHandlerHost.cs">
-      <SubType>Form</SubType>
-    </Compile>
 
     <!-- zip containers are read with ZipArchive (see SafeArchive.cs) and the three
          SharpZipLib types the pinned PNGDecrush source still names come from the
@@ -209,9 +193,6 @@
          DependentUpon MSBuild derives that name from this item's own path. -->
     <EmbeddedResource Include="Preferences.resx">
       <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="SharpShell\SharpShell\SharpShell\SharpPreviewHandler\PreviewHandlerHost.resx">
-      <DependentUpon>PreviewHandlerHost.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="SVG\Source\Resources\svg11.dtd">
       <LogicalName>Svg.Resources.svg11.dtd</LogicalName>

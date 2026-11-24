@@ -7,7 +7,7 @@ using ApkShellext2.Diagnostics;
 
 namespace ApkShellext2 {
     /// <summary>
-    /// The icon pipeline shared by the SharpShell handler and the native handler.
+    /// The icon pipeline behind the icon handler.
     ///
     /// The shell creates one COM instance per request, so without a cache every folder refresh
     /// re-opened and inflated every package in view; the bounded cache removes that churn. Only the

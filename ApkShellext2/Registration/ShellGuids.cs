@@ -192,8 +192,7 @@ namespace ApkShellext2.Registration {
 
         /// <summary>
         /// Which handler is attached to which extension. Mirrors the association loop in
-        /// <c>Resources\install_user.bat</c> [3/5] and the <c>COMServerAssociation</c> attributes on
-        /// the handler classes:
+        /// <c>Resources\install_user.bat</c> [3/5] and the handlers' own <c>AppliesTo</c> decisions:
         /// <list type="bullet">
         /// <item>icon handler: all eight extensions;</item>
         /// <item>info tip and context menu: everything except <c>.aab</c> (an .aab is a bundle, not

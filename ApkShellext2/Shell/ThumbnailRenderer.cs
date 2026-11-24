@@ -6,9 +6,8 @@ using ApkShellext2.Diagnostics;
 
 namespace ApkShellext2 {
     /// <summary>
-    /// The thumbnail pipeline shared by the SharpShell handler, which is initialised with a stream
-    /// from IInitializeWithStream, and the native handler, which is initialised with a path from
-    /// IInitializeWithFile.
+    /// The thumbnail pipeline behind the thumbnail handler, which is initialised with a stream
+    /// from IInitializeWithStream or a path from IInitializeWithFile.
     ///
     /// Thumbnails are opt-in: EnableThumbnail has to be explicitly True, because rendering one
     /// opens and decodes the package for every item a view shows.

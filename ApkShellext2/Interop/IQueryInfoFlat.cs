@@ -6,8 +6,7 @@ namespace ApkShellext2.Interop {
     /// Vtable: slot 3 <c>GetInfoTip</c>, slot 4 <c>GetInfoFlags</c>.
     /// </summary>
     /// <remarks>
-    /// Mirrors <c>ApkShellext2\SharpShell\SharpShell\SharpShell\Interop\IQueryInfo.cs</c>
-    /// (:11 guid, :23 GetInfoTip, :31 GetInfoFlags). The IID doubles as the registry value name
+    /// Slot numbers follow the shlobj_core.h vtable. The IID doubles as the registry slot name
     /// (<c>ShellEx\{00021500-...}</c>) that makes the shell load an info tip handler.
     /// </remarks>
     [ComImport]

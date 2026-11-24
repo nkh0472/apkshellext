@@ -2,9 +2,8 @@ using System;
 
 namespace ApkShellext2.Interop {
     //  Flag and enum types shared by the COM declarations in this directory. Values are copied
-    //  from the Windows headers (and cross-checked against the vendored SharpShell declarations,
-    //  see the per-type remarks); the underlying type follows the Win32 typedef so that a member
-    //  declared as UINT stays 4 bytes wide and unsigned.
+    //  from the Windows headers (see the per-type remarks); the underlying type follows the Win32
+    //  typedef so that a member declared as UINT stays 4 bytes wide and unsigned.
 
     /// <summary>IContextMenu.QueryContextMenu flags (<c>CMF_*</c>, winuser.h).</summary>
     [Flags]
@@ -64,7 +63,8 @@ namespace ApkShellext2.Interop {
     }
 
     /// <summary>IThumbnailProvider alpha channel type (<c>WTS_ALPHATYPE</c>, thumbcache.h).</summary>
-    /// <remarks>Win32 declares this enum without a fixed underlying type, i.e. int (SharpShell IThumbnailProvider.cs:11).</remarks>
+    /// <remarks>thumbcache.h declares this enum without a fixed underlying type, i.e. int; a 4 byte
+    /// signed slot is what the header hands the shell.</remarks>
     internal enum WTS_ALPHATYPE {
         Unknown = 0,
         Rgb = 1,
