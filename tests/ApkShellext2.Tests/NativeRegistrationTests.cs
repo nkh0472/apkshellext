@@ -293,6 +293,23 @@ namespace ApkShellext2.Tests
             Assert.That(mirror, Is.EquivalentTo(main), "the Wow6432Node mirror must be a copy of the 64 bit tree.");
         }
 
+        /// <summary>
+        /// A 32 bit host reads the class tree through Wow6432Node, so these defaults are what the
+        /// 32 bit shell finds for the .apk class after a per-user install. Read back the way such a
+        /// host reads them: the default value of each handler key, not a value on ShellEx.
+        /// </summary>
+        [Test]
+        public void TheMirrorHoldsTheHandlerClsidsForAThirtyTwoBitHost()
+        {
+            string root = NewSandbox();
+            RegistrationApi.Register("User", ProductDllPath, RegistrationApi.WithBuild(RegistrationApi.Sandbox(root), Windows10Build));
+
+            string shellEx = root + @"\Classes\Wow6432Node\apk.1\ShellEx";
+            Assert.That(ReadDefaultValue(shellEx + @"\" + IconHandlerSlot), Is.EqualTo(IconHandlerClsid).IgnoreCase);
+            Assert.That(ReadDefaultValue(shellEx + @"\" + InfoTipSlot), Is.EqualTo(InfoTipClsid).IgnoreCase);
+            Assert.That(ReadDefaultValue(shellEx + @"\" + ThumbnailSlot), Is.EqualTo(ThumbnailClsid).IgnoreCase);
+        }
+
         // The native handler that declares a class id, and the type regasm records for it.
         private static readonly (string Clsid, string NativeType)[] s_sharedClsids =
         {
