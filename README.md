@@ -28,7 +28,7 @@ A Windows shell extension that shows the real app icon, package info tip and a m
 - Modern rendering pipeline: VectorDrawable → SVG rasterization (linear/radial gradients, nested groups, clip paths), adaptive icons with Android's 1.5x center-crop zoom, framework color references — pixel-consistent with Android's own output
 - Localized app names: labels follow your UI language, or a language you pick in Preferences (since 3.3.0)
 - Info tip with version, package name, size, target platform and other parsed metadata
-- Context menu: batch rename with custom patterns, export the selected packages to one CSV file (UTF-8 with BOM, one row per file, with a status column so an unreadable file still gets a row), open the app's store page
+- Context menu: batch rename with custom patterns, export the selected packages to one CSV file (UTF-8 with BOM, one row per file, with a status column so an unreadable file still gets a row), copy the selection's file paths, app names, package names or versions, open the app's store page
 - Menu integration written in this repository: the icon, info-tip and thumbnail handlers plus the context menu run on the Windows shell interfaces directly, Windows 11 22H2+ gets the modern `IExplorerCommand` menu, and Windows 10 as well as the Windows 11 "Show more options" entry keep the classic menu with the same items in the same order
 - Preferences lists the rename-pattern variables next to the field; clicking one inserts it at the caret
 - Overlay badges distinguishing app types

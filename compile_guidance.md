@@ -477,7 +477,7 @@ settings, localises, opens the one reader a single selection needs and returns a
 `CommandModel`: a tree of `CommandItem`s in pre-order, each carrying `Index` (its offset from
 `idCmdFirst`), `Text`, `Verb`, `HelpText`, `Action`, `Icon`, `Enabled`, `IsSeparator` and
 `Children`. Nothing in the folder touches WinForms; the UI-adjacent pieces are
-`CommandActions` (runs the rename, CSV export, dump, store and preferences commands),
+`CommandActions` (runs the rename, CSV export, copy, dump, store and preferences commands),
 `CommandIconResolver` (turns an icon token into a `Bitmap`) and `Shell\StaUiHost.cs` (runs the
 Preferences window, the CSV save dialog with its progress window and the dump prompt on a
 dedicated STA thread with a message pump, so a menu query never loads the UI stack).
@@ -494,6 +494,16 @@ one row per selected path in selection order, and the fixed columns `File`, `Fol
 keeps every path as a row, so the CSV explains what was skipped. The progress window reports
 the running count and cancels through a `CancellationToken`; a write failure goes to
 `ErrorLog` and to a message box, never across the COM boundary.
+
+**Copying the selection.** A `Copy info` submenu follows the export item. It is built from the
+same single-reader pass and offers `Copy File Path`, `Copy App Name`, `Copy Package Name` and
+`Copy Version`; an item exists only when some selected file can fill it, so a selection of only
+unsupported files still offers the path, and a selection that fills nothing gets no submenu.
+`Formats\PackageClipboardText.cs` produces the text — one line per file in selection order,
+CRLF between lines and no trailing break — and the version line follows the CSV rule
+`Version (Revision)`. The write runs on the STA thread through `StaUiHost.SetClipboardText`,
+because the clipboard can only be owned by an STA thread; a reader or clipboard failure is
+logged and never crosses the COM boundary.
 
 **Ids and verbs.** `CommandIds` fixes the range (`First = 0`, `MaxItems = 0x100`); the menu
 writes `wID = idCmdFirst + Index` and separators carry no id at all, which is what the previous

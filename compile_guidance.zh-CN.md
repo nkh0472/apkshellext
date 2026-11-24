@@ -419,7 +419,7 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 单选打开唯一需要的 reader,返回 `CommandModel`:一棵前序排列的 `CommandItem` 树,每项带
 `Index`(相对 `idCmdFirst` 的偏移)、`Text`、`Verb`、`HelpText`、`Action`、`Icon`、`Enabled`、
 `IsSeparator` 和 `Children`。该目录里没有任何代码碰 WinForms;与 UI 相邻的只有
-`CommandActions`(执行重命名、导出 CSV、提取文件、商店与首选项命令)、`CommandIconResolver`(把图标标记变成
+`CommandActions`(执行重命名、导出 CSV、复制、提取文件、商店与首选项命令)、`CommandIconResolver`(把图标标记变成
 `Bitmap`)和 `Shell\StaUiHost.cs`(在带消息泵的专用 STA 线程上打开首选项窗口、CSV 保存/进度窗口
 和提取文件提示框,因此查询菜单不会加载 UI 栈)。
 
@@ -432,6 +432,14 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 `SizeBytes`、`Modified`、`Status`。`Status` 为 `ok`、`unsupported type`、`unreadable` 或
 `cancelled`;混合选择里每个路径都保留一行,CSV 自己说明跳过了什么。进度窗口显示当前计数,
 并通过 `CancellationToken` 取消;写失败记入 `ErrorLog` 并弹出消息框,绝不越过 COM 边界抛出。
+
+**复制所选文件。** 导出项之后是 `Copy info` 子菜单,由同一次单选 reader 解析构建,包含
+`Copy File Path`、`Copy App Name`、`Copy Package Name`、`Copy Version`;某个值只有在至少一个选中
+文件能填时才出现,因此只选中不受支持的文件时仍能复制路径,而一个值都填不出的选择没有子菜单。
+`Formats\PackageClipboardText.cs` 负责生成文本——每个文件一行、保持选择顺序,行间为 CRLF、末尾
+不留换行——版本行沿用 CSV 的口径 `Version (Revision)`。写入经 `StaUiHost.SetClipboardText` 在
+STA 线程上执行,因为剪贴板只能由 STA 线程持有;reader 或剪贴板失败记入 `ErrorLog`,绝不越过
+COM 边界抛出。
 
 **id 与 verb。** `CommandIds` 固定区间(`First = 0`,`MaxItems = 0x100`);菜单写入
 `wID = idCmdFirst + Index`,分隔符完全不携带 id,与改造前的输出一致。`CommandVerb` 把每条命令
