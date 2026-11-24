@@ -77,6 +77,11 @@ REM === register with BOTH regasm bitnesses ===
 REM 64-bit view serves explorer.exe; 32-bit view serves 32-bit host processes
 REM (older file dialogs etc). Registering only one view leaves the other hosts
 REM without icons and is a known source of half-uninstalled states.
+REM regasm runs each server's [ComRegisterFunction], which is the registrar in
+REM ApkShellext2\Registration: it writes the class keys, the association slots
+REM for the eight extensions in both class roots and the DefaultIcon backup.
+REM Do not add association writes here - the machine and the per-user install
+REM have to end up with the same key set, so the registrar is the only writer.
 ECHO [1/5] Registering shell handlers (64-bit view)...
 "%REGASM64%" /codebase "%~dp0ApkShellext2.dll"
 if not '%errorlevel%' EQU '0' (

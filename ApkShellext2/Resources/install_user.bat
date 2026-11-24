@@ -57,48 +57,20 @@ if not '%errorlevel%' EQU '0' (
 )
 del "%REGF%" "%REGFH%" >nul 2>&1
 
-REM regasm /regfile cannot carry the file-type associations (SharpShell writes
-REM them during its installer phase, which /regfile skips), and HKCU imports
-REM never run installers. Write them here in exactly the same layout as the
-REM machine-wide install: handlers live under the extension's CLASS key
-REM (HKCU\Software\Classes\<class>, class = default value of the extension,
-REM created as '<name>.1' when the extension has no class yet).
-ECHO [3/5] Writing file-type associations (per-user)...
-SetLocal EnableExtensions EnableDelayedExpansion
-for %%E in (.apk .ipa .aab .appx .appxbundle .apks .apkm .xapk) do (
-    set "CN="
-    for /f "tokens=2,*" %%A in ('reg query "HKCU\SOFTWARE\Classes\%%E" /ve 2^>nul ^| findstr REG_SZ') do set "CN=%%B"
-    if not defined CN (
-        REM %%~xE of '.apk' keeps the dot - strip it so the class is 'apk.1'
-        set "EXT=%%~xE"
-        set "CN=!EXT:~1!.1"
-        reg add "HKCU\SOFTWARE\Classes\!CN!" /ve /d "!EXT:~1! Application" /f >nul 2>&1
-        reg add "HKCU\SOFTWARE\Classes\%%E" /ve /d "!CN!" /f >nul 2>&1
-    )
-    REM icon handler: all extensions
-    reg add "HKCU\SOFTWARE\Classes\!CN!\ShellEx\IconHandler" /ve /d "{1F869CEE-4FDA-35D9-896F-43975A87D1F6}" /f >nul 2>&1
-    REM info-tip + context menu: everything except .aab (mirrors handler attributes)
-    if /I not "%%E"==".aab" (
-        reg add "HKCU\SOFTWARE\Classes\!CN!\ShellEx\{00021500-0000-0000-C000-000000000046}" /ve /d "{946435A5-FE96-416D-99DB-E94EE9FB46C8}" /f >nul 2>&1
-        reg add "HKCU\SOFTWARE\Classes\!CN!\ShellEx\ContextMenuHandlers\ApkContextMenu" /ve /d "{DCB629FC-F86F-456F-8E24-98B9B2643A9B}" /f >nul 2>&1
-    )
-    REM thumbnail handler: .apk only (mirrors handler attribute)
-    if /I "%%E"==".apk" (
-        reg add "HKCU\SOFTWARE\Classes\!CN!\ShellEx\{e357fccd-a995-4576-b01f-234630154e96}" /ve /d "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}" /f >nul 2>&1
-    )
-    REM icon handler hijacks the class DefaultIcon; back up whatever was there
-    REM (SharpShell does the same and names the backup value as below).
-    REM Never overwrite an existing backup: a repeat install would otherwise
-    REM store our own "%%1" and uninstall would restore that instead of the
-    REM user's original icon.
-    set "OLD="
-    for /f "tokens=2,*" %%A in ('reg query "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /ve 2^>nul ^| findstr REG_SZ') do set "OLD=%%B"
-    set "BAK="
-    for /f "tokens=2,*" %%A in ('reg query "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /v SharpShell_Backup_DefaultIcon 2^>nul ^| findstr /i "SharpShell_Backup_DefaultIcon"') do set "BAK=%%B"
-    if defined OLD if not defined BAK reg add "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /v SharpShell_Backup_DefaultIcon /d "!OLD!" /f >nul 2>&1
-    reg add "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /ve /d "%%1" /f >nul 2>&1
+REM The association layer does not come from the regasm file: /regfile writes
+REM only the class keys, and the hook that runs the registrar is what a
+REM machine-wide regasm carries but /regfile never executes. ShellRegistrar
+REM owns which class serves each extension, the ShellEx slots, the DefaultIcon
+REM backup and the WOW6432Node class root mirror a 32-bit host resolves, so the
+REM per-user path calls it through the product assembly instead of repeating
+REM the layout here.
+ECHO [3/5] Registering the shell handlers (per-user)...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$null = [Reflection.Assembly]::LoadFrom('%~dp0ApkShellext2.dll'); $code = [ApkShellext2.Registration.RegistrationCommand]::Run('User','%~dp0ApkShellext2.dll'); exit $code"
+if not '%errorlevel%' EQU '0' (
+    echo ERROR: per-user handler registration failed with code %errorlevel%.
+    pause
+    exit /b 1
 )
-EndLocal
 
 ECHO.
 ECHO [4/5] Notifying the shell...

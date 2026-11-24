@@ -435,14 +435,11 @@ for /f "delims=" %%D in ('dir /b /ad /o-d "%TARGET%\backup-*" 2^>nul') do if not
 goto :eof
 
 :register_machine
-REM regasm re-runs SharpShell's own registration, which unconditionally
-REM refreshes SharpShell_Backup_DefaultIcon (vendored product code). Snapshot
-REM the pre-existing backup values for our eight classes in both registry views
-REM and put them back afterwards, so an update can never lose the original
-REM system icon of an extension.
-ECHO     Snapshotting the existing DefaultIcon backups...
-set "ICONSNAP=%TEMP%\apks_update_icons_%RANDOM%.json"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$roots=@('HKLM:\SOFTWARE\Classes','HKLM:\SOFTWARE\WOW6432Node\Classes'); $exts=@('.apk','.ipa','.aab','.appx','.appxbundle','.apks','.apkm','.xapk'); $out=@(); foreach($r in $roots){ foreach($e in $exts){ $p=Join-Path $r $e; try{ $cn=(Get-ItemProperty -LiteralPath $p -Name '(default)' -ErrorAction Stop).'(default)' }catch{ continue }; if(-not $cn){ continue }; $di=Join-Path (Join-Path $r $cn) 'DefaultIcon'; try{ $k=Get-Item -LiteralPath $di -ErrorAction Stop }catch{ continue }; $names=@($k.GetValueNames()); $has=($names -contains 'SharpShell_Backup_DefaultIcon'); $bak=$null; if($has){ $bak=$k.GetValue('SharpShell_Backup_DefaultIcon') }; $out += [pscustomobject]@{ root=$r; class=$cn; hasBackup=$has; backup=$bak; default=$k.GetValue('') } } }; @($out) | ConvertTo-Json -Compress | Set-Content -LiteralPath $env:ICONSNAP -Encoding UTF8" >nul 2>&1
+REM regasm /codebase runs the native handlers' [ComRegisterFunction], which is
+REM the same registrar call the per-user path makes: it owns the class keys,
+REM the association slots, the 32-bit class root mirror and the DefaultIcon
+REM backup, and it never overwrites a backup that already exists, so repeated
+REM updates keep the icon the user had before the first install.
 ECHO     Registering shell handlers (64-bit view)...
 "%REGASM64%" /codebase "%TARGET%\ApkShellext2.dll"
 if errorlevel 1 (
@@ -454,9 +451,6 @@ if exist "%REGASM32%" (
     "%REGASM32%" /codebase "%TARGET%\ApkShellext2.dll"
     if errorlevel 1 echo WARNING: 32-bit registration failed; 64-bit hosts still work.
 )
-ECHO     Restoring the pre-existing DefaultIcon backups...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "if(-not (Test-Path -LiteralPath $env:ICONSNAP)){ exit 0 }; $raw=Get-Content -LiteralPath $env:ICONSNAP -Raw; if(-not $raw){ exit 0 }; $snap=@($raw | ConvertFrom-Json); foreach($r in $snap){ $di=Join-Path (Join-Path $r.root $r.class) 'DefaultIcon'; try{ $k=Get-Item -LiteralPath $di -ErrorAction Stop }catch{ continue }; if($r.hasBackup){ $k.SetValue('SharpShell_Backup_DefaultIcon',[string]$r.backup) } elseif([string]$r.default -eq '%%1'){ try{ $k.DeleteValue('SharpShell_Backup_DefaultIcon',$false) }catch{} } }" >nul 2>&1
-del "%ICONSNAP%" >nul 2>&1
 goto :eof
 
 :register_user
@@ -490,35 +484,15 @@ if errorlevel 1 (
 )
 del "%REGF%" "%REGFH%" >nul 2>&1
 
-SetLocal EnableExtensions EnableDelayedExpansion
-for %%E in (.apk .ipa .aab .appx .appxbundle .apks .apkm .xapk) do (
-    set "CN="
-    for /f "tokens=2,*" %%A in ('reg query "HKCU\SOFTWARE\Classes\%%E" /ve 2^>nul ^| findstr REG_SZ') do set "CN=%%B"
-    if not defined CN (
-        set "EXT=%%~xE"
-        set "CN=!EXT:~1!.1"
-        reg add "HKCU\SOFTWARE\Classes\!CN!" /ve /d "!EXT:~1! Application" /f >nul 2>&1
-        reg add "HKCU\SOFTWARE\Classes\%%E" /ve /d "!CN!" /f >nul 2>&1
-    )
-    reg add "HKCU\SOFTWARE\Classes\!CN!\ShellEx\IconHandler" /ve /d "{1F869CEE-4FDA-35D9-896F-43975A87D1F6}" /f >nul 2>&1
-    if /I not "%%E"==".aab" (
-        reg add "HKCU\SOFTWARE\Classes\!CN!\ShellEx\{00021500-0000-0000-C000-000000000046}" /ve /d "{946435A5-FE96-416D-99DB-E94EE9FB46C8}" /f >nul 2>&1
-        reg add "HKCU\SOFTWARE\Classes\!CN!\ShellEx\ContextMenuHandlers\ApkContextMenu" /ve /d "{DCB629FC-F86F-456F-8E24-98B9B2643A9B}" /f >nul 2>&1
-    )
-    if /I "%%E"==".apk" (
-        reg add "HKCU\SOFTWARE\Classes\!CN!\ShellEx\{e357fccd-a995-4576-b01f-234630154e96}" /ve /d "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}" /f >nul 2>&1
-    )
-    set "OLD="
-    for /f "tokens=2,*" %%A in ('reg query "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /ve 2^>nul ^| findstr REG_SZ') do set "OLD=%%B"
-    REM Never overwrite an existing backup: a second update sees our own "%%1"
-    REM as the current default, and storing it would make uninstall restore
-    REM "%%1" instead of the user's original icon (the install_user.bat bug).
-    set "BAK="
-    for /f "tokens=2,*" %%A in ('reg query "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /v SharpShell_Backup_DefaultIcon 2^>nul ^| findstr /i "SharpShell_Backup_DefaultIcon"') do set "BAK=%%B"
-    if defined OLD if not defined BAK reg add "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /v SharpShell_Backup_DefaultIcon /d "!OLD!" /f >nul 2>&1
-    reg add "HKCU\SOFTWARE\Classes\!CN!\DefaultIcon" /ve /d "%%1" /f >nul 2>&1
+REM The registrar owns the per-user association layer: it writes the same
+REM slots the installer always wrote, plus the Wow6432Node class root mirror a
+REM 32-bit host resolves, and the DefaultIcon backup lives in one place.
+ECHO     Registering per-user shell handlers (HKCU)...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$null = [Reflection.Assembly]::LoadFrom('%TARGET%\ApkShellext2.dll'); $code = [ApkShellext2.Registration.RegistrationCommand]::Run('User','%TARGET%\ApkShellext2.dll'); exit $code" >nul 2>&1
+if errorlevel 1 (
+    set "FAILMSG=per-user handler registration failed"
+    goto :eof
 )
-EndLocal
 ECHO     per-user registration repaired
 goto :eof
 
