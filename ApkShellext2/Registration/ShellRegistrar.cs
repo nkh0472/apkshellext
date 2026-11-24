@@ -72,6 +72,14 @@ namespace ApkShellext2.Registration {
 
             foreach (string classRoot in effective.Target.ClassRoots()) {
                 WriteServerRegistration(writer, classRoot, assemblyFullName, version.ToString(), codeBase, report);
+                //  The modern verb is written below, by the association pass, and only for a build
+                //  that reads it. Its server block is written first so the verb the shell reads can
+                //  never point at a class that this run has not registered yet.
+                if (effective.ShouldRegisterExplorerCommand) {
+                    WriteServerRegistration(writer, classRoot, ShellGuids.ExplorerCommandClsid,
+                                            ShellGuids.ExplorerCommandClassName, null,
+                                            assemblyFullName, version.ToString(), codeBase, report);
+                }
                 AssociationRegistrar associations = new AssociationRegistrar(writer, classRoot, effective, report);
                 if (associations.Register()) {
                     report.ExplorerCommandRegistered = true;
@@ -242,40 +250,56 @@ namespace ApkShellext2.Registration {
 
         private static void WriteServerRegistration(RegistryWriter writer, string classRoot, string assemblyFullName, string version, string codeBase, RegistrationReport report) {
             foreach (ShellHandler handler in ShellGuids.Handlers) {
-                string clsidKey = classRoot + "\\" + ShellGuids.ClsidKey + "\\" + handler.Clsid;
-                string inprocKey = clsidKey + "\\" + ShellGuids.InprocServer32Key;
-
-                // The class and the class id name the native handler: regasm records the type full name
-                // in the CLSID key's default value and in the ProgID key's default value, and the shell
-                // reads InprocServer32\Class to decide which class to activate.
-                writer.SetDefaultValue(clsidKey, handler.ClassName);
-                writer.SetDefaultValue(inprocKey, ShellGuids.InprocServerModule);
-                writer.SetValue(inprocKey, ShellGuids.ValueThreadingModel, ShellGuids.ThreadingModel);
-                writer.SetValue(inprocKey, ShellGuids.ValueClass, handler.ClassName);
-                writer.SetValue(inprocKey, ShellGuids.ValueAssembly, assemblyFullName);
-                writer.SetValue(inprocKey, ShellGuids.ValueRuntimeVersion, ShellGuids.RuntimeVersion);
-                writer.SetValue(inprocKey, ShellGuids.ValueCodeBase, codeBase);
-                report.AddKey(clsidKey);
-
-                // regasm also writes the assembly version subkey (mscoree reads it when several
-                // versions of a server are installed). It carries the same four values but neither a
-                // default value nor ThreadingModel - 28 keys for the four handlers in total.
-                string versionKey = inprocKey + "\\" + version;
-                writer.SetValue(versionKey, ShellGuids.ValueClass, handler.ClassName);
-                writer.SetValue(versionKey, ShellGuids.ValueAssembly, assemblyFullName);
-                writer.SetValue(versionKey, ShellGuids.ValueRuntimeVersion, ShellGuids.RuntimeVersion);
-                writer.SetValue(versionKey, ShellGuids.ValueCodeBase, codeBase);
-                report.AddKey(versionKey);
-                RemoveStaleVersionKeys(writer, inprocKey, version, report);
-
-                writer.SetDefaultValue(clsidKey + "\\" + ShellGuids.ProgIdKey, handler.ProgId);
-                string progIdKey = classRoot + "\\" + handler.ProgId;
-                writer.SetDefaultValue(progIdKey, handler.ClassName);
-                writer.SetDefaultValue(progIdKey + "\\" + ShellGuids.ClsidKey, handler.Clsid);
-                report.AddKey(progIdKey);
-
-                writer.CreateKey(clsidKey + "\\" + ShellGuids.ImplementedCategoriesKey + "\\" + ShellGuids.ManagedCategoryClsid);
+                WriteServerRegistration(writer, classRoot, handler.Clsid, handler.ClassName, handler.ProgId,
+                                        assemblyFullName, version, codeBase, report);
             }
+        }
+
+        /// <summary>
+        /// Writes one server block in the shape regasm produces for <c>/codebase</c>:
+        /// <c>CLSID\{clsid}</c> with the class name, <c>InprocServer32</c> pointing at mscoree.dll,
+        /// the version subkey mscoree resolves the assembly from, and - for a class the shell
+        /// activates by name - the ProgID keys. The modern command has no ProgID: nothing creates it
+        /// from a string, the verb key names its CLSID directly.
+        /// </summary>
+        private static void WriteServerRegistration(RegistryWriter writer, string classRoot, string clsid, string className,
+                                                   string progId, string assemblyFullName, string version, string codeBase,
+                                                   RegistrationReport report) {
+            string clsidKey = classRoot + "\\" + ShellGuids.ClsidKey + "\\" + clsid;
+            string inprocKey = clsidKey + "\\" + ShellGuids.InprocServer32Key;
+
+            // The class and the class id name the native handler: regasm records the type full name
+            // in the CLSID key's default value and in the ProgID key's default value, and the shell
+            // reads InprocServer32\Class to decide which class to activate.
+            writer.SetDefaultValue(clsidKey, className);
+            writer.SetDefaultValue(inprocKey, ShellGuids.InprocServerModule);
+            writer.SetValue(inprocKey, ShellGuids.ValueThreadingModel, ShellGuids.ThreadingModel);
+            writer.SetValue(inprocKey, ShellGuids.ValueClass, className);
+            writer.SetValue(inprocKey, ShellGuids.ValueAssembly, assemblyFullName);
+            writer.SetValue(inprocKey, ShellGuids.ValueRuntimeVersion, ShellGuids.RuntimeVersion);
+            writer.SetValue(inprocKey, ShellGuids.ValueCodeBase, codeBase);
+            report.AddKey(clsidKey);
+
+            // regasm also writes the assembly version subkey (mscoree reads it when several
+            // versions of a server are installed). It carries the same four values but neither a
+            // default value nor ThreadingModel - 28 keys for the four handlers in total.
+            string versionKey = inprocKey + "\\" + version;
+            writer.SetValue(versionKey, ShellGuids.ValueClass, className);
+            writer.SetValue(versionKey, ShellGuids.ValueAssembly, assemblyFullName);
+            writer.SetValue(versionKey, ShellGuids.ValueRuntimeVersion, ShellGuids.RuntimeVersion);
+            writer.SetValue(versionKey, ShellGuids.ValueCodeBase, codeBase);
+            report.AddKey(versionKey);
+            RemoveStaleVersionKeys(writer, inprocKey, version, report);
+
+            if (progId != null) {
+                writer.SetDefaultValue(clsidKey + "\\" + ShellGuids.ProgIdKey, progId);
+                string progIdKey = classRoot + "\\" + progId;
+                writer.SetDefaultValue(progIdKey, className);
+                writer.SetDefaultValue(progIdKey + "\\" + ShellGuids.ClsidKey, clsid);
+                report.AddKey(progIdKey);
+            }
+
+            writer.CreateKey(clsidKey + "\\" + ShellGuids.ImplementedCategoriesKey + "\\" + ShellGuids.ManagedCategoryClsid);
         }
 
         private static void DeleteServerRegistration(RegistryWriter writer, string classRoot, RegistrationReport report) {
@@ -287,6 +311,13 @@ namespace ApkShellext2.Registration {
                 writer.DeleteKey(progIdKey);
                 report.AddKey(progIdKey);
             }
+
+            // Deleted whether or not this machine gated it in: regasm registers every ComVisible
+            // class in the assembly, so the block may exist from a registration whose verb was
+            // never written, and leaving it behind would keep a server for a verb that is gone.
+            string commandClsidKey = classRoot + "\\" + ShellGuids.ClsidKey + "\\" + ShellGuids.ExplorerCommandClsid;
+            writer.DeleteKey(commandClsidKey);
+            report.AddKey(commandClsidKey);
         }
 
         /// <summary>
@@ -320,7 +351,7 @@ namespace ApkShellext2.Registration {
             foreach (RegistryLocation location in options.Target.BlockedLocations(scope)) {
                 RegistryWriter writer = new RegistryWriter(location.Hive, RegistryView.Registry64);
                 try {
-                    foreach (string clsid in ShellGuids.AllClsids()) {
+                    foreach (string clsid in ShellGuids.AllServerClsids()) {
                         if (writer.DeleteValue(location.Path, clsid)) {
                             report.AddKey(location.Path);
                         }
@@ -367,7 +398,7 @@ namespace ApkShellext2.Registration {
         /// <summary>The build number the Windows 11 gate was evaluated with.</summary>
         internal int BuildNumber { get; }
 
-        /// <summary>True when <c>ExplorerCommandHandler</c> was written.</summary>
+        /// <summary>True when the modern verb was written for at least one file class.</summary>
         internal bool ExplorerCommandRegistered { get; set; }
 
         /// <summary>

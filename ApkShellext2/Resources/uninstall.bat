@@ -80,6 +80,7 @@ for %%G in (
     {D747C5A7-2F66-4B7D-8301-8531838E4ED3}
     {DCB629FC-F86F-456F-8E24-98B9B2643A9B}
     {946435A5-FE96-416D-99DB-E94EE9FB46C8}
+    {0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}
 ) do (
     reg delete "HKLM\SOFTWARE\Classes\CLSID\%%G" /f >nul 2>&1
     reg delete "HKLM\SOFTWARE\WOW6432Node\Classes\CLSID\%%G" /f >nul 2>&1
@@ -104,6 +105,10 @@ for %%V in (
         call :dropours "%%~V\!CN!\ShellEx\{00021500-0000-0000-C000-000000000046}" {946435A5-FE96-416D-99DB-E94EE9FB46C8}
         call :dropours "%%~V\!CN!\ShellEx\{e357fccd-a995-4576-b01f-234630154e96}" {D747C5A7-2F66-4B7D-8301-8531838E4ED3}
         for /f "delims=" %%S in ('reg query "%%~V\!CN!\ShellEx\ContextMenuHandlers" 2^>nul') do call :dropours "%%S" {DCB629FC-F86F-456F-8E24-98B9B2643A9B}
+        REM the modern verb hangs under the class, not under ShellEx; it is ours only when
+        REM its ExplorerCommandHandler value is our command CLSID.
+        call :dropverb "%%~V\!CN!\shell\ApkShellext2" {0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}
+        call :dropempty "%%~V\!CN!\shell"
         for %%G in (
             {1F869CEE-4FDA-35D9-896F-43975A87D1F6}
             {D747C5A7-2F66-4B7D-8301-8531838E4ED3}
@@ -183,6 +188,7 @@ for %%G in (
     {D747C5A7-2F66-4B7D-8301-8531838E4ED3}
     {DCB629FC-F86F-456f-8e24-98b9b2643a9b}
     {946435A5-FE96-416D-99DB-E94EE9FB46C8}
+    {0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}
 ) do (
     reg query "HKLM\SOFTWARE\Classes\CLSID\%%G" >nul 2>&1 && set "LEFTOVER=1"
     reg query "HKLM\SOFTWARE\WOW6432Node\Classes\CLSID\%%G" >nul 2>&1 && set "LEFTOVER=1"
@@ -214,6 +220,13 @@ REM ---- subroutine: delete %1 only if its default value equals the GUID %~2 ---
 :dropours
 set "V="
 for /f "tokens=2,*" %%A in ('reg query "%~1" /ve 2^>nul ^| findstr REG_SZ') do set "V=%%B"
+if /i "!V!"=="%~2" reg delete "%~1" /f >nul 2>&1
+goto :eof
+
+REM ---- subroutine: delete %1 only if its ExplorerCommandHandler value equals %~2 ----
+:dropverb
+set "V="
+for /f "tokens=2,*" %%A in ('reg query "%~1" /v ExplorerCommandHandler 2^>nul ^| findstr REG_SZ') do set "V=%%B"
 if /i "!V!"=="%~2" reg delete "%~1" /f >nul 2>&1
 goto :eof
 

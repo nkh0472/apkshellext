@@ -26,11 +26,27 @@ if not '%errorlevel%' EQU '0' (
         {D747C5A7-2F66-4B7D-8301-8531838E4ED3}
         {DCB629FC-F86F-456F-8E24-98B9B2643A9B}
         {946435A5-FE96-416D-99DB-E94EE9FB46C8}
+        {0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}
     ) do (
         reg delete "HKCU\SOFTWARE\Classes\CLSID\%%G" /f >nul 2>&1
         reg delete "HKCU\SOFTWARE\Classes\Wow6432Node\CLSID\%%G" /f >nul 2>&1
     )
     for %%P in (ApkContextMenu ApkIconHandler ApkInfoTipHandler ApkThumbnailHandler) do reg delete "HKCU\SOFTWARE\Classes\ApkShellext2.%%P" /f >nul 2>&1
+    REM the modern verb lives under the class, not under ShellEx: drop it from both
+    REM class roots only where its ExplorerCommandHandler value is our command CLSID.
+    for %%V in (
+        "HKCU\SOFTWARE\Classes"
+        "HKCU\SOFTWARE\Classes\Wow6432Node"
+    ) do (
+        for %%E in (.apk .ipa .aab .appx .appxbundle .apks .apkm .xapk) do (
+            set "EXT=%%~xE"
+            set "CN="
+            for /f "tokens=2,*" %%A in ('reg query %%V\%%E /ve 2^>nul ^| findstr REG_SZ') do set "CN=%%B"
+            if not defined CN set "CN=!EXT:~1!.1"
+            call :dropverb "%%~V\!CN!\shell\ApkShellext2" {0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}
+            call :dropempty "%%~V\!CN!\shell"
+        )
+    )
 )
 
 reg delete "HKCU\SOFTWARE\Classes\ApkShellext2.ApkFile" /f >nul 2>&1
@@ -54,6 +70,7 @@ for %%G in (
     {D747C5A7-2F66-4B7D-8301-8531838E4ED3}
     {DCB629FC-F86F-456F-8E24-98B9B2643A9B}
     {946435A5-FE96-416D-99DB-E94EE9FB46C8}
+    {0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}
 ) do reg query "HKCU\SOFTWARE\Classes\CLSID\%%G" >nul 2>&1 && set "LEFTOVER=1"
 if defined LEFTOVER (
     echo WARNING: some per-user CLSID entries are still present.
@@ -73,3 +90,17 @@ start "" explorer.exe
 ECHO.
 PAUSE
 exit /b 0
+
+REM ---- subroutine: delete %1 only if its ExplorerCommandHandler value equals %~2 ----
+:dropverb
+set "V="
+for /f "tokens=2,*" %%A in ('reg query "%~1" /v ExplorerCommandHandler 2^>nul ^| findstr REG_SZ') do set "V=%%B"
+if /i "!V!"=="%~2" reg delete "%~1" /f >nul 2>&1
+goto :eof
+
+REM ---- subroutine: delete %1 only when it has no subkeys ----
+:dropempty
+set "ANY="
+for /f "delims=" %%S in ('reg query "%~1" 2^>nul ^| findstr /i "HKEY_"') do if /i not "%%S"=="%~1" set "ANY=1"
+if not defined ANY reg delete "%~1" /f >nul 2>&1
+goto :eof

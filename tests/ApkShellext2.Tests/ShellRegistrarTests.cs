@@ -193,6 +193,12 @@ namespace ApkShellext2.Tests
             return string.IsNullOrEmpty(relativePath) ? root : root + @"\" + relativePath;
         }
 
+        /// <summary>The key the modern verb hangs on: <c>{class}\shell\ApkShellext2</c>.</summary>
+        private static string VerbKey(string className)
+        {
+            return className + @"\shell\ApkShellext2";
+        }
+
         private bool IsSubKey(string relativePath, string subKeyName)
         {
             return SubKeyNames(relativePath).Any(name => string.Equals(name, subKeyName, StringComparison.OrdinalIgnoreCase));
@@ -663,46 +669,62 @@ namespace ApkShellext2.Tests
         }
 
         [Test]
-        public void Windows10BuildDoesNotWriteTheExplorerCommandHandler()
+        public void Windows10BuildDoesNotWriteTheModernVerb()
         {
             RegistrationRun run = RegisterWithBuild(Windows10Build);
 
             Assert.That(run.BuildNumber, Is.EqualTo(Windows10Build));
             Assert.That(run.ExplorerCommandRegistered, Is.False, "the Windows 11 command model only exists from build 22621");
-            Assert.That(Value(@"apk.1\ShellEx", "ExplorerCommandHandler"), Is.Null);
+            Assert.That(Value(VerbKey("apk.1"), "ExplorerCommandHandler"), Is.Null, "no verb key on a host that cannot read it");
+            Assert.That(Value(VerbKey("apk.1"), "ExplorerCommandHandler", _mirrorRoot), Is.Null);
+            Assert.That(Default(@"apk.1\ShellEx"), Is.Null, "and no legacy ShellEx command value either");
         }
 
         [Test]
-        public void Windows11BuildWritesTheExplorerCommandHandlerForEveryMenuClass()
+        public void Windows11BuildWritesTheModernVerbForEveryMenuClass()
         {
             RegistrationRun run = RegisterWithBuild(Windows11Build);
 
             Assert.That(run.BuildNumber, Is.EqualTo(Windows11Build));
             Assert.That(run.ExplorerCommandRegistered, Is.True);
-            foreach (string extension in s_extensions)
-            {
-                string shellEx = extension.Substring(1) + ".1" + @"\ShellEx";
-                if (extension == ".aab")
-                {
-                    Assert.That(Value(shellEx, "ExplorerCommandHandler"), Is.Null, ".aab has no context menu, so no ExplorerCommandHandler either");
+            foreach (string extension in s_extensions) {
+                string className = extension.Substring(1) + ".1";
+                if (extension == ".aab") {
+                    Assert.That(Value(VerbKey(className), "ExplorerCommandHandler"), Is.Null, ".aab has no context menu, so no verb either");
                     continue;
                 }
 
-                Assert.That(Value(shellEx, "ExplorerCommandHandler"), Is.EqualTo(ExplorerCommandClsid));
-                Assert.That(Value(shellEx, "ExplorerCommandHandler", _mirrorRoot), Is.EqualTo(ExplorerCommandClsid), "the 32 bit view needs it too");
+                Assert.That(Value(VerbKey(className), "ExplorerCommandHandler"), Is.EqualTo(ExplorerCommandClsid));
+                Assert.That(Value(VerbKey(className), "MultiSelectModel"), Is.EqualTo("Player"), "the command activates once with the whole selection");
+                Assert.That(Value(VerbKey(className), "ExplorerCommandHandler", _mirrorRoot), Is.EqualTo(ExplorerCommandClsid), "the 32 bit view needs it too");
             }
         }
 
         [Test]
-        public void UnregisterRemovesTheExplorerCommandHandler()
+        public void UnregisterRemovesTheModernVerb()
         {
             object options = RegistrationApi.WithBuild(SandboxOptions(), Windows11Build);
             RegistrationApi.Register("User", ProductDllPath, options);
-            Assert.That(Value(@"apk.1\ShellEx", "ExplorerCommandHandler"), Is.EqualTo(ExplorerCommandClsid), "precondition");
+            Assert.That(Value(VerbKey("apk.1"), "ExplorerCommandHandler"), Is.EqualTo(ExplorerCommandClsid), "precondition");
 
             RegistrationApi.Unregister("User", options);
 
-            Assert.That(Value(@"apk.1\ShellEx", "ExplorerCommandHandler"), Is.Null);
+            Assert.That(Value(VerbKey("apk.1"), "ExplorerCommandHandler"), Is.Null);
+            Assert.That(Value(VerbKey("apk.1"), "MultiSelectModel"), Is.Null);
+            Assert.That(KeyExists(VerbKey("apk.1")), Is.False, "the verb key goes with its last value");
+            Assert.That(KeyExists(VerbKey("apk.1"), _mirrorRoot), Is.False);
+            Assert.That(IsSubKey(@"apk.1", "shell"), Is.False, "an empty shell key is noise in the class");
+        }
+
+        [Test]
+        public void TheModernVerbIsNotWrittenOverAShellExValueOfAnEarlierRelease()
+        {
+            SeedValue(@"apk.1\ShellEx", "ExplorerCommandHandler", ExplorerCommandClsid);
+
+            RegisterWithBuild(Windows11Build);
+
+            Assert.That(Value(@"apk.1\ShellEx", "ExplorerCommandHandler"), Is.Null, "one class must carry one command shape, not two");
+            Assert.That(Value(VerbKey("apk.1"), "ExplorerCommandHandler"), Is.EqualTo(ExplorerCommandClsid), "the verb key is where the shell reads it now");
         }
 
         [Test]

@@ -83,9 +83,10 @@ namespace ApkShellext2.Registration {
         internal const string ThumbnailClsid = "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}";
 
         /// <summary>
-        /// CLSID of the Windows 11 <c>ExplorerCommandHandler</c> registration. It has no implementation
-        /// yet, so on a 22H2+ host the shell fails to activate it and keeps using the classic verbs; the
-        /// registrar writes the value only from build 22621 and removes it again on uninstall.
+        /// CLSID of the Windows 11 <c>ExplorerCommandHandler</c>: the class that serves the modern
+        /// context menu verb. Windows 11 22H2 (build 22621) is the first build that reads it, so the
+        /// registrar writes the verb key and this server block only from that build and removes both
+        /// again on uninstall.
         /// </summary>
         internal const string ExplorerCommandClsid = "{0B6C1F2A-7D34-4E5B-9A18-3C2D4E5F6071}";
 
@@ -102,6 +103,11 @@ namespace ApkShellext2.Registration {
         internal const string InfoTipClassName = "ApkShellext2.Shell.Native.InfoTipHandlerNative";
         internal const string ThumbnailClassName = "ApkShellext2.Shell.Native.ThumbnailHandlerNative";
 
+        //  The modern verb class. It carries no [ComRegisterFunction], so regasm's own registration
+        //  pass is the only thing that writes it without the registrar's build gate - and a server
+        //  block nothing points at is inert, while the verb key below is what the shell reads.
+        internal const string ExplorerCommandClassName = "ApkShellext2.Shell.Native.ExplorerCommandInstance";
+
         /// <summary>Registry key names and shell defined value names.</summary>
         internal const string ClsidKey = "CLSID";
         internal const string ProgIdKey = "ProgId";
@@ -111,6 +117,22 @@ namespace ApkShellext2.Registration {
         internal const string ContextMenuHandlersKey = "ContextMenuHandlers";
         internal const string DefaultIconKey = "DefaultIcon";
         internal const string ExplorerCommandHandlerValue = "ExplorerCommandHandler";
+
+        /// <summary>
+        /// The verb key the modern menu hangs on: <c>{file class}\shell\ApkShellext2</c>. The verb
+        /// name is the key name, and the shell reads <c>ExplorerCommandHandler</c> from it. Classic
+        /// handlers stay where they are, which keeps both the Windows 10 menu and the "show more
+        /// options" list of Windows 11 on the code they already use.
+        /// </summary>
+        internal const string ShellKey = "shell";
+        internal const string VerbKeyName = "ApkShellext2";
+
+        /// <summary>
+        /// <c>MultiSelectModel=Player</c> tells the shell to activate the command once with the whole
+        /// selection instead of once per item, which is what the menu model expects.
+        /// </summary>
+        internal const string MultiSelectModelValue = "MultiSelectModel";
+        internal const string MultiSelectModelPlayer = "Player";
 
         /// <summary>
         /// ShellEx slot of the icon handler: a <b>subkey</b> whose default value is our CLSID.
@@ -270,6 +292,15 @@ namespace ApkShellext2.Registration {
         /// <summary>All four CLSIDs, for the Blocked list sweep and for tests.</summary>
         internal static IReadOnlyList<string> AllClsids() {
             return new[] { ContextMenuClsid, IconHandlerClsid, InfoTipClsid, ThumbnailClsid };
+        }
+
+        /// <summary>
+        /// Every CLSID this assembly can register as a server, the modern command included. The
+        /// Blocked list holds whichever class id Explorer was told to refuse, so the sweep has to
+        /// cover the command too - a blocked command is a menu that silently never appears.
+        /// </summary>
+        internal static IReadOnlyList<string> AllServerClsids() {
+            return new[] { ContextMenuClsid, IconHandlerClsid, InfoTipClsid, ThumbnailClsid, ExplorerCommandClsid };
         }
 
         /// <summary>All four ProgIDs, for unregistration and for tests.</summary>
