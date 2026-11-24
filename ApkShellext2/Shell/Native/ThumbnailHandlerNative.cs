@@ -2,14 +2,25 @@ using System;
 using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+using ApkQuickReader;
 using ApkShellext2.Diagnostics;
 using ApkShellext2.Interop;
 using ApkShellext2.Registration;
+using STATSTG = System.Runtime.InteropServices.ComTypes.STATSTG;
 
 namespace ApkShellext2.Shell.Native {
     /// <summary>
-    /// The thumbnail handler: IInitializeWithFile carries the item path and IThumbnailProvider
-    /// produces the bitmap.
+    /// The thumbnail handler: the shell initializes it with the item path (<c>IInitializeWithFile</c>,
+    /// loaded in process) or with the item's bytes as an <c>IStream</c> (<c>IInitializeWithStream</c>,
+    /// the initialisation an out-of-process load is given), and <c>IThumbnailProvider</c> produces the
+    /// bitmap.
+    ///
+    /// The stream is copied to a private temporary file before rendering, because the renderer opens
+    /// the package by path. The copy is bounded by the container limit the readers already apply, the
+    /// directory is created on demand, and the file name carries a GUID so two handler instances never
+    /// share a file. Every path out of GetThumbnail deletes the copy, so the temporary file exists
+    /// only between Initialize and the render.
     ///
     /// The bitmap is returned as an HBITMAP that the shell owns and frees with DeleteObject, so it
     /// must be a copy the handler never touches again. A request with no thumbnail answers S_FALSE
@@ -19,18 +30,60 @@ namespace ApkShellext2.Shell.Native {
     [Guid("D747C5A7-2F66-4B7D-8301-8531838E4ED3")]
     [ProgId(ShellGuids.ThumbnailProgId)]
     [ClassInterface(ClassInterfaceType.None)]
-    public sealed class ThumbnailHandlerNative : IThumbnailProviderNative, IInitializeWithFileNative {
+    public sealed class ThumbnailHandlerNative : IThumbnailProviderNative, IInitializeWithFileNative, IInitializeWithStreamNative {
         private const string ModuleName = "ThumbnailHandlerNative";
+        private const string TemporaryDirectoryName = "ApkShellext2";
         private const uint WtsatArgb = 2;
+        private const int CopyBufferSize = 81920;
+        private const int StatFlagNoName = 1;
 
         private string selectedPath;
+        private string temporaryPath;
 
         public int Initialize(string pszFilePath, uint grfMode) {
             try {
+                DeleteTemporaryFile();
                 selectedPath = pszFilePath;
                 return HResult.S_OK;
             } catch (Exception ex) {
                 ErrorLog.Error(ModuleName, "Initialize failed", ex);
+                return HResult.E_FAIL;
+            }
+        }
+
+        public int Initialize(IStream pstream, uint grfMode) {
+            try {
+                if (pstream == null) {
+                    return HResult.E_INVALIDARG;
+                }
+                DeleteTemporaryFile();
+                selectedPath = null;
+
+                long declared = DeclaredLength(pstream);
+                if (declared > SafeArchive.MAX_BASE_APK) {
+                    ErrorLog.Warn(ModuleName,
+                        "Thumbnail stream declares " + declared + " bytes, more than the " + SafeArchive.MAX_BASE_APK + "-byte container limit; refused without copying",
+                        null);
+                    return HResult.E_FILE_TOO_LARGE;
+                }
+
+                string path = TemporaryFilePath();
+                try {
+                    int hr = CopyStreamTo(pstream, path);
+                    if (hr != HResult.S_OK) {
+                        TryDelete(path);
+                        return hr;
+                    }
+                } catch {
+                    TryDelete(path);
+                    throw;
+                }
+
+                temporaryPath = path;
+                selectedPath = path;
+                return HResult.S_OK;
+            } catch (Exception ex) {
+                ErrorLog.Error(ModuleName, "Initialize from stream failed", ex);
                 return HResult.E_FAIL;
             }
         }
@@ -65,6 +118,91 @@ namespace ApkShellext2.Shell.Native {
                 pdwAlpha = 0;
                 ErrorLog.Error(ModuleName, "GetThumbnail failed for " + Path.GetFileName(selectedPath ?? string.Empty), ex);
                 return HResult.S_FALSE;
+            } finally {
+                // The renderer has opened and closed the copy by the time a bitmap exists or the
+                // call has failed; keeping it longer would leave attacker-sized files behind.
+                DeleteTemporaryFile();
+            }
+        }
+
+        /// <summary>
+        /// Reads the declared size without taking the name (STATFLAG_NONAME): no string is allocated,
+        /// so there is nothing to free. A stream that will not answer is copied anyway and the copy
+        /// stops at the limit.
+        /// </summary>
+        private static long DeclaredLength(IStream pstream) {
+            try {
+                STATSTG stat;
+                pstream.Stat(out stat, StatFlagNoName);
+                return stat.cbSize;
+            } catch (NotSupportedException) {
+                return 0;
+            } catch (COMException) {
+                return 0;
+            }
+        }
+
+        private static string TemporaryFilePath() {
+            string directory = Path.Combine(Path.GetTempPath(), TemporaryDirectoryName);
+            Directory.CreateDirectory(directory);
+            return Path.Combine(directory, "thumb-" + Guid.NewGuid().ToString("N") + ".apk");
+        }
+
+        /// <summary>
+        /// Copies at most the container limit. A stream whose declared size lies is stopped at the
+        /// limit as well, so the copy is never unbounded whatever the caller said.
+        /// </summary>
+        private static int CopyStreamTo(IStream pstream, string path) {
+            long total = 0;
+            IntPtr read = Marshal.AllocHGlobal(sizeof(int));
+            try {
+                using (FileStream file = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, CopyBufferSize)) {
+                    byte[] buffer = new byte[CopyBufferSize];
+                    while (true) {
+                        Marshal.WriteInt32(read, 0);
+                        pstream.Read(buffer, buffer.Length, read);
+                        int count = Marshal.ReadInt32(read);
+                        if (count < 0 || count > buffer.Length) {
+                            throw new InvalidDataException("IStream.Read reported " + count + " bytes for a " + buffer.Length + "-byte buffer");
+                        }
+                        if (count == 0) {
+                            return HResult.S_OK;
+                        }
+                        total += count;
+                        if (total > SafeArchive.MAX_BASE_APK) {
+                            ErrorLog.Warn(ModuleName,
+                                "Thumbnail stream is larger than the " + SafeArchive.MAX_BASE_APK + "-byte container limit; copy stopped",
+                                null);
+                            return HResult.E_FILE_TOO_LARGE;
+                        }
+                        file.Write(buffer, 0, count);
+                    }
+                }
+            } finally {
+                Marshal.FreeHGlobal(read);
+            }
+        }
+
+        private void DeleteTemporaryFile() {
+            string path = temporaryPath;
+            temporaryPath = null;
+            if (path == null) {
+                return;
+            }
+            try {
+                File.Delete(path);
+            } catch (IOException ex) {
+                ErrorLog.Warn(ModuleName, "Could not delete the temporary thumbnail " + path + ": " + ex.Message, ex);
+            } catch (UnauthorizedAccessException ex) {
+                ErrorLog.Warn(ModuleName, "Could not delete the temporary thumbnail " + path + ": " + ex.Message, ex);
+            }
+        }
+
+        private static void TryDelete(string path) {
+            try {
+                File.Delete(path);
+            } catch (IOException) {
+            } catch (UnauthorizedAccessException) {
             }
         }
 

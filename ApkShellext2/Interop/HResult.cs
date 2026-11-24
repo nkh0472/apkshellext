@@ -28,6 +28,12 @@ namespace ApkShellext2.Interop {
         internal const int E_FILENOTFOUND = unchecked((int)0x80070002);
         internal const int E_PATHNOTFOUND = unchecked((int)0x80070003);
 
+        /// <summary>
+        /// <c>HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE)</c>: the data the caller offered is larger
+        /// than the limit this component accepts for it.
+        /// </summary>
+        internal const int E_FILE_TOO_LARGE = unchecked((int)0x800700DF);
+
         internal const int CLASS_E_NOAGGREGATION = unchecked((int)0x80040110);
         internal const int CLASS_E_CLASSNOTAVAILABLE = unchecked((int)0x80040111);
         internal const int REGDB_E_CLASSNOTREG = unchecked((int)0x80040154);

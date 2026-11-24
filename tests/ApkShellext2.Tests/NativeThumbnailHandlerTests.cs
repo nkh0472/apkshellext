@@ -4,9 +4,11 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using ApkQuickReader;
 using ApkShellext2.Shell.Native;
 using NUnit.Framework;
+using STATSTG = System.Runtime.InteropServices.ComTypes.STATSTG;
 
 namespace ApkShellext2.Tests
 {
@@ -21,10 +23,18 @@ namespace ApkShellext2.Tests
     {
         private const int S_OK = 0;
         private const int S_FALSE = 1;
+        private const int E_INVALIDARG = unchecked((int)0x80070057);
+        private const int E_FILE_TOO_LARGE = unchecked((int)0x800700DF);
         private const uint WtsatArgb = 2;
+
+        /// <summary>The package container limit the readers apply; a stream above it is refused.</summary>
+        private const long ContainerLimit = 512L * 1024 * 1024;
 
         [DllImport("gdi32.dll", SetLastError = true)]
         private static extern bool DeleteObject(IntPtr hObject);
+
+        [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
+        private static extern IStream SHCreateMemStream(byte[] init, uint size);
 
         [TearDown]
         public void RestoreThreadCulture()
@@ -137,6 +147,71 @@ namespace ApkShellext2.Tests
             ThumbnailHandlerNative handler = new ThumbnailHandlerNative();
             Assert.That(handler.Initialize(path, 0), Is.EqualTo(S_OK), "IInitializeWithFile failed for " + path);
             return handler;
+        }
+
+        /// <summary>
+        /// The copy a stream initialization makes: one GUID-named file in a dedicated directory under
+        /// %TEMP%, gone again once the render has run (success or failure). The directory and the
+        /// prefix are part of the contract with the shell and with the cleanup, so the test pins them.
+        /// </summary>
+        private static string[] TemporaryThumbnails()
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "ApkShellext2");
+            return Directory.Exists(directory) ? Directory.GetFiles(directory, "thumb-*.apk") : new string[0];
+        }
+
+        private static void RemoveLingeringThumbnails()
+        {
+            foreach (string file in TemporaryThumbnails())
+            {
+                File.Delete(file);
+            }
+        }
+
+        /// <summary>
+        /// A managed IStream for tests: the declared length is what Stat answers and Read counts the
+        /// calls, so a handler that trusts the size instead of reading the buffer is visible here.
+        /// This is not an RCW, so it must never be released with Marshal.ReleaseComObject.
+        /// </summary>
+        private sealed class DeclaredStream : IStream
+        {
+            private readonly long declared;
+
+            public DeclaredStream(long declared)
+            {
+                this.declared = declared;
+            }
+
+            public int Reads { get; private set; }
+
+            public void Read(byte[] pv, int cb, IntPtr pcbRead)
+            {
+                Reads++;
+                Marshal.WriteInt32(pcbRead, 0);
+            }
+
+            public void Stat(out STATSTG statstg, int grfStatFlag)
+            {
+                statstg = new STATSTG { cbSize = declared };
+            }
+
+            public void Write(byte[] pv, int cb, IntPtr pcbWritten) { throw new NotSupportedException(); }
+
+            public void Seek(long dlibMove, int dwOrigin, IntPtr plibNewPosition) { throw new NotSupportedException(); }
+
+            public void SetSize(long libNewSize) { throw new NotSupportedException(); }
+
+            public void CopyTo(IStream pstm, long cb, IntPtr pcbRead, IntPtr pcbWritten) { throw new NotSupportedException(); }
+
+            public void Commit(int grfCommitFlags) { throw new NotSupportedException(); }
+
+            public void Revert() { throw new NotSupportedException(); }
+
+            public void LockRegion(long libOffset, long cb, int dwLockType) { throw new NotSupportedException(); }
+
+            public void UnlockRegion(long libOffset, long cb, int dwLockType) { throw new NotSupportedException(); }
+
+            public void Clone(out IStream ppstm) { throw new NotSupportedException(); }
         }
 
         [TestCase(32)]
@@ -252,6 +327,101 @@ namespace ApkShellext2.Tests
             uint alpha;
             Assert.That(handler.GetThumbnail(96, out hbitmap, out alpha), Is.EqualTo(S_FALSE));
             Assert.That(hbitmap, Is.EqualTo(IntPtr.Zero));
+        }
+
+        [Test]
+        public void GetThumbnailRendersFromAStreamInitialization()
+        {
+            using (new SettingsScope().Set("EnableThumbnail", "True").Set("StretchThumbnail", "True").Set("ShowOverlayIcon", "False"))
+            {
+                RemoveLingeringThumbnails();
+                string packagePath = ThumbnailApkPath();
+                byte[] bytes = File.ReadAllBytes(packagePath);
+                IStream stream = SHCreateMemStream(bytes, (uint)bytes.Length);
+                Assert.That(stream, Is.Not.Null, "SHCreateMemStream handed back no stream");
+                try
+                {
+                    ThumbnailHandlerNative handler = new ThumbnailHandlerNative();
+                    Assert.That(handler.Initialize(stream, 0), Is.EqualTo(S_OK), "IInitializeWithStream failed");
+                    Assert.That(TemporaryThumbnails().Length, Is.EqualTo(1), "the stream is copied to one temporary package");
+
+                    IntPtr hbitmap;
+                    uint alpha;
+                    Assert.That(handler.GetThumbnail(256, out hbitmap, out alpha), Is.EqualTo(S_OK), "GetThumbnail after a stream initialization");
+                    try
+                    {
+                        Assert.That(alpha, Is.EqualTo(WtsatArgb), "the bitmap is 32bpp ARGB");
+                        Assert.That(hbitmap, Is.Not.EqualTo(IntPtr.Zero));
+                        using (Bitmap actual = Image.FromHbitmap(hbitmap))
+                        using (Bitmap expected = Expected(packagePath, 256))
+                        using (Bitmap transported = AsTheShellWouldSeeIt(expected))
+                        {
+                            Assert.That(actual.Size, Is.EqualTo(new Size(256, 256)), "a stream-initialized handler renders the requested size");
+                            Assert.That(RgbPixels(actual), Is.EqualTo(RgbPixels(transported)), "the stream must render the same pixels as the path");
+                        }
+                    }
+                    finally
+                    {
+                        DeleteObject(hbitmap);
+                    }
+
+                    Assert.That(TemporaryThumbnails(), Is.Empty, "the temporary package must be deleted after rendering");
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(stream);
+                }
+            }
+        }
+
+        [Test]
+        public void GetThumbnailDeletesTheCopyAfterAFailedRender()
+        {
+            using (new SettingsScope().Set("EnableThumbnail", "True"))
+            {
+                RemoveLingeringThumbnails();
+                byte[] garbage = new byte[] { 0x50, 0x4B, 0x03, 0x04, 0x00, 0x00 };
+                IStream stream = SHCreateMemStream(garbage, (uint)garbage.Length);
+                try
+                {
+                    ThumbnailHandlerNative handler = new ThumbnailHandlerNative();
+                    Assert.That(handler.Initialize(stream, 0), Is.EqualTo(S_OK));
+                    Assert.That(TemporaryThumbnails().Length, Is.EqualTo(1), "the copy exists before the render");
+
+                    IntPtr hbitmap;
+                    uint alpha;
+                    Assert.That(handler.GetThumbnail(256, out hbitmap, out alpha), Is.EqualTo(S_FALSE), "garbage yields no thumbnail");
+                    Assert.That(hbitmap, Is.EqualTo(IntPtr.Zero));
+                    Assert.That(alpha, Is.EqualTo(0u));
+                    Assert.That(TemporaryThumbnails(), Is.Empty, "a failed render still deletes its temporary package");
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(stream);
+                }
+            }
+        }
+
+        [Test]
+        public void InitializeRefusesAStreamBeyondTheContainerLimit()
+        {
+            using (new SettingsScope().Set("EnableThumbnail", "True"))
+            {
+                RemoveLingeringThumbnails();
+                DeclaredStream oversized = new DeclaredStream(ContainerLimit + 1);
+                ThumbnailHandlerNative handler = new ThumbnailHandlerNative();
+                Assert.That(handler.Initialize(oversized, 0), Is.EqualTo(E_FILE_TOO_LARGE), "a stream above the container limit is refused");
+                Assert.That(oversized.Reads, Is.EqualTo(0), "nothing is read from a stream that is already too large");
+                Assert.That(TemporaryThumbnails(), Is.Empty, "a refused stream leaves no file");
+            }
+        }
+
+        [Test]
+        public void InitializeRefusesANullStream()
+        {
+            ThumbnailHandlerNative handler = new ThumbnailHandlerNative();
+            Assert.That(handler.Initialize((IStream)null, 0), Is.EqualTo(E_INVALIDARG));
+            Assert.That(TemporaryThumbnails(), Is.Empty);
         }
 
         [Test]

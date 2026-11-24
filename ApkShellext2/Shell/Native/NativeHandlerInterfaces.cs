@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace ApkShellext2.Shell.Native {
     //  The shell interfaces the native icon, info-tip and thumbnail handlers answer, declared the
@@ -113,9 +114,9 @@ namespace ApkShellext2.Shell.Native {
     }
 
     /// <summary>
-    /// <c>IInitializeWithFile</c>: the shell initializes a thumbnail handler with the item path.
-    /// The path form is what this handler needs - it opens the package itself and never has to
-    /// marshal the shell's <c>IStream</c> across apartments.
+    /// <c>IInitializeWithFile</c>: the shell hands the item path to a thumbnail handler it loads
+    /// in process. Out of process it offers <c>IInitializeWithStream</c> instead, and this one is not
+    /// called at all, so a handler has to answer both.
     /// </summary>
     [ComVisible(true)]
     [Guid("b7d14566-0509-4cce-a71f-0a554233bd9b")]
@@ -124,5 +125,22 @@ namespace ApkShellext2.Shell.Native {
         /// <summary><paramref name="grfMode"/> is an STGM access mode; STGM_READ is the only one a handler may ask for.</summary>
         [PreserveSig]
         int Initialize([In, MarshalAs(UnmanagedType.LPWStr)] string pszFilePath, uint grfMode);
+    }
+
+    /// <summary>
+    /// <c>IInitializeWithStream</c>: the initialisation the shell uses for a handler it hosts out of
+    /// process. The stream is the item's bytes; the shell creates it, keeps ownership and releases it,
+    /// so the handler only reads it during <see cref="Initialize"/>.
+    /// </summary>
+    [ComVisible(true)]
+    [Guid("b824b49d-22ac-4161-ac8a-9916e8fa3f7f")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IInitializeWithStreamNative {
+        /// <summary>
+        /// <paramref name="grfMode"/> is an STGM mode, STGM_READ in practice. The handler copies the
+        /// stream it needs before returning: the shell may release it as soon as this call completes.
+        /// </summary>
+        [PreserveSig]
+        int Initialize([In, MarshalAs(UnmanagedType.Interface)] IStream pstream, uint grfMode);
     }
 }

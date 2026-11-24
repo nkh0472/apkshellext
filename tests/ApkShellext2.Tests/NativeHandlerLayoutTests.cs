@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using ApkShellext2.Shell.Native;
 using NUnit.Framework;
 
@@ -30,6 +31,7 @@ namespace ApkShellext2.Tests
             { "IPersistFileNative", new Guid("0000010b-0000-0000-c000-000000000046") },
             { "IQueryInfoNative", new Guid("00021500-0000-0000-c000-000000000046") },
             { "IThumbnailProviderNative", new Guid("e357fccd-a995-4576-b01f-234630154e96") },
+            { "IInitializeWithStreamNative", new Guid("b824b49d-22ac-4161-ac8a-9916e8fa3f7f") },
             { "IInitializeWithFileNative", new Guid("b7d14566-0509-4cce-a71f-0a554233bd9b") }
         };
 
@@ -40,6 +42,7 @@ namespace ApkShellext2.Tests
             { "IPersistFileNative", new[] { "GetClassID", "IsDirty", "Load", "Save", "SaveCompleted", "GetCurFile" } },
             { "IQueryInfoNative", new[] { "GetInfoTip", "GetInfoFlags" } },
             { "IThumbnailProviderNative", new[] { "GetThumbnail" } },
+            { "IInitializeWithStreamNative", new[] { "Initialize" } },
             { "IInitializeWithFileNative", new[] { "Initialize" } }
         };
 
@@ -136,7 +139,8 @@ namespace ApkShellext2.Tests
                 { "IExtractIconWNative", "IExtractIconWFlat" },
                 { "IPersistFileNative", "IPersistFileFlat" },
                 { "IQueryInfoNative", "IQueryInfoFlat" },
-                { "IThumbnailProviderNative", "IThumbnailProviderFlat" }
+                { "IThumbnailProviderNative", "IThumbnailProviderFlat" },
+                { "IInitializeWithStreamNative", "IInitializeWithStreamFlat" }
             };
 
             List<string> offenders = new List<string>();
@@ -241,6 +245,22 @@ namespace ApkShellext2.Tests
             {
                 Marshal.Release(iface);
             }
+
+            var streamInitializable = new InitializeWithStreamProbe();
+            iface = Marshal.GetComInterfaceForObject(streamInitializable, typeof(IInitializeWithStreamNative));
+            try
+            {
+                var call = (InitializeStreamThunk)Marshal.GetDelegateForFunctionPointer(
+                    SlotAddress(iface, FirstMethodSlot), typeof(InitializeStreamThunk));
+                // a null stream: the slot is being identified, not the stream read
+                int hr = call(iface, IntPtr.Zero, 0u);
+                Assert.That(streamInitializable.Calls, Is.EqualTo("Initialize"));
+                Assert.That(hr, Is.EqualTo(0));
+            }
+            finally
+            {
+                Marshal.Release(iface);
+            }
         }
 
         private static IntPtr SlotAddress(IntPtr iface, int slot)
@@ -291,6 +311,9 @@ namespace ApkShellext2.Tests
 
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate int InitializeThunk(IntPtr self, [MarshalAs(UnmanagedType.LPWStr)] string path, uint mode);
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        private delegate int InitializeStreamThunk(IntPtr self, IntPtr pstream, uint mode);
     }
 
     // Minimal COM visible implementations used only to read the vtable the CLR builds. Each records
@@ -402,6 +425,18 @@ namespace ApkShellext2.Tests
         public string Calls { get; private set; }
 
         public int Initialize(string pszFilePath, uint grfMode)
+        {
+            Calls = "Initialize";
+            return 0;
+        }
+    }
+
+    [ComVisible(true)]
+    public sealed class InitializeWithStreamProbe : IInitializeWithStreamNative
+    {
+        public string Calls { get; private set; }
+
+        public int Initialize(IStream pstream, uint grfMode)
         {
             Calls = "Initialize";
             return 0;
