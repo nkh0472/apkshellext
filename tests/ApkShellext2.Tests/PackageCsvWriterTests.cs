@@ -1,0 +1,542 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using NUnit.Framework;
+using ApkShellext2;
+
+namespace ApkShellext2.Tests
+{
+    /// <summary>
+    /// Pins the CSV contract of the export: the byte order mark, CRLF, the RFC 4180 quoting
+    /// rules, the fixed column order and the status values. The reader is a fake so the tests
+    /// do not depend on any package format; the file system rows still use real files.
+    /// </summary>
+    [TestFixture]
+    public class PackageCsvWriterTests
+    {
+        private string directory;
+
+        [SetUp]
+        public void CreateDirectory()
+        {
+            directory = Path.Combine(Path.GetTempPath(), "apkshellext-csv-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+        }
+
+        [TearDown]
+        public void DeleteDirectory()
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, true);
+        }
+
+        private string File(string name, string content = "package")
+        {
+            string path = Path.Combine(directory, name);
+            System.IO.File.WriteAllText(path, content);
+            return path;
+        }
+
+        private static MemoryStream Write(
+            IEnumerable<string> paths,
+            Func<string, IPackageReader> openReader = null,
+            CancellationToken cancellationToken = default(CancellationToken),
+            Action<int, int> progress = null)
+        {
+            var output = new MemoryStream();
+            PackageCsvWriter.Write(output, paths, openReader, cancellationToken, progress);
+            output.Position = 0;
+            return output;
+        }
+
+        private static byte[] Bytes(MemoryStream output)
+        {
+            return output.ToArray();
+        }
+
+        private static string Text(MemoryStream output)
+        {
+            byte[] bytes = output.ToArray();
+            int offset = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+            return Encoding.UTF8.GetString(bytes, offset, bytes.Length - offset);
+        }
+
+        private static string[] Lines(string text)
+        {
+            return text.Split(new[] { "\r\n" }, StringSplitOptions.None);
+        }
+
+        private static string[] Fields(string line)
+        {
+            var fields = new List<string>();
+            var field = new StringBuilder();
+            bool quoted = false;
+            for (int i = 0; i < line.Length; i++)
+            {
+                char c = line[i];
+                if (quoted)
+                {
+                    if (c == '"')
+                    {
+                        if (i + 1 < line.Length && line[i + 1] == '"')
+                        {
+                            field.Append('"');
+                            i++;
+                        }
+                        else
+                        {
+                            quoted = false;
+                        }
+                    }
+                    else
+                    {
+                        field.Append(c);
+                    }
+                }
+                else if (c == '"')
+                {
+                    quoted = true;
+                }
+                else if (c == ',')
+                {
+                    fields.Add(field.ToString());
+                    field.Clear();
+                }
+                else
+                {
+                    field.Append(c);
+                }
+            }
+            fields.Add(field.ToString());
+            return fields.ToArray();
+        }
+
+        private sealed class FakeReader : IPackageReader
+        {
+            public string FileName { get; set; }
+            public string AppName { get; set; }
+            public string PackageName { get; set; }
+            public string Version { get; set; }
+            public string Revision { get; set; }
+            public CultureInfo Culture { get; set; }
+            public string Publisher { get; set; }
+            public System.Drawing.Bitmap Icon { get { return null; } }
+            public string AppID { get; set; }
+            public AppPackageReader.AppType Type { get; set; }
+            public bool Disposed { get; private set; }
+
+            public FakeReader()
+            {
+                AppName = "Example";
+                PackageName = "com.example.app";
+                Version = "1.2.3";
+                Revision = "45";
+                Publisher = "Example Ltd";
+                AppID = "app-id";
+                Type = AppPackageReader.AppType.AndroidApp;
+            }
+
+            public void setFlag(string name, object value) { }
+            public object getFlag(string name) { return null; }
+            public System.Drawing.Bitmap getIcon(System.Drawing.Size size) { return null; }
+
+            public void Dispose()
+            {
+                Disposed = true;
+            }
+        }
+
+        [Test]
+        public void OutputStartsWithTheUtf8ByteOrderMark()
+        {
+            byte[] bytes = Bytes(Write(new string[0]));
+
+            Assert.That(bytes.Length, Is.GreaterThanOrEqualTo(3));
+            Assert.That(bytes[0], Is.EqualTo(0xEF));
+            Assert.That(bytes[1], Is.EqualTo(0xBB));
+            Assert.That(bytes[2], Is.EqualTo(0xBF));
+        }
+
+        [Test]
+        public void HeaderIsTheDocumentedColumnOrder()
+        {
+            string header = Lines(Text(Write(new string[0])))[0];
+
+            Assert.That(PackageCsvWriter.Columns, Is.EqualTo(new[] {
+                "File", "Folder", "AppName", "Package", "Version", "Revision",
+                "Publisher", "AppID", "Type", "SizeBytes", "Modified", "Status"
+            }));
+            Assert.That(Fields(header), Is.EqualTo(PackageCsvWriter.Columns));
+        }
+
+        [Test]
+        public void EveryRecordEndsWithCrLfAndNothingElseUsesLoneNewlines()
+        {
+            string path = File("Plain.apk");
+            string text = Text(Write(new[] { path }, p => new FakeReader()));
+
+            Assert.That(text, Does.EndWith("\r\n"));
+            Assert.That(text.Replace("\r\n", ""), Does.Not.Contain("\n"));
+            Assert.That(Lines(text).Length, Is.EqualTo(3), "header, one row and the empty tail");
+        }
+
+        [Test]
+        public void AnOkRowCarriesTheReaderValues()
+        {
+            string path = File("Plain.apk");
+            var reader = new FakeReader {
+                FileName = path,
+                AppName = "Example App",
+                PackageName = "com.example.app",
+                Version = "1.2.3",
+                Revision = "45",
+                Publisher = "Example Ltd",
+                AppID = "ai-123",
+                Type = AppPackageReader.AppType.AndroidApp
+            };
+
+            string[] row = Fields(Lines(Text(Write(new[] { path }, p => reader)))[1]);
+
+            Assert.That(row[0], Is.EqualTo("Plain.apk"));
+            Assert.That(row[1], Is.EqualTo(Path.GetFullPath(directory)));
+            Assert.That(row[2], Is.EqualTo("Example App"));
+            Assert.That(row[3], Is.EqualTo("com.example.app"));
+            Assert.That(row[4], Is.EqualTo("1.2.3"));
+            Assert.That(row[5], Is.EqualTo("45"));
+            Assert.That(row[6], Is.EqualTo("Example Ltd"));
+            Assert.That(row[7], Is.EqualTo("ai-123"));
+            Assert.That(row[8], Is.EqualTo("AndroidApp"));
+            Assert.That(row[11], Is.EqualTo("ok"));
+        }
+
+        [Test]
+        public void SizeComesFromFileInfoAndModifiedIsIsoWithAnOffset()
+        {
+            string path = File("Sized.apk", "0123456789");
+            var when = new DateTime(2024, 5, 6, 7, 8, 9, DateTimeKind.Local);
+            System.IO.File.SetLastWriteTime(path, when);
+
+            string[] row = Fields(Lines(Text(Write(new[] { path }, p => new FakeReader())))[1]);
+
+            Assert.That(row[9], Is.EqualTo("10"));
+            Assert.That(row[10], Does.Match(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$"));
+            DateTimeOffset parsed = DateTimeOffset.Parse(row[10], CultureInfo.InvariantCulture);
+            Assert.That(parsed.LocalDateTime, Is.EqualTo(when));
+        }
+
+        [Test]
+        public void TypeUsesTheReaderAppTypeName()
+        {
+            string path = File("Store.ipa");
+            var reader = new FakeReader { Type = AppPackageReader.AppType.iOSApp };
+
+            string[] row = Fields(Lines(Text(Write(new[] { path }, p => reader)))[1]);
+
+            Assert.That(row[8], Is.EqualTo("iOSApp"));
+            Assert.That(row[11], Is.EqualTo("ok"));
+        }
+
+        [Test]
+        public void UnsupportedExtensionIsReportedAndTheFactoryIsNeverCalled()
+        {
+            string path = File("notes.txt");
+            bool called = false;
+
+            var result = new PackageCsvResult();
+            using (var output = new MemoryStream())
+            {
+                result = PackageCsvWriter.Write(output, new[] { path }, p => {
+                    called = true;
+                    return new FakeReader();
+                }, default(CancellationToken), null);
+                output.Position = 0;
+                string[] row = Fields(Lines(Text(output))[1]);
+                Assert.That(row[8], Is.Empty);
+                Assert.That(row[11], Is.EqualTo("unsupported type"));
+            }
+
+            Assert.That(called, Is.False);
+            Assert.That(result.Rows, Is.EqualTo(1));
+            Assert.That(result.Errors, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AMissingFileIsUnreadableWithoutAskingAReader()
+        {
+            string path = Path.Combine(directory, "Gone.apk");
+            bool called = false;
+
+            PackageCsvResult result;
+            string[] row;
+            using (var output = new MemoryStream())
+            {
+                result = PackageCsvWriter.Write(output, new[] { path }, p => {
+                    called = true;
+                    return new FakeReader();
+                }, default(CancellationToken), null);
+                output.Position = 0;
+                row = Fields(Lines(Text(output))[1]);
+            }
+
+            Assert.That(called, Is.False);
+            Assert.That(row[8], Is.EqualTo("AndroidApp"), "the extension still names the type");
+            Assert.That(row[11], Is.EqualTo("unreadable"));
+            Assert.That(result.Errors, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AReaderThatThrowsTurnsTheRowIntoUnreadable()
+        {
+            string path = File("Broken.apk");
+
+            PackageCsvResult result;
+            string[] row;
+            using (var output = new MemoryStream())
+            {
+                result = PackageCsvWriter.Write(output, new[] { path },
+                    p => { throw new InvalidDataException("bad zip"); },
+                    default(CancellationToken), null);
+                output.Position = 0;
+                row = Fields(Lines(Text(output))[1]);
+            }
+
+            Assert.That(row[11], Is.EqualTo("unreadable"));
+            Assert.That(result.Rows, Is.EqualTo(1));
+            Assert.That(result.Errors, Is.EqualTo(1));
+            Assert.That(result.Cancelled, Is.False);
+        }
+
+        [Test]
+        public void ACancelledExportWritesOneCancelledRowAndStops()
+        {
+            string first = File("First.apk");
+            string second = File("Second.apk");
+            bool called = false;
+
+            PackageCsvResult result;
+            string[] lines;
+            using (var output = new MemoryStream())
+            using (var cancellation = new CancellationTokenSource())
+            {
+                cancellation.Cancel();
+                result = PackageCsvWriter.Write(output, new[] { first, second },
+                    p => {
+                        called = true;
+                        return new FakeReader();
+                    },
+                    cancellation.Token, null);
+                output.Position = 0;
+                lines = Lines(Text(output));
+            }
+
+            Assert.That(called, Is.False);
+            Assert.That(result.Cancelled, Is.True);
+            Assert.That(result.Rows, Is.EqualTo(1));
+            Assert.That(lines.Length, Is.EqualTo(3));
+            Assert.That(Fields(lines[1])[11], Is.EqualTo("cancelled"));
+        }
+
+        [Test]
+        public void CancellingAfterTheFirstRowKeepsTheFirstRowAndMarksTheSecond()
+        {
+            string first = File("First.apk");
+            string second = File("Second.apk");
+            var progress = new List<string>();
+            CancellationTokenSource cancellation = new CancellationTokenSource();
+
+            PackageCsvResult result;
+            string[] lines;
+            using (var output = new MemoryStream())
+            {
+                result = PackageCsvWriter.Write(output, new[] { first, second },
+                    p => new FakeReader(), cancellation.Token,
+                    (done, total) => {
+                        progress.Add(done + "/" + total);
+                        if (done == 1) cancellation.Cancel();
+                    });
+                output.Position = 0;
+                lines = Lines(Text(output));
+            }
+
+            Assert.That(result.Cancelled, Is.True);
+            Assert.That(result.Rows, Is.EqualTo(2));
+            Assert.That(Fields(lines[1])[11], Is.EqualTo("ok"));
+            Assert.That(Fields(lines[2])[11], Is.EqualTo("cancelled"));
+            Assert.That(progress, Is.EqualTo(new[] { "1/2", "2/2" }));
+        }
+
+        [Test]
+        public void AnEmptySelectionWritesOnlyTheHeader()
+        {
+            PackageCsvResult result;
+            string text;
+            using (var output = new MemoryStream())
+            {
+                result = PackageCsvWriter.Write(output, new string[0]);
+                output.Position = 0;
+                text = Text(output);
+            }
+
+            Assert.That(result.Rows, Is.EqualTo(0));
+            Assert.That(result.Errors, Is.EqualTo(0));
+            Assert.That(text, Is.EqualTo(string.Join(",", PackageCsvWriter.Columns) + "\r\n"));
+        }
+
+        [Test]
+        public void QuotesAreDoubledAndTheFieldIsQuoted()
+        {
+            string path = File("Quote.apk");
+            var reader = new FakeReader { AppName = "A \"quoted\" name" };
+
+            string[] row = Fields(Lines(Text(Write(new[] { path }, p => reader)))[1]);
+
+            Assert.That(row[2], Is.EqualTo("A \"quoted\" name"));
+            Assert.That(Text(Write(new[] { path }, p => reader)), Does.Contain("\"A \"\"quoted\"\" name\""));
+        }
+
+        [Test]
+        public void CommaForcesQuoting()
+        {
+            string path = File("Comma.apk");
+            var reader = new FakeReader { Publisher = "Smith, John" };
+
+            string text = Text(Write(new[] { path }, p => reader));
+
+            Assert.That(Fields(Lines(text)[1])[6], Is.EqualTo("Smith, John"));
+            Assert.That(text, Does.Contain("\"Smith, John\""));
+        }
+
+        [Test]
+        public void NewlineInsideAValueIsQuotedInsteadOfStartingARecord()
+        {
+            string path = File("Newline.apk");
+            var reader = new FakeReader { Version = "1.0\r\nbeta" };
+
+            string text = Text(Write(new[] { path }, p => reader));
+
+            Assert.That(text, Does.Contain("\"1.0\r\nbeta\""));
+            Assert.That(Fields(Lines(text)[1])[4], Is.EqualTo("1.0"));
+        }
+
+        [Test]
+        public void PathsWithSpacesAndChineseCharactersKeepTheirNameAndFolder()
+        {
+            string folder = Path.Combine(directory, "中文 目录");
+            Directory.CreateDirectory(folder);
+            string path = Path.Combine(folder, "应用 名称.apk");
+            System.IO.File.WriteAllText(path, "package");
+
+            string[] row = Fields(Lines(Text(Write(new[] { path }, p => new FakeReader())))[1]);
+
+            Assert.That(row[0], Is.EqualTo("应用 名称.apk"));
+            Assert.That(row[1], Is.EqualTo(Path.GetFullPath(folder)));
+        }
+
+        [Test]
+        public void ADotSegmentInThePathStillYieldsTheFullFolder()
+        {
+            string path = Path.Combine(directory, ".", "Plain.apk");
+            System.IO.File.WriteAllText(path, "package");
+
+            string[] row = Fields(Lines(Text(Write(new[] { path }, p => new FakeReader())))[1]);
+
+            Assert.That(row[0], Is.EqualTo("Plain.apk"));
+            Assert.That(row[1], Is.EqualTo(Path.GetFullPath(directory)));
+        }
+
+        [Test]
+        public void ADotDotSegmentIsNormalisedToTheRealFolder()
+        {
+            string sub = Path.Combine(directory, "sub");
+            Directory.CreateDirectory(sub);
+            string path = Path.Combine(sub, "..", "Plain.apk");
+            System.IO.File.WriteAllText(path, "package");
+
+            string[] row = Fields(Lines(Text(Write(new[] { path }, p => new FakeReader())))[1]);
+
+            Assert.That(row[0], Is.EqualTo("Plain.apk"));
+            Assert.That(row[1], Is.EqualTo(Path.GetFullPath(directory)));
+        }
+
+        [Test]
+        public void EveryReaderIsDisposedAfterItsRow()
+        {
+            string path = File("Dispose.apk");
+            var reader = new FakeReader();
+
+            Write(new[] { path }, p => reader);
+
+            Assert.That(reader.Disposed, Is.True);
+        }
+
+        [Test]
+        public void ProgressReportsTheRunningCountAndTheSelectionSize()
+        {
+            string first = File("First.apk");
+            string second = File("Second.apk");
+            var seen = new List<string>();
+
+            Write(new[] { first, second }, p => new FakeReader(), default(CancellationToken),
+                (done, total) => seen.Add(done + "/" + total));
+
+            Assert.That(seen, Is.EqualTo(new[] { "1/2", "2/2" }));
+        }
+
+        [Test]
+        public void AMixedSelectionKeepsOneRowPerPathInOrder()
+        {
+            string ok = File("Ok.apk");
+            string unsupported = File("notes.txt");
+            string missing = Path.Combine(directory, "Missing.apk");
+
+            string[] lines = Lines(Text(Write(new[] { ok, unsupported, missing }, p => new FakeReader())));
+
+            Assert.That(lines.Length, Is.EqualTo(5), "header plus three rows plus the empty tail");
+            Assert.That(Fields(lines[1])[0], Is.EqualTo("Ok.apk"));
+            Assert.That(Fields(lines[1])[11], Is.EqualTo("ok"));
+            Assert.That(Fields(lines[2])[0], Is.EqualTo("notes.txt"));
+            Assert.That(Fields(lines[2])[11], Is.EqualTo("unsupported type"));
+            Assert.That(Fields(lines[3])[0], Is.EqualTo("Missing.apk"));
+            Assert.That(Fields(lines[3])[11], Is.EqualTo("unreadable"));
+        }
+
+        [Test]
+        public void ErrorsCountOnlyTheRowsThatAreNeitherOkNorCancelled()
+        {
+            string ok = File("Ok.apk");
+            string unsupported = File("notes.txt");
+
+            PackageCsvResult result;
+            using (var output = new MemoryStream())
+            {
+                result = PackageCsvWriter.Write(output, new[] { ok, unsupported },
+                    p => new FakeReader(), default(CancellationToken), null);
+            }
+
+            Assert.That(result.Rows, Is.EqualTo(2));
+            Assert.That(result.Errors, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void LeadingAndTrailingSpacesAreQuotedSoReadersDoNotTrimThem()
+        {
+            string path = File("Padded.apk");
+            var reader = new FakeReader { AppName = " Padded Name " };
+
+            string text = Text(Write(new[] { path }, p => reader));
+
+            Assert.That(text, Does.Contain("\" Padded Name \""));
+            Assert.That(Fields(Lines(text)[1])[2], Is.EqualTo(" Padded Name "));
+        }
+
+        [Test]
+        public void TheDefaultFileNameIsApkInfoCsv()
+        {
+            Assert.That(PackageCsvWriter.DefaultFileName, Is.EqualTo("apk-info.csv"));
+        }
+    }
+}
