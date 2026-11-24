@@ -13,7 +13,7 @@
 | 主产物 | `ApkShellext2\bin\Release\ApkShellext2.dll`(3.4.5.0,强名 `Pkt=fb82661d1c53098c`,本地密钥) |
 | 卫星程序集 | `bin\Release\{ar-SA,…,zh-CN,zh-TW}\ApkShellext2.resources.dll` × 19 |
 | 单元测试 | `tests\ApkShellext2.Tests` —— `dotnet test`,见 §7 |
-| 分发包 | `bin\Release\ApkShellext2-3.5.1.7z` —— 完整安装包,内含全部 19 个语言目录(需 7-Zip;postbuild 自动打包,包名 = `ApkShellext2-<版本>.7z`,版本取自 `version.txt`、末尾 `.0` 去掉) |
+| 分发包 | `bin\Release\ApkShellext2-4.0.0.7z` —— 完整安装包,内含全部 19 个语言目录(需 7-Zip;postbuild 自动打包,包名 = `ApkShellext2-<版本>.7z`,版本取自 `version.txt`、末尾 `.0` 去掉) |
 | 原生依赖 | `ApkShellext2\LibWebP\libwebp_x86.dll` + `libwebp_x64.dll` —— 预编译 libwebp 1.6.0,已入库;重建为可选项(§4.5) |
 | 路线 A | 独立 .NET SDK **10.0.404**:`dotnet build ApkShellext2\ApkShellext2.csproj -c Release` —— 一行命令,零参数 |
 | 路线 B | 装了*.NET 桌面开发*负载的 Visual Studio 2022/2026:`msbuild -t:restore` + `msbuild -p:Configuration=Release` —— 同样零参数 |
@@ -565,7 +565,7 @@ CI:`.github\workflows\ci.yml` 的 `dotnet-build` job,**Run unit tests** 一步 �
   `call "Resources\postbuild.cmd" "" ""`(坑 4)。
 - **`Resources\postbuild.cmd`**(仅 Release 干活;Debug 直接退出):删残留 `debug.bat`,
   定位 `7z.exe`(§4.3),用 `eng\package-name.ps1` 从 `version.txt` 算包名
-  (`3.5.1.0` → `ApkShellext2-3.5.1.7z`;`check-layout.ps1`/`check-size.ps1` dot-source
+  (`4.0.0.0` → `ApkShellext2-4.0.0.7z`;`check-layout.ps1`/`check-size.ps1` dot-source
   的是同一条规则),删残留 `*.7z`(旧无版本名 + 上一版本留下的包),然后按**显式清单**打新包 —— 9 个
   根文件(`ApkShellext2.dll`、六个 bat、两个 `libwebp_*` 二进制)加上磁盘上存在的
   全部语言目录(`ar-SA` … `zh-TW`)。
@@ -596,7 +596,7 @@ dotnet CLI 产物只留作开发。** `postbuild.cmd` 把该包 dll 列为注名
 两条路线的包都夹带不了它 —— 也别手工把它拷进部署目录,在宿主进程里它救不了
 预序列化产物。
 
-部署(目标机,以要用这个外壳扩展的用户身份):解压 `ApkShellext2-3.5.1.7z`(语言目录已在
+部署(目标机,以要用这个外壳扩展的用户身份):解压 `ApkShellext2-4.0.0.7z`(语言目录已在
 包内、与 DLL 同级),跑 `install.bat`(管理员,全机)或
 `install_user.bat`(按用户;两者都 regasm 注册并 NGEN 预编译 —— 3.4.5 修好了脚本里的
 NGEN)。`restart_explorer.bat` 重载外壳。卸载用对应的 `uninstall*.bat`。本地 snk 与
@@ -649,7 +649,7 @@ Explorer` 下的 `thumbcache_*.db` 与 `iconcache_*.db`;否则 dll 换了之后�
 
 4. **`bin\Release` 完整发布布局:** 9 个清单项 —— `ApkShellext2.dll(.pdb)`、六个 bat、
    `libwebp_x86/x64.dll`,
-   再加上 19 个语言目录,以及 —— 找到 7-Zip 时 —— `ApkShellext2-3.5.1.7z`(约 750 KB)。
+   再加上 19 个语言目录,以及 —— 找到 7-Zip 时 —— `ApkShellext2-4.0.0.7z`(约 700 KB)。
    `7z l` 必须在**两条路线上都恰好共 28 个文件**:9 个根条目(没有
    `System.Resources.Extensions.dll` —— 即便 dotnet CLI 编译把它留在了目录里,
    打包也照常排除;也没有
@@ -751,8 +751,8 @@ GitHub Release 上。工作流在 `windows-2022` 上编译 FullFramework 路线(
 和单元测试,然后发布一个已存在的 annotated tag。
 
 ```bash
-git tag -a v3.5.1 -m "ApkShellext2 3.5.1"   # 必须是 annotated,不能是轻量 tag
-git push origin v3.5.1                      # push 只由 lead 执行,贡献者不要 push
+git tag -a v4.0.0 -m "ApkShellext2 4.0.0"   # 必须是 annotated,不能是轻量 tag
+git push origin v4.0.0                      # push 只由 lead 执行,贡献者不要 push
 ```
 
 tag 必须是 `v` + `version.txt` 去掉末尾 `.0`,与 `eng/package-name.ps1` 的包名规则一致。
@@ -764,7 +764,7 @@ tag 必须是 `v` + `version.txt` 去掉末尾 `.0`,与 `eng/package-name.ps1` �
 但不创建 GitHub Release。检查逻辑都在 `eng/release-checks.ps1`,本地可以复现同样的结论:
 
 ```powershell
-pwsh -File eng\release-checks.ps1 -Tag v3.5.1
+pwsh -File eng\release-checks.ps1 -Tag v4.0.0
 ```
 
 以下情况脚本一律拒绝:tag 的数字部分与 `version.txt` 不一致、tag 不高于最近发布的 tag、
@@ -826,7 +826,7 @@ Set-Location $R
 #  System.Resources.Extensions.dll(§8 打包清单排除)
 Test-Path "$R\ApkShellext2\bin\Release\System.Resources.Extensions.dll"   # 应为 False
 Test-Path "$R\ApkShellext2\bin\Release\System.Memory.dll"                 # 应为 False
-& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # 应为 28 文件(7z 路径按机器调整)
+& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-4.0.0.7z"   # 应为 28 文件(7z 路径按机器调整)
 ```
 
 ---

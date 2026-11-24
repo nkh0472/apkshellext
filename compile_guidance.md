@@ -16,7 +16,7 @@
 | Main artifact | `ApkShellext2\bin\Release\ApkShellext2.dll` (3.4.5.0, strong-named `Pkt=fb82661d1c53098c`, local key) |
 | Satellites | `bin\Release\{ar-SA,…,zh-CN,zh-TW}\ApkShellext2.resources.dll` × 19 |
 | Unit tests | `tests\ApkShellext2.Tests` - `dotnet test`, see §7 |
-| Packages | `bin\Release\ApkShellext2-3.5.1.7z` — complete install set incl. all 19 language folders (needs 7-Zip; postbuild packs automatically, name = `ApkShellext2-<version>.7z` from `version.txt` with a trailing `.0` dropped) |
+| Packages | `bin\Release\ApkShellext2-4.0.0.7z` — complete install set incl. all 19 language folders (needs 7-Zip; postbuild packs automatically, name = `ApkShellext2-<version>.7z` from `version.txt` with a trailing `.0` dropped) |
 | Native deps | `ApkShellext2\LibWebP\libwebp_x86.dll` + `libwebp_x64.dll` — prebuilt libwebp 1.6.0, committed in-repo; rebuilding is optional (§4.5) |
 | Route A | .NET SDK **10.0.404** standalone: `dotnet build ApkShellext2\ApkShellext2.csproj -c Release` — one line, no flags |
 | Route B | Visual Studio 2022/2026 with *.NET desktop development*: `msbuild -t:restore` + `msbuild -p:Configuration=Release` — no flags either |
@@ -647,7 +647,7 @@ analyzer suggestion can never turn into a red build.
   into `call "Resources\postbuild.cmd" "" ""` (gotcha 4).
 - **`Resources\postbuild.cmd`** (Release-only; Debug exits immediately): deletes a stale
   `debug.bat`, locates `7z.exe` (§4.3), derives the package name with
-  `eng\package-name.ps1` from `version.txt` (`3.5.1.0` → `ApkShellext2-3.5.1.7z`;
+  `eng\package-name.ps1` from `version.txt` (`4.0.0.0` → `ApkShellext2-4.0.0.7z`;
   the same rule `check-layout.ps1`/`check-size.ps1` dot-source), deletes stale
   `*.7z` (the old unversioned name and any package from a previous version),
   then packs the new name
@@ -685,7 +685,7 @@ neither archive can smuggle it in — and do not hand-copy it into a deployment 
 it cannot rescue a preserialized build inside a host process.
 
 Deployment (on the target machine, as the user who owns the shell extension): extract
-`ApkShellext2-3.5.1.7z` — it already carries the culture folders next to the DLL — then run
+`ApkShellext2-4.0.0.7z` — it already carries the culture folders next to the DLL — then run
 `install.bat` (elevated, machine-wide) or `install_user.bat` (per-user;
 both register via regasm and NGEN the assembly — 3.4.5 fixed NGEN in these scripts).
 `restart_explorer.bat` reloads the shell. Uninstall with the matching `uninstall*.bat`.
@@ -748,7 +748,7 @@ official package in the same GAC/registration state.
 4. **Complete publish layout in `bin\Release`:** the nine manifest files —
    `ApkShellext2.dll(.pdb)`, the six bats, `libwebp_x86/x64.dll` —
    plus the nineteen culture folders and — when 7-Zip was found —
-   `ApkShellext2-3.5.1.7z` (~750 KB). `7z l` must list **exactly 28 files on both routes**:
+   `ApkShellext2-4.0.0.7z` (~700 KB). `7z l` must list **exactly 28 files on both routes**:
    the 9 root entries (no `System.Resources.Extensions.dll` — packaging
    exclusion even when a dotnet-CLI build left it in the folder — and no
    `System.Memory/System.Buffers/System.Runtime.CompilerServices.Unsafe/System.Numerics.Vectors`
@@ -863,8 +863,8 @@ workflow builds the FullFramework route (§6 Route B), runs both gates and the u
 tests, and publishes an existing annotated tag.
 
 ```bash
-git tag -a v3.5.1 -m "ApkShellext2 3.5.1"   # annotated, never lightweight
-git push origin v3.5.1                      # the lead pushes; contributors do not
+git tag -a v4.0.0 -m "ApkShellext2 4.0.0"   # annotated, never lightweight
+git push origin v4.0.0                      # the lead pushes; contributors do not
 ```
 
 The tag must be `v` + `version.txt` without its trailing `.0`, the same rule
@@ -879,7 +879,7 @@ but creates no GitHub release. The checks live in `eng/release-checks.ps1`, so t
 same verdict can be reproduced locally:
 
 ```powershell
-pwsh -File eng\release-checks.ps1 -Tag v3.5.1
+pwsh -File eng\release-checks.ps1 -Tag v4.0.0
 ```
 
 The script rejects a tag whose numeric part disagrees with `version.txt`, a tag that
@@ -945,7 +945,7 @@ Set-Location $R
 # the output, archive = 28 files (9 manifest items + 19 satellites)
 Test-Path "$R\ApkShellext2\bin\Release\System.Resources.Extensions.dll"   # expect False
 Test-Path "$R\ApkShellext2\bin\Release\System.Memory.dll"                 # expect False
-& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-3.5.1.7z"   # expect 28 files (adjust 7z path)
+& 'D:\Software\7-Zip\7z.exe' l "$R\ApkShellext2\bin\Release\ApkShellext2-4.0.0.7z"   # expect 28 files (adjust 7z path)
 ```
 
 ---
