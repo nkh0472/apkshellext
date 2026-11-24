@@ -16,6 +16,10 @@ namespace ApkShellext2.Shell.Commands {
         public const string AppleAppStore = "ApkShellext2.GoToAppleAppStore";
         public const string MicrosoftStore = "ApkShellext2.GoToMicrosoftStore";
         public const string Preferences = "ApkShellext2.Preferences";
+        public const string CopyFilePath = "ApkShellext2.CopyFilePath";
+        public const string CopyAppName = "ApkShellext2.CopyAppName";
+        public const string CopyPackage = "ApkShellext2.CopyPackageName";
+        public const string CopyVersion = "ApkShellext2.CopyVersion";
 
         /// <summary>
         /// The verb for an action, or <see cref="string.Empty"/> when the action is not a
@@ -33,6 +37,10 @@ namespace ApkShellext2.Shell.Commands {
                 case CommandAction.AppleAppStore: return AppleAppStore;
                 case CommandAction.MicrosoftStore: return MicrosoftStore;
                 case CommandAction.Preferences: return Preferences;
+                case CommandAction.CopyFilePath: return CopyFilePath;
+                case CommandAction.CopyAppName: return CopyAppName;
+                case CommandAction.CopyPackage: return CopyPackage;
+                case CommandAction.CopyVersion: return CopyVersion;
                 default: return string.Empty;
             }
         }

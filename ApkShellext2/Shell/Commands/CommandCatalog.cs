@@ -41,11 +41,17 @@ namespace ApkShellext2.Shell.Commands {
             bool singleSelected = paths.Length == 1;
             string appname = "";
             string singleNewName = "";
+            var copyEntries = new List<PackageClipboardEntry>(paths.Length);
             if (singleSelected) {
-                // one parse feeds both the app name and the rename preview
+                // one parse feeds the app name, the rename preview and the copy values
                 using (IPackageReader reader = PackageReaderFactory.Create(paths[0])) {
                     appname = reader.AppName;
                     singleNewName = CommandRename.GetNewFileName(paths[0], paths, reader);
+                    copyEntries.Add(PackageClipboardText.ReadEntry(paths[0], reader));
+                }
+            } else {
+                foreach (string path in paths) {
+                    copyEntries.Add(ReadCopyEntry(path));
                 }
             }
 
@@ -72,6 +78,9 @@ namespace ApkShellext2.Shell.Commands {
             if (canExport) {
                 children.Add(Leaf(Resources.menuExportCsv, CommandAction.Export));
             }
+
+            var copy = CopySubmenu(PackageClipboardText.Join(copyEntries));
+            if (copy != null) children.Add(copy);
 
             // Dump submenu (Android packages only)
             if (hasapk) {
@@ -162,6 +171,59 @@ namespace ApkShellext2.Shell.Commands {
                 if (!string.IsNullOrEmpty(path) && IsSupportedPackage(path)) return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// The copy submenu. It exists only when at least one value is available for the whole
+        /// selection, and every item is offered only when some selected file can fill it, so
+        /// an unsupported or unreadable selection still gets the path it was selected by.
+        /// </summary>
+        private static CommandItem CopySubmenu(PackageClipboardTextSet values) {
+            var items = new List<CommandItem>();
+            foreach (PackageClipboardText.Field field in PackageClipboardText.Fields) {
+                if (values.Has(field)) items.Add(Leaf(CopyText(field), CopyAction(field)));
+            }
+            if (items.Count == 0) return null;
+
+            var copy = new CommandItem(Resources.menuCopyInfo);
+            copy.Children = items.ToArray();
+            return copy;
+        }
+
+        /// <summary>
+        /// Reads one path for the copy submenu. A file the factory rejects or cannot read
+        /// still contributes its path and leaves the value items it cannot fill empty.
+        /// </summary>
+        private static PackageClipboardEntry ReadCopyEntry(string path) {
+            IPackageReader reader = null;
+            try {
+                reader = PackageReaderFactory.Create(path);
+                return PackageClipboardText.ReadEntry(path, reader);
+            } catch (Exception) {
+                return PackageClipboardText.ReadEntry(path, null);
+            } finally {
+                if (reader != null) reader.Dispose();
+            }
+        }
+
+        private static string CopyText(PackageClipboardText.Field field) {
+            switch (field) {
+                case PackageClipboardText.Field.FilePath: return Resources.menuCopyFilePath;
+                case PackageClipboardText.Field.AppName: return Resources.menuCopyAppName;
+                case PackageClipboardText.Field.PackageName: return Resources.menuCopyPackage;
+                case PackageClipboardText.Field.Version: return Resources.menuCopyVersion;
+                default: return string.Empty;
+            }
+        }
+
+        private static CommandAction CopyAction(PackageClipboardText.Field field) {
+            switch (field) {
+                case PackageClipboardText.Field.FilePath: return CommandAction.CopyFilePath;
+                case PackageClipboardText.Field.AppName: return CommandAction.CopyAppName;
+                case PackageClipboardText.Field.PackageName: return CommandAction.CopyPackage;
+                case PackageClipboardText.Field.Version: return CommandAction.CopyVersion;
+                default: return CommandAction.None;
+            }
         }
 
         private static CommandItem Leaf(string text, CommandAction action) {

@@ -26,6 +26,7 @@ namespace ApkShellext2.Shell.Commands {
         private static Action<IReadOnlyList<string>> preferencesHandler;
         private static Action<IReadOnlyList<string>> exportHandler;
         private static Func<string, string, string> promptHandler;
+        private static Action<string> clipboardHandler;
 
         /// <summary>Opens the Preferences form; replaceable so tests can observe the routing.</summary>
         public static Action<IReadOnlyList<string>> PreferencesHandler {
@@ -43,6 +44,12 @@ namespace ApkShellext2.Shell.Commands {
         public static Func<string, string, string> PromptHandler {
             get { return promptHandler ?? (promptHandler = StaUiHost.Prompt); }
             set { promptHandler = value; }
+        }
+
+        /// <summary>Writes text to the system clipboard; replaceable so tests never need one.</summary>
+        public static Action<string> ClipboardHandler {
+            get { return clipboardHandler ?? (clipboardHandler = StaUiHost.SetClipboardText); }
+            set { clipboardHandler = value; }
         }
 
         public static void Execute(CommandAction action, IReadOnlyList<string> selectedPaths) {
@@ -88,6 +95,33 @@ namespace ApkShellext2.Shell.Commands {
                         ErrorLog.Warn(LogCaller.GetType().Name, "Error happens during showSettings", ex);
                     }
                     break;
+                case CommandAction.CopyFilePath:
+                    copyToClipboard(PackageClipboardText.Field.FilePath, paths);
+                    break;
+                case CommandAction.CopyAppName:
+                    copyToClipboard(PackageClipboardText.Field.AppName, paths);
+                    break;
+                case CommandAction.CopyPackage:
+                    copyToClipboard(PackageClipboardText.Field.PackageName, paths);
+                    break;
+                case CommandAction.CopyVersion:
+                    copyToClipboard(PackageClipboardText.Field.Version, paths);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Puts one value of the selection on the clipboard. A selection where every file
+        /// lacks the value writes nothing, and a reader or clipboard failure is logged instead
+        /// of escaping into the shell.
+        /// </summary>
+        private static void copyToClipboard(PackageClipboardText.Field field, IReadOnlyList<string> selectedPaths) {
+            try {
+                string text = PackageClipboardText.Read(field, selectedPaths);
+                if (text.Length == 0) return;
+                ClipboardHandler(text);
+            } catch (Exception ex) {
+                ErrorLog.Warn(LogCaller.GetType().Name, "Error happens during copying " + field, ex);
             }
         }
 

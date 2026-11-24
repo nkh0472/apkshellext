@@ -63,15 +63,20 @@ namespace ApkShellext2.Tests
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK文件助手\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"更名为 Spectroid_1.1.2.apk\"",
                     "  [1] id=102 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"导出信息 (CSV)…\"",
-                    "  [2] id=103 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"提取文件\"",
-                    "    [0] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取 androidmanifest.xml\"",
-                    "    [1] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取XML文件...\"",
-                    "  [3] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [4] id=107 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"搜索商店\"",
-                    "    [0] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Google Play网页上查看Spectroid\"",
-                    "    [1] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Amazon Appstore上查看Spectroid\"",
-                    "  [5] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [6] id=111 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
+                    "  [2] id=103 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
+                    "    [0] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
+                    "    [1] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
+                    "    [2] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
+                    "    [3] id=107 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
+                    "  [3] id=108 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"提取文件\"",
+                    "    [0] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取 androidmanifest.xml\"",
+                    "    [1] id=110 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取XML文件...\"",
+                    "  [4] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [5] id=112 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"搜索商店\"",
+                    "    [0] id=113 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Google Play网页上查看Spectroid\"",
+                    "    [1] id=114 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Amazon Appstore上查看Spectroid\"",
+                    "  [6] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [7] id=116 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
                 }));
             }
         }
@@ -88,15 +93,20 @@ namespace ApkShellext2.Tests
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK Shell Extension\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Rename to Spectroid_1.1.2.apk\"",
                     "  [1] id=102 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Export info (CSV)…\"",
-                    "  [2] id=103 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Dump\"",
-                    "    [0] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Dump androidmanifest.xml\"",
-                    "    [1] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Dump XML ...\"",
-                    "  [3] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [4] id=107 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Search in Stores\"",
-                    "    [0] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in GooglePlay\"",
-                    "    [1] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in Amazon Appstore\"",
-                    "  [5] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [6] id=111 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Preferences\""
+                    "  [2] id=103 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
+                    "    [0] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
+                    "    [1] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
+                    "    [2] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
+                    "    [3] id=107 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
+                    "  [3] id=108 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Dump\"",
+                    "    [0] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Dump androidmanifest.xml\"",
+                    "    [1] id=110 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Dump XML ...\"",
+                    "  [4] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [5] id=112 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Search in Stores\"",
+                    "    [0] id=113 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in GooglePlay\"",
+                    "    [1] id=114 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in Amazon Appstore\"",
+                    "  [6] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [7] id=116 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Preferences\""
                 }));
             }
         }
@@ -108,7 +118,7 @@ namespace ApkShellext2.Tests
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.HostileApkPath() });
 
-                Assert.That(model.Count, Is.EqualTo(12), "the hostile table does not remove any entry");
+                Assert.That(model.Count, Is.EqualTo(17), "the hostile table does not remove any entry");
                 Assert.That(model.Items[1].Enabled, Is.True);
                 Assert.That(model.Items[1].Text, Does.StartWith("更名为 ").And.EndWith("_1.1.2.apk"));
             }
@@ -126,10 +136,15 @@ namespace ApkShellext2.Tests
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK文件助手\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"更名为 My App_2.0.1.ipa\"",
                     "  [1] id=102 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"导出信息 (CSV)…\"",
-                    "  [2] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [3] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Appstore上查看 My App\"",
-                    "  [4] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [5] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
+                    "  [2] id=103 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
+                    "    [0] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
+                    "    [1] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
+                    "    [2] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
+                    "    [3] id=107 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
+                    "  [3] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [4] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Appstore上查看 My App\"",
+                    "  [5] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [6] id=111 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
                 }));
             }
         }
@@ -147,11 +162,16 @@ namespace ApkShellext2.Tests
                     CommandAction.Rename,
                     CommandAction.Export,
                     CommandAction.None,
+                    CommandAction.CopyFilePath,
+                    CommandAction.CopyAppName,
+                    CommandAction.CopyPackage,
+                    CommandAction.CopyVersion,
+                    CommandAction.None,
                     CommandAction.MicrosoftStore,
                     CommandAction.None,
                     CommandAction.Preferences
                 }));
-                Assert.That(model.Items[4].Text, Is.EqualTo("在Microsoft Store上查看Test App"));
+                Assert.That(model.Items[9].Text, Is.EqualTo("在Microsoft Store上查看Test App"));
                 Assert.That(model.Items[1].Text, Is.EqualTo("更名为 Test App_1.2.3.4.appx"));
                 Assert.That(model.Items[1].Children, Is.Empty);
             }
@@ -164,9 +184,9 @@ namespace ApkShellext2.Tests
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.AppxBundlePath() });
 
-                Assert.That(model.Count, Is.EqualTo(7));
+                Assert.That(model.Count, Is.EqualTo(12));
                 Assert.That(model.Items[1].Text, Is.EqualTo("更名为 Test App_1.2.3.4.appxbundle"));
-                Assert.That(model.Items[4].Action, Is.EqualTo(CommandAction.MicrosoftStore));
+                Assert.That(model.Items[9].Action, Is.EqualTo(CommandAction.MicrosoftStore));
             }
         }
 
@@ -177,14 +197,19 @@ namespace ApkShellext2.Tests
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.AabPath() });
 
-                Assert.That(model.Count, Is.EqualTo(6),
-                    "an .aab shows the rename, the export, two separators and the preferences entry");
+                Assert.That(model.Count, Is.EqualTo(11),
+                    "an .aab shows the rename, the export, the copy submenu with its four values, two separators and the preferences entry");
                 Assert.That(model.Items.Count(i => i.IsSeparator), Is.EqualTo(2));
                 Assert.That(model.Items.Select(i => i.Action), Is.EqualTo(new[]
                 {
                     CommandAction.None,
                     CommandAction.Rename,
                     CommandAction.Export,
+                    CommandAction.None,
+                    CommandAction.CopyFilePath,
+                    CommandAction.CopyAppName,
+                    CommandAction.CopyPackage,
+                    CommandAction.CopyVersion,
                     CommandAction.None,
                     CommandAction.None,
                     CommandAction.Preferences
@@ -200,7 +225,7 @@ namespace ApkShellext2.Tests
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.ApksPath() });
 
-                Assert.That(model.Count, Is.EqualTo(6));
+                Assert.That(model.Count, Is.EqualTo(11));
                 Assert.That(model.Items[1].Text, Is.EqualTo("更名为 Spectroid_1.1.2.apks"));
             }
         }
@@ -296,7 +321,7 @@ namespace ApkShellext2.Tests
                 Assert.That(model.FindByVerb(CommandVerb.Rename), Is.SameAs(model.FindByIndex(1)));
                 Assert.That(model.FindByIndex(2).Verb, Is.EqualTo(CommandVerb.ExportCsv));
                 Assert.That(model.FindByVerb(CommandVerb.ExportCsv), Is.SameAs(model.FindByIndex(2)));
-                Assert.That(model.FindByVerb(CommandVerb.Preferences).Index, Is.EqualTo(11));
+                Assert.That(model.FindByVerb(CommandVerb.Preferences).Index, Is.EqualTo(16));
                 Assert.That(model.FindByVerb("nope"), Is.Null);
                 Assert.That(model.FindByIndex(CommandIds.Last + 1), Is.Null);
             }
@@ -311,7 +336,7 @@ namespace ApkShellext2.Tests
 
                 Assert.That(model.Invoke(null), Is.False);
                 Assert.That(model.Invoke(model.Root), Is.True, "a submenu parent is a valid id that does nothing");
-                Assert.That(model.Invoke(model.Items[6]), Is.True, "a separator is a valid id that does nothing");
+                Assert.That(model.Invoke(model.Items[11]), Is.True, "a separator is a valid id that does nothing");
                 bool reached = false;
                 Action<IReadOnlyList<string>> previous = CommandActions.PreferencesHandler;
                 try
@@ -411,6 +436,188 @@ namespace ApkShellext2.Tests
                     CommandActions.ExportHandler = previous;
                 }
             }
+        }
+
+        [Test]
+        public void CopySubmenu_IsPlacedAfterExportAndListsTheFourValues()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.PlainApkPath() });
+
+                CommandItem copy = CopyParent(model);
+                Assert.That(copy.Index, Is.EqualTo(3), "the copy submenu follows rename and export");
+                Assert.That(copy.Text, Is.EqualTo("Copy info"));
+                Assert.That(copy.Children.Select(c => c.Action), Is.EqualTo(new[]
+                {
+                    CommandAction.CopyFilePath,
+                    CommandAction.CopyAppName,
+                    CommandAction.CopyPackage,
+                    CommandAction.CopyVersion
+                }));
+                Assert.That(copy.Children.Select(c => c.Text), Is.EqualTo(new[]
+                {
+                    "Copy File Path",
+                    "Copy App Name",
+                    "Copy Package Name",
+                    "Copy Version"
+                }));
+            }
+        }
+
+        [Test]
+        public void CopySubmenu_ParentIsAnEnabledMenuThatRunsNoAction()
+        {
+            using (Chinese())
+            {
+                CommandItem copy = CopyParent(CommandCatalog.Build(new[] { MenuFixtures.PlainApkPath() }));
+
+                Assert.That(copy.Enabled, Is.True);
+                Assert.That(copy.Action, Is.EqualTo(CommandAction.None));
+                Assert.That(copy.Verb, Is.Empty);
+                Assert.That(copy.IsCommand, Is.False);
+                Assert.That(copy.Icon, Is.EqualTo(CommandIcon.None));
+            }
+        }
+
+        [Test]
+        public void CopySubmenu_HasNoSeparatorInside()
+        {
+            using (Chinese())
+            {
+                CommandItem copy = CopyParent(CommandCatalog.Build(new[] { MenuFixtures.PlainApkPath() }));
+
+                Assert.That(copy.Children.Any(c => c.IsSeparator), Is.False,
+                    "a separator may not open or close the submenu");
+            }
+        }
+
+        [Test]
+        public void CopyItems_AreEnabledCommandsWithDistinctVerbs()
+        {
+            using (Chinese())
+            {
+                CommandItem copy = CopyParent(CommandCatalog.Build(new[] { MenuFixtures.PlainApkPath() }));
+
+                Assert.That(copy.Children.All(c => c.Enabled && c.IsCommand), Is.True);
+                Assert.That(copy.Children.Select(c => c.Verb).Distinct().Count(), Is.EqualTo(4));
+                Assert.That(copy.Children.All(c => c.Verb.StartsWith("ApkShellext2.Copy")), Is.True);
+            }
+        }
+
+        [Test]
+        public void CopySubmenu_IsOmittedWhenTheSelectionIsEmpty()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new string[0]);
+
+                Assert.That(model.Items.Any(copy => copy.Children.Any(c => c.Action == CommandAction.CopyFilePath)),
+                    Is.False, "no value means no submenu");
+            }
+        }
+
+        [Test]
+        public void CopyFilePath_KeepsEverySelectedPathInSelectionOrder()
+        {
+            using (Chinese())
+            {
+                string[] paths = { MenuFixtures.PlainApkPath(), MenuFixtures.UnknownPath() };
+                CommandModel model = CommandCatalog.Build(paths);
+
+                Assert.That(CaptureCopy(model, CommandVerb.CopyFilePath),
+                    Is.EqualTo(paths[0] + "\r\n" + paths[1]),
+                    "a file no reader accepts still contributes the path it was selected by");
+            }
+        }
+
+        [Test]
+        public void CopyAppName_SkipsTheFilesThatHaveNoValue()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[]
+                {
+                    MenuFixtures.PlainApkPath(),
+                    MenuFixtures.UnknownPath()
+                });
+
+                Assert.That(CaptureCopy(model, CommandVerb.CopyAppName), Is.EqualTo("Spectroid"));
+            }
+        }
+
+        [Test]
+        public void CopyVersion_AppendsTheRevisionFromTheReader()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.IpaPath() });
+
+                Assert.That(CaptureCopy(model, CommandVerb.CopyVersion), Is.EqualTo("2.0.1 (42)"));
+            }
+        }
+
+        [TestCase("ipa")]
+        [TestCase("appx")]
+        [TestCase("appxbundle")]
+        [TestCase("aab")]
+        [TestCase("apks")]
+        public void CopySubmenu_IsOfferedForEverySupportedPackageKind(string kind)
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[] { SamplePath(kind) });
+
+                Assert.That(CopyParent(model).Children.Select(c => c.Action),
+                    Is.EqualTo(new[]
+                    {
+                        CommandAction.CopyFilePath,
+                        CommandAction.CopyAppName,
+                        CommandAction.CopyPackage,
+                        CommandAction.CopyVersion
+                    }));
+            }
+        }
+
+        [Test]
+        public void Copy_LogsAClipboardFailureInsteadOfThrowing()
+        {
+            using (Chinese())
+            {
+                CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.PlainApkPath() });
+
+                Action<string> previous = CommandActions.ClipboardHandler;
+                try
+                {
+                    CommandActions.ClipboardHandler = text => { throw new InvalidOperationException("clipboard busy"); };
+                    Assert.That(() => model.Invoke(model.FindByVerb(CommandVerb.CopyFilePath)), Throws.Nothing);
+                }
+                finally
+                {
+                    CommandActions.ClipboardHandler = previous;
+                }
+            }
+        }
+
+        private static CommandItem CopyParent(CommandModel model)
+        {
+            return model.Items.Single(i => i.Children.Any(c => c.Action == CommandAction.CopyFilePath));
+        }
+
+        private static string CaptureCopy(CommandModel model, string verb)
+        {
+            string captured = null;
+            Action<string> previous = CommandActions.ClipboardHandler;
+            try
+            {
+                CommandActions.ClipboardHandler = text => { captured = text; };
+                Assert.That(model.Invoke(model.FindByVerb(verb)), Is.True);
+            }
+            finally
+            {
+                CommandActions.ClipboardHandler = previous;
+            }
+            return captured;
         }
     }
 }

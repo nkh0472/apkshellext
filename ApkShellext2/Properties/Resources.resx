@@ -382,6 +382,21 @@ By checking this, rename app file as %AppName%_%Version%_%Revision%, otherwise, 
   <data name="menuExportCsv" xml:space="preserve">
     <value>Export info (CSV)…</value>
   </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>Copy info</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>Copy File Path</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>Copy App Name</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>Copy Package Name</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>Copy Version</value>
+  </data>
   <data name="strExportCsvTitle" xml:space="preserve">
     <value>Export package info</value>
   </data>

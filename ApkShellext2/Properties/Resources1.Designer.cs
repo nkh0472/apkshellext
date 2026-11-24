@@ -178,6 +178,51 @@ namespace ApkShellext2.Properties {
         }
         
         /// <summary>
+        ///   查找类似 Copy info 的本地化字符串。
+        /// </summary>
+        internal static string menuCopyInfo {
+            get {
+                return ResourceManager.GetString("menuCopyInfo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Copy File Path 的本地化字符串。
+        /// </summary>
+        internal static string menuCopyFilePath {
+            get {
+                return ResourceManager.GetString("menuCopyFilePath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Copy App Name 的本地化字符串。
+        /// </summary>
+        internal static string menuCopyAppName {
+            get {
+                return ResourceManager.GetString("menuCopyAppName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Copy Package Name 的本地化字符串。
+        /// </summary>
+        internal static string menuCopyPackage {
+            get {
+                return ResourceManager.GetString("menuCopyPackage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 Copy Version 的本地化字符串。
+        /// </summary>
+        internal static string menuCopyVersion {
+            get {
+                return ResourceManager.GetString("menuCopyVersion", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 Dump 的本地化字符串。
         /// </summary>
         internal static string menuDump {

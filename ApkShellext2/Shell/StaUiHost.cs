@@ -53,6 +53,16 @@ namespace ApkShellext2.Shell {
         }
 
         /// <summary>
+        /// Puts text on the system clipboard. The clipboard belongs to the calling thread and
+        /// only an STA thread can own it, so the write runs on this thread; a clipboard the
+        /// shell or another process holds surfaces as an exception the caller logs.
+        /// </summary>
+        public static void SetClipboardText(string text) {
+            if (string.IsNullOrEmpty(text)) return;
+            Send(() => Clipboard.SetText(text));
+        }
+
+        /// <summary>
         /// Asks for a destination with the save dialog, then writes the selected files' package
         /// information on a background thread while a modeless progress window stays on this
         /// thread. Failures are logged and reported with a message box instead of escaping to

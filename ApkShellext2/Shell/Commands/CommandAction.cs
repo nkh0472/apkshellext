@@ -16,6 +16,10 @@ namespace ApkShellext2.Shell.Commands {
         ApkMirror,
         AppleAppStore,
         MicrosoftStore,
-        Preferences
+        Preferences,
+        CopyFilePath,
+        CopyAppName,
+        CopyPackage,
+        CopyVersion
     }
 }
