@@ -3,6 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using System.Threading;
 using ApkQuickReader;
 using ApkShellext2.Diagnostics;
 using ApkShellext2.Interop;
@@ -19,8 +20,10 @@ namespace ApkShellext2.Shell.Native {
     /// The stream is copied to a private temporary file before rendering, because the renderer opens
     /// the package by path. The copy is bounded by the container limit the readers already apply, the
     /// directory is created on demand, and the file name carries a GUID so two handler instances never
-    /// share a file. Every path out of GetThumbnail deletes the copy, so the temporary file exists
-    /// only between Initialize and the render.
+    /// share a file. The copy is deleted when the render returns, and a finalizer deletes it when the
+    /// shell initializes the handler and never asks for a bitmap. A stale sweep on Initialize removes
+    /// copies older than a day that no live handler owns any more, so an abandoned handler cannot
+    /// leave payload-sized files in the temp directory for ever.
     ///
     /// The bitmap is returned as an HBITMAP that the shell owns and frees with DeleteObject, so it
     /// must be a copy the handler never touches again. A request with no thumbnail answers S_FALSE
@@ -36,12 +39,26 @@ namespace ApkShellext2.Shell.Native {
         private const uint WtsatArgb = 2;
         private const int CopyBufferSize = 81920;
         private const int StatFlagNoName = 1;
+        private const int StaleCopyHours = 24;
 
         private string selectedPath;
         private string temporaryPath;
 
+        /// <summary>
+        /// Deletes a copy the shell initialized but never rendered. The finalizer is the only caller
+        /// that is not on a thread the shell owns, so it swallows everything: a finalizer that throws
+        /// ends the process.
+        /// </summary>
+        ~ThumbnailHandlerNative() {
+            try {
+                DeleteTemporaryFile();
+            } catch {
+            }
+        }
+
         public int Initialize(string pszFilePath, uint grfMode) {
             try {
+                SweepStaleCopies();
                 DeleteTemporaryFile();
                 selectedPath = pszFilePath;
                 return HResult.S_OK;
@@ -56,6 +73,7 @@ namespace ApkShellext2.Shell.Native {
                 if (pstream == null) {
                     return HResult.E_INVALIDARG;
                 }
+                SweepStaleCopies();
                 DeleteTemporaryFile();
                 selectedPath = null;
 
@@ -183,9 +201,13 @@ namespace ApkShellext2.Shell.Native {
             }
         }
 
+        /// <summary>
+        /// Deletes the copy and forgets it. Interlocked.Exchange makes the two callers (the render
+        /// path and the finalizer) agree on who deletes, so a path is deleted at most once and a
+        /// second call on the same instance is a no-op that throws nothing.
+        /// </summary>
         private void DeleteTemporaryFile() {
-            string path = temporaryPath;
-            temporaryPath = null;
+            string path = Interlocked.Exchange(ref temporaryPath, null);
             if (path == null) {
                 return;
             }
@@ -195,6 +217,33 @@ namespace ApkShellext2.Shell.Native {
                 ErrorLog.Warn(ModuleName, "Could not delete the temporary thumbnail " + path + ": " + ex.Message, ex);
             } catch (UnauthorizedAccessException ex) {
                 ErrorLog.Warn(ModuleName, "Could not delete the temporary thumbnail " + path + ": " + ex.Message, ex);
+            }
+        }
+
+        /// <summary>
+        /// Removes copies left behind by handlers that were initialized and never asked for a bitmap
+        /// (the shell may keep such an instance alive, or drop it without a finalizer run). Only files
+        /// older than <see cref="StaleCopyHours"/> hours go: a copy another live instance is still
+        /// rendering is younger than that. Best effort, like the bucket sweep of any cache.
+        /// </summary>
+        private static void SweepStaleCopies() {
+            try {
+                string directory = Path.Combine(Path.GetTempPath(), TemporaryDirectoryName);
+                if (!Directory.Exists(directory)) {
+                    return;
+                }
+                DateTime limit = DateTime.UtcNow.AddHours(-StaleCopyHours);
+                foreach (string file in Directory.GetFiles(directory, "thumb-*.apk")) {
+                    try {
+                        if (File.GetLastWriteTimeUtc(file) < limit) {
+                            File.Delete(file);
+                        }
+                    } catch (IOException) {
+                    } catch (UnauthorizedAccessException) {
+                    }
+                }
+            } catch (IOException) {
+            } catch (UnauthorizedAccessException) {
             }
         }
 

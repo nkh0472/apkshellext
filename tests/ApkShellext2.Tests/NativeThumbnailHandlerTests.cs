@@ -36,6 +36,12 @@ namespace ApkShellext2.Tests
         [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
         private static extern IStream SHCreateMemStream(byte[] init, uint size);
 
+        [SetUp]
+        public void RemoveCopiesLeftByEarlierRuns()
+        {
+            RemoveLingeringThumbnails();
+        }
+
         [TearDown]
         public void RestoreThreadCulture()
         {
@@ -422,6 +428,71 @@ namespace ApkShellext2.Tests
             ThumbnailHandlerNative handler = new ThumbnailHandlerNative();
             Assert.That(handler.Initialize((IStream)null, 0), Is.EqualTo(E_INVALIDARG));
             Assert.That(TemporaryThumbnails(), Is.Empty);
+        }
+
+        [Test]
+        public void DeletingTheCopyTwiceDoesNotThrow()
+        {
+            byte[] bytes = File.ReadAllBytes(ThumbnailApkPath());
+            ThumbnailHandlerNative handler = new ThumbnailHandlerNative();
+            IStream stream = SHCreateMemStream(bytes, (uint)bytes.Length);
+            try
+            {
+                Assert.That(handler.Initialize(stream, 0), Is.EqualTo(S_OK));
+                Assert.That(TemporaryThumbnails(), Has.Length.EqualTo(1));
+
+                // The render path and the finalizer may both reach the delete; whichever runs second
+                // must find nothing to delete and stay silent.
+                MethodInfo delete = typeof(ThumbnailHandlerNative).GetMethod(
+                    "DeleteTemporaryFile", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(delete, Is.Not.Null, "DeleteTemporaryFile is the one place the handler deletes its copy");
+                delete.Invoke(handler, null);
+                Assert.DoesNotThrow(() => delete.Invoke(handler, null));
+                Assert.That(TemporaryThumbnails(), Is.Empty);
+            }
+            finally
+            {
+                Marshal.ReleaseComObject(stream);
+            }
+        }
+
+        [Test]
+        public void InitializeSweepsCopiesOlderThanADay()
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "ApkShellext2");
+            Directory.CreateDirectory(directory);
+            string stale = Path.Combine(directory, "thumb-" + Guid.NewGuid().ToString("N") + ".apk");
+            string fresh = Path.Combine(directory, "thumb-" + Guid.NewGuid().ToString("N") + ".apk");
+            File.WriteAllBytes(stale, new byte[] { 1, 2, 3 });
+            File.SetLastWriteTimeUtc(stale, DateTime.UtcNow.AddHours(-25));
+            File.WriteAllBytes(fresh, new byte[] { 4, 5, 6 });
+
+            ThumbnailHandlerNative handler = new ThumbnailHandlerNative();
+            IStream stream = null;
+            try
+            {
+                byte[] bytes = File.ReadAllBytes(ThumbnailApkPath());
+                stream = SHCreateMemStream(bytes, (uint)bytes.Length);
+                Assert.That(handler.Initialize(stream, 0), Is.EqualTo(S_OK));
+
+                Assert.That(File.Exists(stale), Is.False, "a copy no handler owns any more goes");
+                Assert.That(File.Exists(fresh), Is.True, "a copy written within the day stays");
+            }
+            finally
+            {
+                if (stream != null)
+                {
+                    Marshal.ReleaseComObject(stream);
+                }
+
+                MethodInfo delete = typeof(ThumbnailHandlerNative).GetMethod(
+                    "DeleteTemporaryFile", BindingFlags.Instance | BindingFlags.NonPublic);
+                if (delete != null)
+                {
+                    try { delete.Invoke(handler, null); } catch (TargetInvocationException) { }
+                }
+                File.Delete(fresh);
+            }
         }
 
         [Test]
