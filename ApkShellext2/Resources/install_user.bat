@@ -84,13 +84,30 @@ start "" explorer.exe
 :verify
 ECHO.
 ECHO [5/5] Verifying...
+REM The class ids come from the regasm file, but the shell slots come from the
+REM registrar, and a slot in the wrong shape fails silently: the shell reads a
+REM slot only as a key whose default value is the class id, and ignores a value
+REM of the same name. So read the three slots back and compare their default
+REM values instead of only checking that the class id exists.
+set "SLOTFAIL="
 reg query "HKCU\SOFTWARE\Classes\CLSID\{1F869CEE-4FDA-35D9-896F-43975A87D1F6}" >nul 2>&1
-if '%errorlevel%' EQU '0' (
+if not '%errorlevel%' EQU '0' set "SLOTFAIL=1"
+call :checkslot "IconHandler" "{1F869CEE-4FDA-35D9-896F-43975A87D1F6}"
+call :checkslot "{00021500-0000-0000-C000-000000000046}" "{946435A5-FE96-416D-99DB-E94EE9FB46C8}"
+call :checkslot "{E357FCCD-A995-4576-B01F-234630154E96}" "{D747C5A7-2F66-4B7D-8301-8531838E4ED3}"
+if defined SLOTFAIL (
+    echo WARNING: verification failed - a handler slot from the default class is
+    echo missing or does not hold our class id as its default value.
+) else (
     echo Per-user install OK: handlers registered under HKCU for this account.
     echo NOTE: if a machine-wide install exists in HKLM, that registration wins.
-) else (
-    echo WARNING: verification failed - CLSID not found under HKCU after import.
 )
 ECHO.
 PAUSE
+exit /b 0
+
+:checkslot
+set "SLOTVAL="
+for /f "tokens=2,*" %%a in ('reg query "HKCU\SOFTWARE\Classes\apk.1\ShellEx\%~1" /ve 2^>nul ^| findstr /i "REG_SZ"') do set "SLOTVAL=%%b"
+if /i not "%SLOTVAL%"=="%~2" set "SLOTFAIL=1"
 exit /b 0
