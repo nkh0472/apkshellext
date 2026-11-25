@@ -151,6 +151,9 @@
   <data name="urlMicrosoftStore" xml:space="preserve">
     <value>https://www.windowsphone.com/s?appid={0}</value>
   </data>
+  <data name="urlVirusTotal" xml:space="preserve">
+    <value>https://www.virustotal.com/gui/file/{0}</value>
+  </data>
   <data name="urlPatternVarWiki" xml:space="preserve">
     <value>https://github.com/kkguo/apkshellext/wiki/Package-information-Pattern-variables</value>
   </data>

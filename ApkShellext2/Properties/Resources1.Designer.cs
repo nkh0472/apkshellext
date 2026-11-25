@@ -277,6 +277,15 @@ namespace ApkShellext2.Properties {
         }
         
         /// <summary>
+        ///   查找类似 Check the hash on VirusTotal 的本地化字符串。
+        /// </summary>
+        internal static string menuCheckVirusTotal {
+            get {
+                return ResourceManager.GetString("menuCheckVirusTotal", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 Search {0} in Apple Appstore 的本地化字符串。
         /// </summary>
         internal static string menuGotoAppleAppStore {
@@ -964,3 +973,4 @@ namespace ApkShellext2.Properties {
         }
     }
 }
+

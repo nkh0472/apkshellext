@@ -20,6 +20,7 @@ namespace ApkShellext2.Shell.Commands {
         CopyFilePath,
         CopyAppName,
         CopyPackage,
-        CopyVersion
+        CopyVersion,
+        OpenVirusTotal
     }
 }

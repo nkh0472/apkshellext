@@ -77,8 +77,9 @@ namespace ApkShellext2.Tests
                     "  [5] id=112 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"搜索商店\"",
                     "    [0] id=113 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Google Play网页上查看Spectroid\"",
                     "    [1] id=114 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Amazon Appstore上查看Spectroid\"",
+                    "    [2] id=115 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在 VirusTotal 查看哈希\"",
                     "  [6] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [7] id=116 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
+                    "  [7] id=117 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
                 }));
             }
         }
@@ -107,8 +108,9 @@ namespace ApkShellext2.Tests
                     "  [5] id=112 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Search in Stores\"",
                     "    [0] id=113 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in GooglePlay\"",
                     "    [1] id=114 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in Amazon Appstore\"",
+                    "    [2] id=115 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Check the hash on VirusTotal\"",
                     "  [6] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [7] id=116 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Preferences\""
+                    "  [7] id=117 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Preferences\""
                 }));
             }
         }
@@ -120,7 +122,7 @@ namespace ApkShellext2.Tests
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.HostileApkPath() });
 
-                Assert.That(model.Count, Is.EqualTo(17), "the hostile table does not remove any entry");
+                Assert.That(model.Count, Is.EqualTo(18), "the hostile table does not remove any entry");
                 Assert.That(model.Items[1].Enabled, Is.True);
                 Assert.That(model.Items[1].Text, Does.StartWith("更名为 ").And.EndWith("_1.1.2.apk"));
             }
@@ -306,7 +308,8 @@ namespace ApkShellext2.Tests
                 {
                     CommandAction.GooglePlay,
                     CommandAction.AmazonAppStore,
-                    CommandAction.ApkMirror
+                    CommandAction.ApkMirror,
+                    CommandAction.OpenVirusTotal
                 }));
             }
         }
@@ -323,7 +326,7 @@ namespace ApkShellext2.Tests
                 Assert.That(model.FindByVerb(CommandVerb.Rename), Is.SameAs(model.FindByIndex(1)));
                 Assert.That(model.FindByIndex(2).Verb, Is.EqualTo(CommandVerb.ExportCsv));
                 Assert.That(model.FindByVerb(CommandVerb.ExportCsv), Is.SameAs(model.FindByIndex(2)));
-                Assert.That(model.FindByVerb(CommandVerb.Preferences).Index, Is.EqualTo(16));
+                Assert.That(model.FindByVerb(CommandVerb.Preferences).Index, Is.EqualTo(17));
                 Assert.That(model.FindByVerb("nope"), Is.Null);
                 Assert.That(model.FindByIndex(CommandIds.Last + 1), Is.Null);
             }
@@ -760,3 +763,4 @@ namespace ApkShellext2.Tests
         }
     }
 }
+

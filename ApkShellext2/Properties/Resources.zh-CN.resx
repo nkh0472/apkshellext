@@ -310,6 +310,9 @@
   <data name="strSearchStore" xml:space="preserve">
     <value>搜索商店</value>
   </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>在 VirusTotal 查看哈希</value>
+  </data>
   <data name="menuDump" xml:space="preserve">
     <value>提取文件</value>
   </data>

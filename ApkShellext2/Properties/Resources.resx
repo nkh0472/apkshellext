@@ -297,6 +297,9 @@ By checking this, rename app file as %AppName%_%Version%_%Revision%, otherwise, 
   <data name="menuGotoApkMirror" xml:space="preserve">
     <value>Search {0} in ApkMirror.com</value>
   </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>Check the hash on VirusTotal</value>
+  </data>
   <data name="btnResetPattern" xml:space="preserve">
     <value>Use Last Saved Pattern</value>
   </data>

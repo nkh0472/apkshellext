@@ -115,6 +115,11 @@ namespace ApkShellext2.Shell.Commands {
                     storeChildren.Add(Leaf(string.Format(Resources.menuGotoApkMirror, storeAppName),
                         CommandAction.ApkMirror, CommandIcon.ApkMirror, storeEnabled));
                 }
+                // Hashing happens after the click, so this entry never slows the menu down.
+                if (canExport) {
+                    storeChildren.Add(Leaf(Resources.menuCheckVirusTotal, CommandAction.OpenVirusTotal,
+                        CommandIcon.ApkMirror, true));
+                }
                 if (storeChildren.Count > 0) {
                     store.Children = storeChildren.ToArray();
                     children.Add(store);

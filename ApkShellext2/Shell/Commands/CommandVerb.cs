@@ -20,6 +20,7 @@ namespace ApkShellext2.Shell.Commands {
         public const string CopyAppName = "ApkShellext2.CopyAppName";
         public const string CopyPackage = "ApkShellext2.CopyPackageName";
         public const string CopyVersion = "ApkShellext2.CopyVersion";
+        public const string OpenVirusTotal = "ApkShellext2.OpenVirusTotal";
 
         /// <summary>
         /// The verb for an action, or <see cref="string.Empty"/> when the action is not a
@@ -41,6 +42,7 @@ namespace ApkShellext2.Shell.Commands {
                 case CommandAction.CopyAppName: return CopyAppName;
                 case CommandAction.CopyPackage: return CopyPackage;
                 case CommandAction.CopyVersion: return CopyVersion;
+                case CommandAction.OpenVirusTotal: return OpenVirusTotal;
                 default: return string.Empty;
             }
         }

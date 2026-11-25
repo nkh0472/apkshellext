@@ -28,10 +28,12 @@ namespace ApkShellext2.Shell.Commands {
         private static Func<string, string, string> promptHandler;
         private static Func<string> folderHandler;
         private static Action<string> clipboardHandler;
+        private static Action<string> openUrlHandler;
 
         private const string ManifestEntry = "androidmanifest.xml";
         private const string ManifestToken = "androidmanifest";
         private const string DefaultXmlEntry = "AndroidManifest.xml";
+        private const int MaxVirusTotalFiles = 10;
 
         /// <summary>Opens the Preferences form; replaceable so tests can observe the routing.</summary>
         public static Action<IReadOnlyList<string>> PreferencesHandler {
@@ -61,6 +63,12 @@ namespace ApkShellext2.Shell.Commands {
         public static Action<string> ClipboardHandler {
             get { return clipboardHandler ?? (clipboardHandler = StaUiHost.SetClipboardText); }
             set { clipboardHandler = value; }
+        }
+
+        /// <summary>Opens a URL in the default browser; replaceable so tests never start one.</summary>
+        public static Action<string> OpenUrlHandler {
+            get { return openUrlHandler ?? (openUrlHandler = url => Process.Start(url)); }
+            set { openUrlHandler = value; }
         }
 
         public static void Execute(CommandAction action, IReadOnlyList<string> selectedPaths) {
@@ -116,7 +124,49 @@ namespace ApkShellext2.Shell.Commands {
                 case CommandAction.CopyVersion:
                     copyToClipboard(PackageClipboardText.Field.Version, paths);
                     break;
+                case CommandAction.OpenVirusTotal:
+                    openVirusTotal(paths);
+                    break;
             }
+        }
+
+        /// <summary>
+        /// Opens the VirusTotal report for each selected package's SHA-256. The menu never
+        /// computes a hash: this runs after the click, reads at most ten packages on a
+        /// background thread, and opens one page per package. A file that cannot be read or
+        /// opened is logged and does not stop the rest.
+        /// </summary>
+        private static void openVirusTotal(IReadOnlyList<string> selectedPaths) {
+            var paths = new List<string>();
+            foreach (var path in selectedPaths) {
+                if (!CommandCatalog.IsSupportedPackage(path)) continue;
+                if (paths.Count == MaxVirusTotalFiles) {
+                    ErrorLog.Warn(LogCaller.GetType().Name, "Only the first " + MaxVirusTotalFiles +
+                        " selected files are checked on VirusTotal.");
+                    break;
+                }
+                paths.Add(path);
+            }
+            if (paths.Count == 0) return;
+
+            string[] hashedPaths = paths.ToArray();
+            Task.Run(() => {
+                foreach (var path in hashedPaths) {
+                    string url;
+                    try {
+                        FileHash hash = FileHasher.Compute(path);
+                        url = string.Format(NonLocalizeResources.urlVirusTotal, hash.Sha256);
+                    } catch (Exception ex) {
+                        ErrorLog.Warn(LogCaller.GetType().Name, "Error happens during hashing " + path, ex);
+                        continue;
+                    }
+                    try {
+                        OpenUrlHandler(url);
+                    } catch (Exception ex) {
+                        ErrorLog.Warn(LogCaller.GetType().Name, "Error happens during opening " + url, ex);
+                    }
+                }
+            });
         }
 
         /// <summary>

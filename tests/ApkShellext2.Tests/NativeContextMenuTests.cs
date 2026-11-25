@@ -235,7 +235,7 @@ namespace ApkShellext2.Tests
                 Assert.That(ReadCommandString(handler, IdCmdFirst + 9), Is.EqualTo(CommandVerb.DumpManifest));
                 Assert.That(ReadCommandString(handler, IdCmdFirst + 10), Is.EqualTo(CommandVerb.DumpXml));
                 Assert.That(ReadCommandString(handler, IdCmdFirst + 13), Is.EqualTo(CommandVerb.GooglePlay));
-                Assert.That(ReadCommandString(handler, IdCmdFirst + 16), Is.EqualTo(CommandVerb.Preferences));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 17), Is.EqualTo(CommandVerb.Preferences));
             }
         }
 
@@ -439,7 +439,7 @@ namespace ApkShellext2.Tests
                 int secondHr;
                 string[] second = Query(handler, out secondHr, out menu);
 
-                Assert.That(first.Length, Is.EqualTo(17));
+                Assert.That(first.Length, Is.EqualTo(18));
                 Assert.That(second.Length, Is.EqualTo(12));
                 Assert.That(second.Where(l => l.Contains("Appstore")).Count(), Is.EqualTo(1));
             }
@@ -584,3 +584,4 @@ namespace ApkShellext2.Tests
         }
     }
 }
+

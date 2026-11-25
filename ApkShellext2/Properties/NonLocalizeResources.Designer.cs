@@ -310,6 +310,15 @@ namespace ApkShellext2.Properties {
         }
         
         /// <summary>
+        ///   查找类似 https://www.virustotal.com/gui/file/{0} 的本地化字符串。
+        /// </summary>
+        internal static string urlVirusTotal {
+            get {
+                return ResourceManager.GetString("urlVirusTotal", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 AppID 的本地化字符串。
         /// </summary>
         internal static string varAppid {
@@ -446,3 +455,4 @@ namespace ApkShellext2.Properties {
         }
     }
 }
+
