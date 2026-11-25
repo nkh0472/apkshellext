@@ -802,6 +802,15 @@ namespace ApkShellext2.Properties {
         }
 
         /// <summary>
+        ///   Localizes &quot;Minimum Android SDK version of the package&quot; / 安装包要求的最低 Android SDK 版本.
+        /// </summary>
+        internal static string strVarMinSdkDescription {
+            get {
+                return ResourceManager.GetString("strVarMinSdkDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Localizes &quot;Android, iOS or Windows&quot; / Android、iOS 或 Windows.
         /// </summary>
         internal static string strVarOSDescription {
@@ -820,6 +829,15 @@ namespace ApkShellext2.Properties {
         }
 
         /// <summary>
+        ///   Localizes &quot;Tool that signed the package, e.g. Walle&quot; / 给安装包签名的工具，例如 Walle.
+        /// </summary>
+        internal static string strVarPackerDescription {
+            get {
+                return ResourceManager.GetString("strVarPackerDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Localizes &quot;Publisher of the package&quot; / 安装包的发布者.
         /// </summary>
         internal static string strVarPublisherDescription {
@@ -834,6 +852,15 @@ namespace ApkShellext2.Properties {
         internal static string strVarRevisionDescription {
             get {
                 return ResourceManager.GetString("strVarRevisionDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Target Android SDK version of the package&quot; / 安装包的目标 Android SDK 版本.
+        /// </summary>
+        internal static string strVarTargetSdkDescription {
+            get {
+                return ResourceManager.GetString("strVarTargetSdkDescription", resourceCulture);
             }
         }
 

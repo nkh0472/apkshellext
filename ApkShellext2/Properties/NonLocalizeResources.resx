@@ -169,17 +169,26 @@
   <data name="varLastModify" xml:space="preserve">
     <value>LastModify</value>
   </data>
+  <data name="varMinSdk" xml:space="preserve">
+    <value>MinSdk</value>
+  </data>
   <data name="varOS" xml:space="preserve">
     <value>OS</value>
   </data>
   <data name="varPackage" xml:space="preserve">
     <value>Package</value>
   </data>
+  <data name="varPacker" xml:space="preserve">
+    <value>Packer</value>
+  </data>
   <data name="varPublisher" xml:space="preserve">
     <value>Publisher</value>
   </data>
   <data name="varRevision" xml:space="preserve">
     <value>Revision</value>
+  </data>
+  <data name="varTargetSdk" xml:space="preserve">
+    <value>TargetSdk</value>
   </data>
   <data name="varVersion" xml:space="preserve">
     <value>Version</value>

@@ -65,6 +65,33 @@ namespace ApkShellext2.Tests
         }
 
         [Test]
+        public void TheSdkAndPackerVariablesAreOfferedOnBothPages()
+        {
+            IReadOnlyList<string> tokens = ProductApi.RenameVariableTokens();
+            CollectionAssert.Contains(tokens, "%MinSdk%");
+            CollectionAssert.Contains(tokens, "%TargetSdk%");
+            CollectionAssert.Contains(tokens, "%Packer%");
+
+            IReadOnlyList<string> both = ProductApi.RenameVariableTokensFor("Both");
+            CollectionAssert.Contains(both, "%MinSdk%");
+            CollectionAssert.Contains(both, "%TargetSdk%");
+            CollectionAssert.Contains(both, "%Packer%");
+        }
+
+        [Test]
+        public void TheSdkAndPackerVariablesUseTheNeutralDescriptions()
+        {
+            IReadOnlyList<string> tokens = ProductApi.RenameVariableTokens();
+            IReadOnlyList<string> descriptions = ProductApi.RenameVariableDescriptions();
+            Assert.That(descriptions[tokens.ToList().IndexOf("%MinSdk%")],
+                Is.EqualTo("Minimum Android SDK version of the package"));
+            Assert.That(descriptions[tokens.ToList().IndexOf("%TargetSdk%")],
+                Is.EqualTo("Target Android SDK version of the package"));
+            Assert.That(descriptions[tokens.ToList().IndexOf("%Packer%")],
+                Is.EqualTo("Tool that signed the package, e.g. Walle"));
+        }
+
+        [Test]
         public void BothPatternBoxesOfferTheSameVariablesInTheSameOrder()
         {
             IReadOnlyList<string> all = ProductApi.RenameVariableTokens();

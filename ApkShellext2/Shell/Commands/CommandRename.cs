@@ -83,6 +83,12 @@ namespace ApkShellext2.Shell.Commands {
                         replacement = reader.Revision;
                     else if (t == NonLocalizeResources.varFileSize)
                         replacement = Utility.getFileSize(reader.FileName);
+                    else if (t == NonLocalizeResources.varMinSdk)
+                        replacement = reader.MinSdk;
+                    else if (t == NonLocalizeResources.varTargetSdk)
+                        replacement = reader.TargetSdk;
+                    else if (t == NonLocalizeResources.varPacker)
+                        replacement = reader.Packer;
                     else if (t == NonLocalizeResources.varOS)
                         replacement = (reader.Type == AppPackageReader.AppType.AndroidApp ? "Android"
                             : (reader.Type == AppPackageReader.AppType.iOSApp ? "iOS"

@@ -364,6 +364,15 @@ namespace ApkShellext2.Properties {
         }
         
         /// <summary>
+        ///   查找类似 MinSdk 的本地化字符串。
+        /// </summary>
+        internal static string varMinSdk {
+            get {
+                return ResourceManager.GetString("varMinSdk", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 OS 的本地化字符串。
         /// </summary>
         internal static string varOS {
@@ -382,6 +391,15 @@ namespace ApkShellext2.Properties {
         }
         
         /// <summary>
+        ///   查找类似 Packer 的本地化字符串。
+        /// </summary>
+        internal static string varPacker {
+            get {
+                return ResourceManager.GetString("varPacker", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   查找类似 Publisher 的本地化字符串。
         /// </summary>
         internal static string varPublisher {
@@ -396,6 +414,15 @@ namespace ApkShellext2.Properties {
         internal static string varRevision {
             get {
                 return ResourceManager.GetString("varRevision", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 TargetSdk 的本地化字符串。
+        /// </summary>
+        internal static string varTargetSdk {
+            get {
+                return ResourceManager.GetString("varTargetSdk", resourceCulture);
             }
         }
         

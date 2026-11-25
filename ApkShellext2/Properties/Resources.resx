@@ -221,6 +221,15 @@ By default, only show the menu when one file selected</value>
   <data name="strVarFileSizeDescription" xml:space="preserve">
     <value>File size of the package</value>
   </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>Minimum Android SDK version of the package</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>Target Android SDK version of the package</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>Tool that signed the package, e.g. Walle</value>
+  </data>
   <data name="strVarOSDescription" xml:space="preserve">
     <value>Android, iOS or Windows</value>
   </data>
