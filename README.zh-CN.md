@@ -1,6 +1,6 @@
 # ApkShellext2
 
-[![release](https://img.shields.io/badge/release_4.1.0-blue)](https://github.com/nkh0472/apkshellext/releases)
+[![release](https://img.shields.io/badge/release_4.1.1-blue)](https://github.com/nkh0472/apkshellext/releases)
 [![.NET](https://img.shields.io/badge/.NET_Framework-4.8-512BD4)](#从源码构建)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -65,6 +65,7 @@
 
 | 版本 | 摘要 |
 |------|------|
+| 4.1.1 | 翻译：3.x/4.x 新增命令用到的 24 条文案（复制菜单、VirusTotal 项、文件夹选择器、重命名变量说明）补齐到全部 19 种语言，不再回退英文；新增测试保证每种语言的资源文件与中性文件保持同步 — dll 935,936 B（尺寸不变），7z 708,473 B → 714,213 B |
 | 4.1.0 | 右键菜单：新增「复制信息」子菜单（文件路径、应用名、包名、版本，多选时每个文件一行），「提取信息」子菜单改为收纳 CSV 导出与两项 XML 提取（现代文件夹选择器、文件名带重命名前缀），新增「在 VirusTotal 查看哈希」项，CSV 增加 SHA-256 与 XXH3-64 两列，信息提示可显示 min/target SDK 与打包器，菜单图标改为与系统小图标同尺寸——dll 909,312 B → 935,936 B，7z 698,828 B → 708,473 B | 
 | 4.0.0 | 外壳层收归仓库：四个处理器与右键菜单直接基于外壳接口实现，不再依赖内置的第三方外壳框架；Windows 11 22H2+ 由 `IExplorerCommand` 提供现代菜单，Windows 10 与「显示更多选项」仍为经典菜单；新增「导出信息 (CSV)…」命令；首选项可点选插入重命名变量；`update.bat` 回读全部处理器槽位，`/rollback` 精确还原升级前的文件集——dll 1,165,312 B → 909,312 B，7z 746,997 B → 698,946 B |
 | 3.5.0 | 自适应图标转正：Android 一致的 1.5x 缩放、框架颜色引用、区分大小写条目解析、DPI 无关矢量渲染；支持 `<bitmap>` |
