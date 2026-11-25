@@ -367,20 +367,30 @@ namespace ApkShellext2.Tests
         public void InvokeCommand_ResolvesAVerbThroughTheModel()
         {
             string path = MenuFixtures.PlainApkPath();
-            string dumped = path + ".androidmanifest.xml";
-            if (File.Exists(dumped))
+            string folder = Path.Combine(Path.GetTempPath(), "apkshellext-dump-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(folder);
+            Func<string> previous = CommandActions.FolderHandler;
+            CommandActions.FolderHandler = () => folder;
+
+            try
             {
-                File.Delete(dumped);
+                using (Chinese())
+                {
+                    ContextMenuHandler handler = CreateHandler(path);
+                    Prepare(handler);
+
+                    Assert.That(InvokeVerb(handler, CommandVerb.DumpManifest), Is.EqualTo(0));
+                    string expected = Path.GetFileNameWithoutExtension(CommandRename.GetNewFileName(path, new[] { path }))
+                        + ".androidmanifest.xml";
+                    Assert.That(Path.Combine(folder, expected), Does.Exist,
+                        "the verb runs the same action the WinForms adapter runs");
+                    Assert.That(InvokeVerb(handler, "ApkShellext2.NotACommand"), Is.EqualTo(E_FAIL));
+                }
             }
-
-            using (Chinese())
+            finally
             {
-                ContextMenuHandler handler = CreateHandler(path);
-                Prepare(handler);
-
-                Assert.That(InvokeVerb(handler, CommandVerb.DumpManifest), Is.EqualTo(0));
-                Assert.That(dumped, Does.Exist, "the verb runs the same action the WinForms adapter runs");
-                Assert.That(InvokeVerb(handler, "ApkShellext2.NotACommand"), Is.EqualTo(E_FAIL));
+                CommandActions.FolderHandler = previous;
+                try { Directory.Delete(folder, true); } catch { }
             }
         }
 

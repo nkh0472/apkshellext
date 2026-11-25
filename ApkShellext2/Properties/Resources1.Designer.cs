@@ -232,7 +232,7 @@ namespace ApkShellext2.Properties {
         }
         
         /// <summary>
-        ///   查找类似 Dump androidmanifest.xml 的本地化字符串。
+        ///   查找类似 Extract AndroidManifest.xml… 的本地化字符串。
         /// </summary>
         internal static string menuDumpManifest {
             get {
@@ -241,7 +241,7 @@ namespace ApkShellext2.Properties {
         }
         
         /// <summary>
-        ///   查找类似 Dump XML ... 的本地化字符串。
+        ///   查找类似 Extract an XML entry… 的本地化字符串。
         /// </summary>
         internal static string menuDumpOthers {
             get {
@@ -405,7 +405,7 @@ namespace ApkShellext2.Properties {
         }
         
         /// <summary>
-        ///   查找类似 Path to XML, eg: res\drawable\icon.xml 的本地化字符串。
+        ///   查找类似 XML entry, for example: res/drawable/icon.xml 的本地化字符串。
         /// </summary>
         internal static string strDumpXMLPrompt {
             get {
@@ -548,6 +548,15 @@ namespace ApkShellext2.Properties {
             }
         }
         
+        /// <summary>
+        ///   Localizes &quot;Select a folder for the extracted XML&quot; / 选择 XML 保存文件夹.
+        /// </summary>
+        internal static string strPickFolderTitle {
+            get {
+                return ResourceManager.GetString("strPickFolderTitle", resourceCulture);
+            }
+        }
+
         /// <summary>
         ///   查找类似 ApkShellext2 Preferences 的本地化字符串。
         /// </summary>
@@ -870,6 +879,15 @@ namespace ApkShellext2.Properties {
         internal static string strVarVersionDescription {
             get {
                 return ResourceManager.GetString("strVarVersionDescription", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Localizes &quot;Extract an XML entry&quot; / 提取指定 XML.
+        /// </summary>
+        internal static string strXmlEntryTitle {
+            get {
+                return ResourceManager.GetString("strXmlEntryTitle", resourceCulture);
             }
         }
         

@@ -501,9 +501,16 @@ namespace ApkShellext2.Tests
                 //  does not exist makes the call throw where no other action would: exactly the case
                 //  the item has to absorb instead of letting it cross the COM boundary.
                 CommandItem manifest = model.Items.First(item => item.Action == CommandAction.DumpManifest);
-
-                Assert.That(NewItem(model, manifest).Invoke(IntPtr.Zero, IntPtr.Zero), Is.EqualTo(E_FAIL),
-                            "an exception must never cross the COM boundary");
+                Func<string> previousFolder = CommandActions.FolderHandler;
+                //  The extraction action starts with the folder picker; a picker that throws stands
+                //  for any failure and must be absorbed instead of crossing the COM boundary.
+                CommandActions.FolderHandler = () => throw new InvalidOperationException("the folder picker failed");
+                try {
+                    Assert.That(NewItem(model, manifest).Invoke(IntPtr.Zero, IntPtr.Zero), Is.EqualTo(E_FAIL),
+                                "an exception must never cross the COM boundary");
+                } finally {
+                    CommandActions.FolderHandler = previousFolder;
+                }
 
                 string log = File.ReadAllText(Path.Combine(logDirectory, "apkshellext-error.log"));
                 Assert.That(log, Does.Contain("ExplorerCommandItem"), "the log names the class that failed");

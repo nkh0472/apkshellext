@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -320,16 +320,22 @@
     <value>启用调试日志</value>
   </data>
   <data name="menuDumpManifest" xml:space="preserve">
-    <value>提取 androidmanifest.xml</value>
+    <value>提取 AndroidManifest.xml…</value>
   </data>
   <data name="menuDumpOthers" xml:space="preserve">
-    <value>提取XML文件...</value>
+    <value>提取指定 XML…</value>
   </data>
   <data name="strDumpXML" xml:space="preserve">
     <value>提取XML文件</value>
   </data>
   <data name="strDumpXMLPrompt" xml:space="preserve">
-    <value>XML 路径，例如：res\placle\cotion.xml</value>
+    <value>XML 条目，例如：res/drawable/icon.xml</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>选择 XML 保存文件夹</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>提取指定 XML</value>
   </data>
 
   <data name="strUseAppNameLang" xml:space="preserve">

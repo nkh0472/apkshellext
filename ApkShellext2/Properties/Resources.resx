@@ -367,16 +367,22 @@ By checking this, rename app file as %AppName%_%Version%_%Revision%, otherwise, 
     <value>Enable debug logging</value>
   </data>
   <data name="menuDumpManifest" xml:space="preserve">
-    <value>Dump androidmanifest.xml</value>
+    <value>Extract AndroidManifest.xml…</value>
   </data>
   <data name="menuDumpOthers" xml:space="preserve">
-    <value>Dump XML ...</value>
+    <value>Extract an XML entry…</value>
   </data>
   <data name="strDumpXML" xml:space="preserve">
     <value>Dump XML</value>
   </data>
   <data name="strDumpXMLPrompt" xml:space="preserve">
-    <value>Path to XML, eg: res\drawable\icon.xml</value>
+    <value>XML entry, for example: res/drawable/icon.xml</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>Select a folder for the extracted XML</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>Extract an XML entry</value>
   </data>
 
   <data name="strUseAppNameLang" xml:space="preserve">

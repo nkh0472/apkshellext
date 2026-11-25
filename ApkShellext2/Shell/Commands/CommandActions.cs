@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 using ApkQuickReader;
@@ -27,7 +26,12 @@ namespace ApkShellext2.Shell.Commands {
         private static Action<IReadOnlyList<string>> preferencesHandler;
         private static Action<IReadOnlyList<string>> exportHandler;
         private static Func<string, string, string> promptHandler;
+        private static Func<string> folderHandler;
         private static Action<string> clipboardHandler;
+
+        private const string ManifestEntry = "androidmanifest.xml";
+        private const string ManifestToken = "androidmanifest";
+        private const string DefaultXmlEntry = "AndroidManifest.xml";
 
         /// <summary>Opens the Preferences form; replaceable so tests can observe the routing.</summary>
         public static Action<IReadOnlyList<string>> PreferencesHandler {
@@ -41,10 +45,16 @@ namespace ApkShellext2.Shell.Commands {
             set { exportHandler = value; }
         }
 
-        /// <summary>Asks the user for the XML file name; replaceable so tests never show a dialog.</summary>
+        /// <summary>Asks the user for the XML entry to extract; replaceable so tests never show a dialog.</summary>
         public static Func<string, string, string> PromptHandler {
             get { return promptHandler ?? (promptHandler = StaUiHost.Prompt); }
             set { promptHandler = value; }
+        }
+
+        /// <summary>Asks the user for the destination folder; replaceable so tests never show a dialog.</summary>
+        public static Func<string> FolderHandler {
+            get { return folderHandler ?? (folderHandler = StaUiHost.PickFolder); }
+            set { folderHandler = value; }
         }
 
         /// <summary>Writes text to the system clipboard; replaceable so tests never need one.</summary>
@@ -67,12 +77,10 @@ namespace ApkShellext2.Shell.Commands {
                     }
                     break;
                 case CommandAction.DumpManifest:
-                    foreach (var path in paths) dumpXML(path, "androidmanifest.xml", paths);
+                    dumpXMLFiles(paths, ManifestEntry, ManifestToken);
                     break;
-                case CommandAction.DumpXml: {
-                        string xml = PromptHandler(Resources.strDumpXMLPrompt, Resources.strDumpXML);
-                        foreach (var path in paths) dumpXML(path, xml, paths);
-                    }
+                case CommandAction.DumpXml:
+                    dumpXMLFiles(paths, null, null);
                     break;
                 case CommandAction.GooglePlay:
                     gotoGooglePlay(paths);
@@ -137,26 +145,84 @@ namespace ApkShellext2.Shell.Commands {
             }
         }
 
-        private static void dumpXML(string apk, string xml, IReadOnlyList<string> selectedPaths) {
-            using (ApkReader reader = PackageReaderFactory.Create(apk) as ApkReader) {
-                if (reader == null) {
-                    // mixed selection contained a non-apk (ipa/appx):
-                    // dump only works on android binary xml, skip quietly
-                    Log(selectedPaths, "Not an apk, skipping dump: " + apk);
-                    return;
-                }
-                try {
+        /// <summary>
+        /// Extracts one XML entry from every selected apk into the folder the user chooses.
+        /// The folder is picked first; the second dump entry asks for the entry name after
+        /// the folder so the dialog is not shown when the picker was cancelled. A cancelled
+        /// picker or prompt writes nothing and stays silent.
+        /// </summary>
+        private static void dumpXMLFiles(IReadOnlyList<string> selectedPaths, string entry, string outputToken) {
+            string folder = FolderHandler();
+            if (string.IsNullOrEmpty(folder)) return;
+            if (!Directory.Exists(folder)) {
+                Log(selectedPaths, "Cannot dump " + (entry ?? "xml") + ", the folder does not exist: " + folder);
+                return;
+            }
+
+            if (entry == null) {
+                entry = PromptHandler(Resources.strDumpXMLPrompt, DefaultXmlEntry);
+                if (string.IsNullOrEmpty(entry)) return;
+                outputToken = entry;
+            }
+
+            foreach (var path in selectedPaths) dumpXML(path, entry, outputToken, folder, selectedPaths);
+        }
+
+        private static void dumpXML(string apk, string xml, string outputToken, string folder,
+            IReadOnlyList<string> selectedPaths) {
+            try {
+                using (ApkReader reader = PackageReaderFactory.Create(apk) as ApkReader) {
+                    if (reader == null) {
+                        // mixed selection contained a non-apk (ipa/appx):
+                        // dump only works on android binary xml, skip quietly
+                        Log(selectedPaths, "Not an apk, skipping dump: " + apk);
+                        return;
+                    }
+
                     XmlDocument doc = reader.ExtractCompressedXml(xml);
-                    string filepath = apk + "." + Path.GetFileName(Regex.Replace(xml, @"[\\/:*?""<>|-]+", "_")); // attribute name, kept next to the apk
+                    string filepath = uniquePath(folder, renamePrefix(apk, selectedPaths, reader) + "." +
+                        fileNameToken(outputToken));
                     XmlWriterSettings setting = new XmlWriterSettings();
                     setting.Indent = true;
-                    XmlWriter writer = XmlWriter.Create(filepath, setting);
-                    doc.WriteTo(writer);
-                    writer.Close();
-                } catch (Exception ex) {
-                    ErrorLog.Warn(LogCaller.GetType().Name, "Error happens during extracting " + xml + " in " + apk, ex);
+                    using (XmlWriter writer = XmlWriter.Create(filepath, setting)) {
+                        doc.WriteTo(writer);
+                    }
                 }
+            } catch (Exception ex) {
+                ErrorLog.Warn(LogCaller.GetType().Name, "Error happens during extracting " + xml + " in " + apk, ex);
             }
+        }
+
+        /// <summary>The rename target's base name, which is the prefix of the extracted file.</summary>
+        private static string renamePrefix(string apk, IReadOnlyList<string> selectedPaths, IPackageReader reader) {
+            string renamed = CommandRename.GetNewFileName(apk, selectedPaths, reader);
+            string prefix = string.IsNullOrEmpty(renamed) ? "" : Path.GetFileNameWithoutExtension(renamed);
+            return prefix.Length > 0 ? prefix : Path.GetFileNameWithoutExtension(apk);
+        }
+
+        /// <summary>
+        /// Turns an entry name into a file-name component: separators become underscores and
+        /// an <c>.xml</c> extension is added once, so the default <c>AndroidManifest.xml</c>
+        /// does not grow a second one.
+        /// </summary>
+        private static string fileNameToken(string entry) {
+            string token = (entry ?? "").Replace('/', '_').Replace('\\', '_');
+            if (token.Length == 0) token = "xml";
+            return token.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) ? token : token + ".xml";
+        }
+
+        /// <summary>Adds <c>-2</c>, <c>-3</c>, ... before the extension until the name is free.</summary>
+        private static string uniquePath(string folder, string fileName) {
+            string path = Path.Combine(folder, fileName);
+            if (!File.Exists(path)) return path;
+
+            string baseName = Path.GetFileNameWithoutExtension(fileName);
+            string extension = Path.GetExtension(fileName);
+            for (int i = 2; i < 10000; i++) {
+                path = Path.Combine(folder, baseName + "-" + i + extension);
+                if (!File.Exists(path)) return path;
+            }
+            throw new IOException("Cannot find a free file name for " + fileName + " in " + folder);
         }
 
         private static void renameWithVersion(IReadOnlyList<string> selectedPaths) {

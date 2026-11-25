@@ -37,11 +37,20 @@ namespace ApkShellext2.Shell {
         }
 
         /// <summary>
-        /// Shows the XML dump prompt on the UI thread and returns the text the user entered
-        /// (empty when the prompt is dismissed).
+        /// Shows the XML entry prompt on the UI thread and returns the text the user entered
+        /// (empty when the prompt is dismissed). <paramref name="defaultEntry"/> prefills the
+        /// input box, so the common answer is accepted with one click.
         /// </summary>
-        public static string Prompt(string prompt, string title) {
-            return Send(() => Interaction.InputBox(prompt, title));
+        public static string Prompt(string prompt, string defaultEntry) {
+            return Send(() => Interaction.InputBox(prompt, Resources.strXmlEntryTitle, defaultEntry ?? ""));
+        }
+
+        /// <summary>
+        /// Shows the modern folder picker on the UI thread and returns the chosen folder, or
+        /// null when the user cancels.
+        /// </summary>
+        public static string PickFolder() {
+            return Send(() => FolderPicker.Pick(Resources.strPickFolderTitle));
         }
 
         /// <summary>
