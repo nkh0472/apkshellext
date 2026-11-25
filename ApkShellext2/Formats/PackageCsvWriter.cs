@@ -24,7 +24,7 @@ namespace ApkShellext2 {
         /// <summary>The header row, in the order the columns are written.</summary>
         public static readonly string[] Columns = {
             "File", "Folder", "AppName", "Package", "Version", "Revision",
-            "Publisher", "AppID", "Type", "SizeBytes", "Modified", "Status"
+            "Publisher", "AppID", "Type", "SizeBytes", "Sha256", "Xxh3", "Modified", "Status"
         };
 
         public const string StatusOk = "ok";
@@ -70,6 +70,7 @@ namespace ApkShellext2 {
                     string appName = "", package = "", version = "", revision = "";
                     string publisher = "", appId = "", type = "";
                     string size = "", modified = "";
+                    string sha256 = "", xxh3 = "";
                     string status;
 
                     if (cancellationToken.IsCancellationRequested) {
@@ -86,6 +87,7 @@ namespace ApkShellext2 {
                                 status = StatusUnreadable;
                             } else {
                                 ReadSizeAndModified(file, out size, out modified);
+                                bool hashesRead = TryReadHashes(path, out sha256, out xxh3);
                                 try {
                                     using (IPackageReader reader = create(path)) {
                                         if (reader == null)
@@ -98,7 +100,7 @@ namespace ApkShellext2 {
                                         appId = reader.AppID ?? "";
                                         type = reader.Type.ToString();
                                     }
-                                    status = StatusOk;
+                                    status = hashesRead ? StatusOk : StatusUnreadable;
                                 } catch (Exception) {
                                     status = StatusUnreadable;
                                 }
@@ -108,7 +110,7 @@ namespace ApkShellext2 {
 
                     WriteRecord(writer, new[] {
                         fileName, folder, appName, package, version, revision,
-                        publisher, appId, type, size, modified, status
+                        publisher, appId, type, size, sha256, xxh3, modified, status
                     });
                     result.Rows++;
                     if (status != StatusOk && status != StatusCancelled) result.Errors++;
@@ -176,6 +178,20 @@ namespace ApkShellext2 {
                     .ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
             } catch (Exception) {
                 // same as the size: the row is still written
+            }
+        }
+
+        private static bool TryReadHashes(string path, out string sha256, out string xxh3) {
+            sha256 = "";
+            xxh3 = "";
+            try {
+                FileHash hash = FileHasher.Compute(path);
+                sha256 = hash.Sha256;
+                xxh3 = hash.Xxh3;
+                return true;
+            } catch (Exception) {
+                // a file that cannot be read keeps both hash columns blank
+                return false;
             }
         }
 
