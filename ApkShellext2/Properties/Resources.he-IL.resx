@@ -414,4 +414,77 @@
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>לא ניתן היה לכתוב את קובץ ה-CSV. עיין ב-apkshellext-error.log לפרטים.</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>הוספת המשתנה לתבנית</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>בחירה והעתקה של כל רשימת המשתנים</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>מידע נוסף על המשתנים</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>שם האפליקציה של החבילה</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>שם החבילה, למשל com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>מפרסם החבילה</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>שם הגרסה של החבילה</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>קוד הגרסה של החבילה</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>גודל הקובץ של החבילה</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>גרסת Android SDK מינימלית של החבילה</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>גרסת Android SDK יעד של החבילה</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>הכלי שחתם על החבילה, למשל Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android, iOS או Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>מועד השינוי האחרון של הקובץ</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug או Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>מאפיין manifest, למשל %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>בדיקת ה-hash ב-VirusTotal</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>בחירת תיקייה ל-XML שחולץ</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>חילוץ רשומת XML</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>העתקת מידע</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>העתקת נתיב הקובץ</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>העתקת שם האפליקציה</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>העתקת שם החבילה</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>העתקת גרסה</value>
+  </data>
 </root>

@@ -362,4 +362,68 @@
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>无法写入 CSV 文件。详情请查看 apkshellext-error.log。</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>将变量插入到模式中</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>选择并复制全部变量列表</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>了解更多变量信息</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>包的应用程序名称</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>包名，例如 com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>包的发布者</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>包的版本名称</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>包的版本代码</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>包的文件大小</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>包的最低 Android SDK 版本</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>包的目标 Android SDK 版本</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>对包签名的工具，例如 Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android、iOS 或 Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>文件的最后修改时间</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug 或 Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>清单属性，例如 %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>复制信息</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>复制文件路径</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>复制应用名称</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>复制包名</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>复制版本</value>
+  </data>
 </root>

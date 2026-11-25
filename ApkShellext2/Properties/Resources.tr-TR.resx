@@ -362,4 +362,77 @@ Bu seçenek işaretlendiğinde uygulama dosyası %AppName%_%Version%_%Revision% 
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>CSV dosyası yazılamadı. Ayrıntılar için apkshellext-error.log dosyasına bakın.</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>Değişkeni kalıba ekle</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>Tüm değişken listesini seç ve kopyala</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>Değişkenler hakkında daha fazla bilgi</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>Paketin uygulama adı</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>Paket adı, ör. com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>Paketin yayıncısı</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>Paketin sürüm adı</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>Paketin sürüm kodu</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>Paketin dosya boyutu</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>Paketin minimum Android SDK sürümü</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>Paketin hedef Android SDK sürümü</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>Paketi imzalayan araç, ör. Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android, iOS veya Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>Dosyanın son değişiklik zamanı</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug veya Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>Manifest özniteliği, ör. %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>Hash'i VirusTotal'de denetle</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>Ayıklanan XML için klasör seç</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>XML girişi ayıkla</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>Bilgileri kopyala</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>Dosya yolunu kopyala</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>Uygulama adını kopyala</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>Paket adını kopyala</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>Sürümü kopyala</value>
+  </data>
 </root>

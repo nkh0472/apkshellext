@@ -421,4 +421,77 @@
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>CSV ဖိုင်ကို ရေး၍ မရပါ။ အသေးစိတ်အတွက် apkshellext-error.log ကို ကြည့်ပါ။</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>variable ကို ပုံစံထဲသို့ ထည့်ရန်</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>variable စာရင်းတစ်ခုလုံးကို ရွေးချယ်ပြီး ကူးယူရန်</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>variable များအကြောင်း ပိုမိုလေ့လာရန်</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ်၏ အက်ပ်အမည်</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ်အမည်၊ ဥပမာ com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ်၏ ထုတ်ဝေသူ</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ်၏ ဗားရှင်းအမည်</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ်၏ ဗားရှင်းကုဒ်</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ်၏ ဖိုင်အရွယ်အစား</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ်၏ အနည်းဆုံး Android SDK ဗားရှင်း</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ်၏ ပစ်မှတ် Android SDK ဗားရှင်း</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ်ကို လက်မှတ်ထိုးသည့် ကိရိယာ၊ ဥပမာ Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android၊ iOS သို့မဟုတ် Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>ဖိုင်၏ နောက်ဆုံးပြင်ဆင်ချိန်</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug သို့မဟုတ် Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>Manifest အင်္ဂါရပ်၊ ဥပမာ %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>VirusTotal တွင် hash စစ်ဆေးရန်</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>ထုတ်ယူထားသော XML အတွက် ဖိုလ်ဒါ ရွေးချယ်ရန်</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>XML အချက်တစ်ခု ထုတ်ယူရန်</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>အချက်အလက် ကူးယူရန်</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>ဖိုင်လမ်းကြောင်း ကူးယူရန်</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>အက်ပ်အမည် ကူးယူရန်</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>ပက်ကေ့ဂျ်အမည် ကူးယူရန်</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>ဗားရှင်း ကူးယူရန်</value>
+  </data>
 </root>

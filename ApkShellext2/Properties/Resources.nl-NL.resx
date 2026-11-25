@@ -361,4 +361,77 @@ Standaard, toon het menu alleen met één geselecteerd bestand</value>
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>Het CSV-bestand kon niet worden geschreven. Zie apkshellext-error.log voor details.</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>Variabele in het patroon invoegen</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>De hele variabelenlijst selecteren en kopiëren</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>Meer over de variabelen</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>App-naam van het pakket</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>Pakketnaam, bijv. com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>Uitgever van het pakket</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>Versienaam van het pakket</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>Versiecode van het pakket</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>Bestandsgrootte van het pakket</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>Minimale Android SDK-versie van het pakket</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>Doel-Android SDK-versie van het pakket</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>Hulpprogramma dat het pakket heeft ondertekend, bijv. Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android, iOS of Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>Tijdstip van laatste wijziging van het bestand</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug of Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>Manifest-kenmerk, bijv. %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>Hash controleren op VirusTotal</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>Map selecteren voor de geëxtraheerde XML</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>XML-item extraheren</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>Informatie kopiëren</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>Bestandspad kopiëren</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>App-naam kopiëren</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>Pakketnaam kopiëren</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>Versie kopiëren</value>
+  </data>
 </root>

@@ -353,4 +353,77 @@ Standardmäßig wird das Menü nur angezeigt, wenn eine Datei ausgewählt ist</v
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>Die CSV-Datei konnte nicht geschrieben werden. Details stehen in apkshellext-error.log.</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>Variable in das Muster einfügen</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>Gesamte Variablenliste auswählen und kopieren</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>Mehr zu den Variablen</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>App-Name des Pakets</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>Paketname, z. B. com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>Herausgeber des Pakets</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>Versionsname des Pakets</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>Versionscode des Pakets</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>Dateigröße des Pakets</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>Minimale Android SDK-Version des Pakets</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>Ziel-Android SDK-Version des Pakets</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>Tool, mit dem das Paket signiert wurde, z. B. Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android, iOS oder Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>Zeitpunkt der letzten Änderung der Datei</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug oder Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>Manifest-Attribut, z. B. %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>Hash auf VirusTotal prüfen</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>Ordner für die extrahierte XML-Datei auswählen</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>XML-Eintrag extrahieren</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>Informationen kopieren</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>Dateipfad kopieren</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>App-Namen kopieren</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>Paketnamen kopieren</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>Version kopieren</value>
+  </data>
 </root>

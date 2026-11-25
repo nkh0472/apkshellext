@@ -364,4 +364,77 @@
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>Не вдалося записати файл CSV. Докладніше див. apkshellext-error.log.</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>Вставити змінну в шаблон</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>Виділити й скопіювати весь список змінних</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>Докладніше про змінні</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>Назва застосунку пакета</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>Назва пакета, наприклад com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>Видавець пакета</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>Назва версії пакета</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>Код версії пакета</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>Розмір файлу пакета</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>Мінімальна версія Android SDK пакета</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>Цільова версія Android SDK пакета</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>Інструмент, що підписав пакет, наприклад Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android, iOS або Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>Час останньої зміни файлу</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug або Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>Атрибут маніфесту, наприклад %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>Перевірити хеш у VirusTotal</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>Вибрати теку для витягнутого XML</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>Витягти запис XML</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>Копіювати інформацію</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>Копіювати шлях до файлу</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>Копіювати назву застосунку</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>Копіювати назву пакета</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>Копіювати версію</value>
+  </data>
 </root>

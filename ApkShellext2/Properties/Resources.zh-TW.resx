@@ -363,4 +363,77 @@
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>無法寫入 CSV 檔案。詳情請見 apkshellext-error.log。</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>將變數插入到模式中</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>選取並複製所有變數清單</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>進一步瞭解變數</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>封裝的應用程式名稱</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>封裝名稱，例如 com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>封裝的發行者</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>封裝的版本名稱</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>封裝的版本代碼</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>封裝的檔案大小</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>封裝的最低 Android SDK 版本</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>封裝的目標 Android SDK 版本</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>簽署封裝的工具，例如 Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android、iOS 或 Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>檔案的最後修改時間</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug 或 Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>資訊清單屬性，例如 %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>在 VirusTotal 檢查雜湊值</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>選取要儲存提取 XML 的資料夾</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>提取指定的 XML 項目</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>複製資訊</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>複製檔案路徑</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>複製應用程式名稱</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>複製封裝名稱</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>複製版本</value>
+  </data>
 </root>

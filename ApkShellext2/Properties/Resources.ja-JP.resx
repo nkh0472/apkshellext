@@ -378,4 +378,77 @@
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>CSV ファイルを書き込めませんでした。詳細は apkshellext-error.log を参照してください。</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>変数をパターンに挿入する</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>変数の一覧をすべて選択してコピーする</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>変数の詳細</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>パッケージのアプリ名</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>パッケージ名 (例: com.company.app)</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>パッケージの発行者</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>パッケージのバージョン名</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>パッケージのバージョンコード</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>パッケージのファイルサイズ</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>パッケージの最小 Android SDK バージョン</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>パッケージのターゲット Android SDK バージョン</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>パッケージに署名したツール (例: Walle)</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android、iOS、Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>ファイルの最終更新日時</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug または Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>マニフェスト属性 (例: %Attr(minSdkVersion,sdkVersion)%)</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>VirusTotal でハッシュを確認する</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>抽出した XML の保存先フォルダーを選択する</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>XML エントリを抽出する</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>情報をコピー</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>ファイルパスをコピー</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>アプリ名をコピー</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>パッケージ名をコピー</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>バージョンをコピー</value>
+  </data>
 </root>

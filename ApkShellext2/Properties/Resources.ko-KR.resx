@@ -380,4 +380,77 @@
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>CSV 파일을 쓸 수 없습니다. 자세한 내용은 apkshellext-error.log를 참조하세요.</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>패턴에 변수 삽입</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>변수 목록 전체 선택 및 복사</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>변수에 대한 자세한 정보</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>패키지의 앱 이름</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>패키지 이름 (예: com.company.app)</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>패키지의 게시자</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>패키지의 버전 이름</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>패키지의 버전 코드</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>패키지의 파일 크기</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>패키지의 최소 Android SDK 버전</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>패키지의 대상 Android SDK 버전</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>패키지에 서명한 도구 (예: Walle)</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android, iOS 또는 Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>파일의 마지막 수정 시간</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug 또는 Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>매니페스트 특성 (예: %Attr(minSdkVersion,sdkVersion)%)</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>VirusTotal에서 해시 확인</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>추출한 XML을 저장할 폴더 선택</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>XML 항목 추출</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>정보 복사</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>파일 경로 복사</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>앱 이름 복사</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>패키지 이름 복사</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>버전 복사</value>
+  </data>
 </root>

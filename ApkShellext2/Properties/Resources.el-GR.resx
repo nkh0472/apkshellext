@@ -410,4 +410,77 @@
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>Δεν ήταν δυνατή η εγγραφή του αρχείου CSV. Δείτε το apkshellext-error.log για λεπτομέρειες.</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>Εισαγωγή της μεταβλητής στο μοτίβο</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>Επιλογή και αντιγραφή ολόκληρης της λίστας μεταβλητών</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>Περισσότερα για τις μεταβλητές</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>Όνομα εφαρμογής του πακέτου</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>Όνομα πακέτου, π.χ. com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>Εκδότης του πακέτου</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>Όνομα έκδοσης του πακέτου</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>Κωδικός έκδοσης του πακέτου</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>Μέγεθος αρχείου του πακέτου</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>Ελάχιστη έκδοση Android SDK του πακέτου</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>Έκδοση-στόχος Android SDK του πακέτου</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>Εργαλείο που υπέγραψε το πακέτο, π.χ. Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android, iOS ή Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>Ώρα τελευταίας τροποποίησης του αρχείου</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug ή Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>Χαρακτηριστικό manifest, π.χ. %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>Έλεγχος hash στο VirusTotal</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>Επιλογή φακέλου για το εξαγόμενο XML</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>Εξαγωγή καταχώρισης XML</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>Αντιγραφή πληροφοριών</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>Αντιγραφή διαδρομής αρχείου</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>Αντιγραφή ονόματος εφαρμογής</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>Αντιγραφή ονόματος πακέτου</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>Αντιγραφή έκδοσης</value>
+  </data>
 </root>

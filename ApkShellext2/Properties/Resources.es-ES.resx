@@ -362,4 +362,77 @@ Tildando eso, cambia el nombre del archivo de app a %AppName%_%Version%_%Revisio
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>No se pudo escribir el archivo CSV. Consulte apkshellext-error.log para obtener más información.</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>Insertar la variable en el patrón</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>Seleccionar y copiar toda la lista de variables</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>Más información sobre las variables</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>Nombre de la aplicación del paquete</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>Nombre del paquete; p. ej., com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>Editor del paquete</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>Nombre de versión del paquete</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>Código de versión del paquete</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>Tamaño del archivo del paquete</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>Versión mínima del SDK de Android del paquete</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>Versión objetivo del SDK de Android del paquete</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>Herramienta que firmó el paquete; p. ej., Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android, iOS o Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>Fecha de la última modificación del archivo</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug o Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>Atributo del manifiesto; p. ej., %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>Comprobar el hash en VirusTotal</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>Seleccionar una carpeta para el XML extraído</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>Extraer una entrada XML</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>Copiar información</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>Copiar la ruta del archivo</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>Copiar el nombre de la aplicación</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>Copiar el nombre del paquete</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>Copiar la versión</value>
+  </data>
 </root>

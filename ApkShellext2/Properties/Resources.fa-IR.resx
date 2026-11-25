@@ -362,4 +362,77 @@
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>نوشتن فایل CSV ممکن نشد. برای جزئیات apkshellext-error.log را ببینید.</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>درج متغیر در الگو</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>انتخاب و کپی کل فهرست متغیرها</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>اطلاعات بیشتر درباره متغیرها</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>نام برنامه بسته</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>نام بسته، مثلا com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>ناشر بسته</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>نام نسخه بسته</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>کد نسخه بسته</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>اندازه فایل بسته</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>حداقل نسخه Android SDK بسته</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>نسخه هدف Android SDK بسته</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>ابزاری که بسته را امضا کرده است، مثلا Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android، iOS یا Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>زمان آخرین تغییر فایل</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug یا Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>ویژگی manifest، مثلا %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>بررسی هش در VirusTotal</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>انتخاب پوشه برای XML استخراج‌شده</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>استخراج یک ورودی XML</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>کپی اطلاعات</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>کپی مسیر فایل</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>کپی نام برنامه</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>کپی نام بسته</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>کپی نسخه</value>
+  </data>
 </root>

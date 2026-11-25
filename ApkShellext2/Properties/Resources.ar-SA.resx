@@ -362,4 +362,77 @@
   <data name="strExportCsvFailed" xml:space="preserve">
     <value>تعذّر كتابة ملف CSV. راجع apkshellext-error.log للتفاصيل.</value>
   </data>
+
+  <data name="strPatternVariableInsertHint" xml:space="preserve">
+    <value>إدراج المتغير في النمط</value>
+  </data>
+  <data name="strPatternVariableListHint" xml:space="preserve">
+    <value>تحديد ونسخ قائمة المتغيرات كاملة</value>
+  </data>
+  <data name="strPatternVariablesMoreInfo" xml:space="preserve">
+    <value>المزيد عن المتغيرات</value>
+  </data>
+  <data name="strVarAppNameDescription" xml:space="preserve">
+    <value>اسم التطبيق للحزمة</value>
+  </data>
+  <data name="strVarPackageDescription" xml:space="preserve">
+    <value>اسم الحزمة، مثل com.company.app</value>
+  </data>
+  <data name="strVarPublisherDescription" xml:space="preserve">
+    <value>ناشر الحزمة</value>
+  </data>
+  <data name="strVarVersionDescription" xml:space="preserve">
+    <value>اسم إصدار الحزمة</value>
+  </data>
+  <data name="strVarRevisionDescription" xml:space="preserve">
+    <value>رمز إصدار الحزمة</value>
+  </data>
+  <data name="strVarFileSizeDescription" xml:space="preserve">
+    <value>حجم ملف الحزمة</value>
+  </data>
+  <data name="strVarMinSdkDescription" xml:space="preserve">
+    <value>الحد الأدنى لإصدار Android SDK للحزمة</value>
+  </data>
+  <data name="strVarTargetSdkDescription" xml:space="preserve">
+    <value>إصدار Android SDK المستهدف للحزمة</value>
+  </data>
+  <data name="strVarPackerDescription" xml:space="preserve">
+    <value>الأداة التي وقّعت الحزمة، مثل Walle</value>
+  </data>
+  <data name="strVarOSDescription" xml:space="preserve">
+    <value>Android أو iOS أو Windows</value>
+  </data>
+  <data name="strVarLastModifyDescription" xml:space="preserve">
+    <value>وقت آخر تعديل للملف</value>
+  </data>
+  <data name="strVarDebuggableDescription" xml:space="preserve">
+    <value>Debug أو Release</value>
+  </data>
+  <data name="strVarAttributeDescription" xml:space="preserve">
+    <value>خاصية manifest، مثل %Attr(minSdkVersion,sdkVersion)%</value>
+  </data>
+  <data name="menuCheckVirusTotal" xml:space="preserve">
+    <value>التحقق من التجزئة على VirusTotal</value>
+  </data>
+  <data name="strPickFolderTitle" xml:space="preserve">
+    <value>تحديد مجلد للـ XML المستخرج</value>
+  </data>
+  <data name="strXmlEntryTitle" xml:space="preserve">
+    <value>استخراج إدخال XML</value>
+  </data>
+  <data name="menuCopyInfo" xml:space="preserve">
+    <value>نسخ المعلومات</value>
+  </data>
+  <data name="menuCopyFilePath" xml:space="preserve">
+    <value>نسخ مسار الملف</value>
+  </data>
+  <data name="menuCopyAppName" xml:space="preserve">
+    <value>نسخ اسم التطبيق</value>
+  </data>
+  <data name="menuCopyPackage" xml:space="preserve">
+    <value>نسخ اسم الحزمة</value>
+  </data>
+  <data name="menuCopyVersion" xml:space="preserve">
+    <value>نسخ الإصدار</value>
+  </data>
 </root>
