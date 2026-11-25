@@ -44,18 +44,16 @@ namespace ApkShellext2.Tests
             Assert.That(hash.Xxh3, Is.EqualTo(hash.Xxh3.ToLowerInvariant()));
         }
 
-        [TestCase(@"F:\Backups\apks\Spectroid_org.intoorbit.spectrum_1.1.2(31).apk",
-            "f4de0b3ed7be3619d81061d793f08cc68ca05283452c9a3c52cfc792a98a4083",
-            "2191664a09bf8272")]
-        [TestCase(@"F:\Backups\apks\Magisk_com.topjohnwu.magisk_31.0(31000).apk",
-            "2c8a488b9a5293e578e95ae4f07e3c57aba4feec4a52ca4dd852a2692d6dd4e8",
-            "3b42c454a3483aac")]
-        [TestCase(@"F:\Backups\apks\南方航空_com.csair.mbp_4.6.4(20231214).apk",
-            "40727c55187a501694ad781b610ed6bfe730f54b049f0ca550ee25f72b2d5bee",
-            "f29efd2728f366a5")]
-        public void MatchesTheReferenceDigestsOfARealPackage(string path, string sha256, string xxh3)
+        [TestCase("spectroid-resources.arsc",
+            "4afd28509ee4a71df24ee3409e8bf1ca7be19b7168f45a9bb6d4f623e51182da",
+            "406ab5a10dc5885c")]
+        [TestCase("spectroid-arsc-dup.bin",
+            "6855bcdb764b0aa5f50b21adac0f9cdf15374f86ce19976bbfc5735af8d6566c",
+            "d5928c211b6fa22e")]
+        public void MatchesTheReferenceDigestsOfACheckedInFixture(string name, string sha256, string xxh3)
         {
-            Assert.That(File.Exists(path), Is.True, "sample package is missing: " + path);
+            string path = RepoLayout.PathOf("tests/ApkShellext2.Tests/fixtures/" + name);
+            Assert.That(File.Exists(path), Is.True, "fixture is missing: " + path);
 
             FileHash hash = FileHasher.Compute(path);
 
