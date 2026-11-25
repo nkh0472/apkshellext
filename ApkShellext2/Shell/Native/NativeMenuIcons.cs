@@ -13,7 +13,6 @@ namespace ApkShellext2.Shell.Native {
     /// unusual selection set cannot grow GDI usage without limit.
     /// </summary>
     internal static class NativeMenuIcons {
-        private const int SmCxMenuImage = 0x003A;
         private const int SmCxSmallIcon = 0x0031;
         private const int MaxCachedHandles = 128;
 
@@ -22,13 +21,13 @@ namespace ApkShellext2.Shell.Native {
         private static readonly Queue<string> CacheOrder = new Queue<string>();
 
         /// <summary>
-        /// Edge length of a menu image in pixels. The shell sizes menu images with the
-        /// menu-image metric on modern Windows and with the small-icon metric on older ones.
+        /// Edge length of a menu image in pixels. Items the shell fills in itself use the
+        /// small-icon metric, so a bitmap of that size keeps the rows the same height as the
+        /// rest of the menu. The value already includes the system DPI scaling.
         /// </summary>
         internal static int ImageSize {
             get {
-                int size = GetSystemMetrics(SmCxMenuImage);
-                if (size <= 0) size = GetSystemMetrics(SmCxSmallIcon);
+                int size = GetSystemMetrics(SmCxSmallIcon);
                 if (size <= 0) size = 16;
                 return size;
             }
