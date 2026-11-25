@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using ApkQuickReader;
 using ApkShellext2.Diagnostics;
 using ApkShellext2.Properties;
@@ -22,7 +24,36 @@ namespace ApkShellext2 {
                 Utility.Localize();
                 string tipPattern = Utility.GetSetting("ToolTipPattern", NonLocalizeResources.strInfoTipDefault);
                 using (IPackageReader reader = PackageReaderFactory.Create(path)) {
-                    return CommandRename.ReplaceVariables(tipPattern, reader);
+                    List<string> lines = new List<string>();
+                    bool sawAnyToken = false;
+                    foreach (string line in Regex.Split(tipPattern, "\r\n|\n|\r")) {
+                        bool sawToken;
+                        bool allTokenEmpty;
+                        string expanded = CommandRename.ReplaceVariables(line, reader, out sawToken, out allTokenEmpty);
+                        sawAnyToken |= sawToken;
+                        // a line that only carried facts this package does not have is omitted,
+                        // so "Size: " does not appear without a size
+                        if (sawToken && allTokenEmpty) {
+                            continue;
+                        }
+                        string trimmed = expanded.TrimEnd();
+                        if (trimmed.Length == 0 && lines.Count > 0 && lines[lines.Count - 1].Length == 0) {
+                            continue;
+                        }
+                        lines.Add(trimmed);
+                    }
+                    while (lines.Count > 0 && lines[lines.Count - 1].Length == 0) {
+                        lines.RemoveAt(lines.Count - 1);
+                    }
+                    if (lines.Count == 0) {
+                        // the pattern held only facts this package does not have
+                        if (sawAnyToken) {
+                            return string.IsNullOrEmpty(reader.AppName) ?
+                                Properties.Resources.strReadFileFailed : reader.AppName;
+                        }
+                        return "";
+                    }
+                    return string.Join("\r\n", lines);
                 }
             } catch (Exception ex) {
                 ErrorLog.Warn(module, "Error happened during GetInfo", ex);

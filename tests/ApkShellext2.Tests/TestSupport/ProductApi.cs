@@ -614,6 +614,42 @@ namespace ApkShellext2.Tests
             return RenameVariableProperty("Description");
         }
 
+        /// <summary>The text %FileSize% expands to for the file at <paramref name="path"/>.</summary>
+        public static string FileSize(string path)
+        {
+            Type utility = RequireType("ApkShellext2.Utility");
+            MethodInfo method = RequireMethod(utility, "getFileSize");
+            return (string)method.Invoke(null, new object[] { path });
+        }
+
+        /// <summary>A string of Properties.NonLocalizeResources, by property name.</summary>
+        public static string NonLocalizeString(string name)
+        {
+            Type resources = RequireType("ApkShellext2.Properties.NonLocalizeResources");
+            PropertyInfo property = resources.GetProperty(name, StaticAnyVisibility);
+            Assert.That(
+                property,
+                Is.Not.Null,
+                "NonLocalizeResources." + name + " was not found. The resource was renamed or moved; " +
+                "update TestSupport/ProductApi.cs together with it.");
+            return (string)property.GetValue(null, null);
+        }
+
+        /// <summary>The tip text the info tip handler renders for <paramref name="path"/>.</summary>
+        public static string RenderInfoTip(string path)
+        {
+            Type renderer = RequireType("ApkShellext2.InfoTipRenderer");
+            MethodInfo render = RequireMethod(renderer, "Render");
+            try
+            {
+                return (string)render.Invoke(null, new object[] { path, "test" });
+            }
+            catch (TargetInvocationException ex)
+            {
+                throw ex.InnerException;
+            }
+        }
+
         /// <summary>The ordered tokens a given page accepts ("Rename", "InfoTip", "Both").</summary>
         public static IReadOnlyList<string> RenameVariableTokensFor(string pageName)
         {

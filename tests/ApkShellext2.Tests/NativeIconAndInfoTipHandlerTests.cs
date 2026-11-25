@@ -183,25 +183,36 @@ namespace ApkShellext2.Tests
         /// hovering a package, so the expected strings are written out here rather than derived from
         /// the code they check. The first two samples carry the resources of a real package, which is
         /// what makes their name, package id and version rows meaningful; the rest cover the shapes
-        /// that have no package to read.
+        /// that have no package to read. The default pattern lists the size and the SDK levels, so a
+        /// line whose only fact is missing must not leave its label behind.
         /// </summary>
         [Test]
         public void TipTextIsThePackageSummary()
         {
             using (new SettingsScope().Set("Language", "en-US"))
             {
-                // The default pattern in the English resources: name, package id and version on three
-                // lines. A package that cannot be read still gets a tip - the shell draws the tooltip
-                // either way and an empty string looks like a broken handler - so the unreadable field
-                // is the name and the rest still comes out.
-                AssertTip("a plain apk", MenuFixtures.PlainApkPath(),
-                    "Spectroid\r\norg.intoorbit.spectrum\r\nVersion: 1.1.2 31");
-                AssertTip("an apk that cannot be read", MenuFixtures.HostileApkPath(),
-                    "(0x7F090007)\r\norg.intoorbit.spectrum\r\nVersion: 1.1.2 31");
-                AssertTip("an ipa", MenuFixtures.IpaPath(),
-                    "My App\r\ncom.example.app\r\nVersion: 2.0.1 42");
-                AssertTip("an aab", MenuFixtures.AabPath(),
-                    "2131296263\r\norg.intoorbit.spectrum\r\nVersion: 1.1.2 31");
+                // The default pattern in the English resources: name, package id, version, size and
+                // the SDK levels. A fact the package does not carry takes its whole line with it, so
+                // an unreadable field shows the name but no "Packer: " line.
+                string plain = MenuFixtures.PlainApkPath();
+                AssertTip("a plain apk", plain,
+                    "Spectroid\r\norg.intoorbit.spectrum\r\nVersion: 1.1.2 31\r\nSize: " +
+                    ProductApi.FileSize(plain) + "\r\nMin SDK: 14\r\nTarget SDK: 33");
+                string hostile = MenuFixtures.HostileApkPath();
+                AssertTip("an apk that cannot be read", hostile,
+                    "(0x7F090007)\r\norg.intoorbit.spectrum\r\nVersion: 1.1.2 31\r\nSize: " +
+                    ProductApi.FileSize(hostile) + "\r\nMin SDK: 14\r\nTarget SDK: 33");
+                // The ipa and appx have a size but no Android SDK or packer, so three lines go.
+                string ipa = MenuFixtures.IpaPath();
+                AssertTip("an ipa", ipa,
+                    "My App\r\ncom.example.app\r\nVersion: 2.0.1 42\r\nSize: " + ProductApi.FileSize(ipa));
+                string appx = MenuFixtures.AppxPath();
+                AssertTip("an appx", appx,
+                    "Test App\r\nTest.App\r\nVersion: 1.2.3.4\r\nSize: " + ProductApi.FileSize(appx));
+                string aab = MenuFixtures.AabPath();
+                AssertTip("an aab", aab,
+                    "2131296263\r\norg.intoorbit.spectrum\r\nVersion: 1.1.2 31\r\nSize: " +
+                    ProductApi.FileSize(aab) + "\r\nMin SDK: 14\r\nTarget SDK: 33");
                 // No reader claims these, so the "read failed" resource is the whole tip.
                 AssertTip("an unknown extension", MenuFixtures.UnknownPath(), "Fail to read file");
                 AssertTip("a file that does not exist", @"C:\apkshellext-tests\does-not-exist.apk", "Fail to read file");

@@ -58,18 +58,33 @@ namespace ApkShellext2.Shell.Commands {
         }
 
         /// <summary>
-        /// Replaces the <c>%variable%</c> tokens of a name pattern with values read from the
+        /// Replaces the <c>%variable%</c> tokens of a name pattern with the values read from the
         /// package. Unknown tokens expand to an empty string; a single unpaired <c>%</c> keeps
         /// the literal text and is reported to the diagnostic log.
         /// </summary>
         public static string ReplaceVariables(string ori, IPackageReader reader) {
+            bool sawToken;
+            bool allTokenEmpty;
+            return ReplaceVariables(ori, reader, out sawToken, out allTokenEmpty);
+        }
+
+        /// <summary>
+        /// Replaces the tokens and also reports whether the text held a token and whether every
+        /// token expanded to an empty string. A tip can use this to omit a line that only carried
+        /// facts the package does not provide.
+        /// </summary>
+        internal static string ReplaceVariables(string ori, IPackageReader reader,
+            out bool sawToken, out bool allTokenEmpty) {
             string[] tokens = ori.Split(new char[] { '%' });
             string newstr = "";
             bool inpattern = false;
+            sawToken = false;
+            allTokenEmpty = true;
             foreach (string t in tokens) {
                 if (!inpattern) {
                     newstr = newstr + t;
                 } else {
+                    sawToken = true;
                     string replacement = "";
                     if (t == NonLocalizeResources.varAppName)
                         replacement = reader.AppName;
@@ -115,6 +130,9 @@ namespace ApkShellext2.Shell.Commands {
                         }
                     }
                     newstr = newstr + replacement;
+                    if (!string.IsNullOrEmpty(replacement)) {
+                        allTokenEmpty = false;
+                    }
                 }
                 inpattern = !inpattern;
             }

@@ -236,7 +236,11 @@
   <data name="strInfoTipDefault" xml:space="preserve">
     <value>%AppName%
 %Package%
-Version: %Version% %Revision%</value>
+Version: %Version% %Revision%
+Size: %FileSize%
+Min SDK: %MinSdk%
+Target SDK: %TargetSdk%
+Packer: %Packer%</value>
   </data>
   <data name="varAttribute" xml:space="preserve">
     <value>Attr\((.*),(.*)\)</value>
