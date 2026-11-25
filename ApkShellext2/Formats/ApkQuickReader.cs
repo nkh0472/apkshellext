@@ -1122,9 +1122,12 @@ namespace ApkQuickReader
     public class ApkReader : AppPackageReader, IManifestIconLookup, IVectorIconRenderer
     {
         private IArchive zip;
+        private Stream archiveStream;
         private byte[] resources;
         private byte[] manifest;
         private ManifestFacts facts;
+        private string packer;
+        private bool packerRead;
 
         private const string AndroidManifestXML = @"androidmanifest.xml";
         private const string Resources_arsc = @"resources.arsc";
@@ -1168,6 +1171,7 @@ namespace ApkQuickReader
         }
 
         private void openStream(Stream stream) {
+            archiveStream = stream;
             zip = SafeArchive.Open(stream);
             // bounded reads: attacker-declared entry sizes must never drive
             // (int) casts or buffer allocation in explorer's process
@@ -1213,6 +1217,39 @@ namespace ApkQuickReader
         public override string MinSdk => Facts().MinSdk;
         public override string TargetSdk => Facts().TargetSdk;
         public override bool? Debuggable => Facts().Debuggable;
+
+        /// <summary>
+        /// The packer that left its id-value pair in the signing block. The block is
+        /// read from the file the reader opened, so the zip view already in memory is
+        /// not disturbed; a reader built from a stream has its position restored after
+        /// the tail read.
+        /// </summary>
+        public override string Packer {
+            get {
+                if (!packerRead) {
+                    packerRead = true;
+                    try {
+                        packer = !string.IsNullOrEmpty(FileName) && File.Exists(FileName)
+                            ? SigningBlockReader.Read(FileName)
+                            : ReadPackerFromStream(archiveStream);
+                    } catch (Exception ex) {
+                        Log("signing block unreadable: " + ex.Message);
+                        packer = "";
+                    }
+                }
+                return packer;
+            }
+        }
+
+        private static string ReadPackerFromStream(Stream stream) {
+            if (stream == null || !stream.CanSeek) return "";
+            long position = stream.Position;
+            try {
+                return SigningBlockReader.Read(stream);
+            } finally {
+                stream.Seek(position, SeekOrigin.Begin);
+            }
+        }
 
         /// <summary>
         /// The sdk levels and the debuggable flag, walked once from the manifest this
@@ -1990,6 +2027,8 @@ namespace ApkQuickReader
                 resources = null;
                 manifest = null;
                 facts = null;
+                packer = null;
+                archiveStream = null;
                 if (zip != null)
                     zip.Dispose();
             }

@@ -474,6 +474,31 @@ namespace ApkShellext2.Tests
             return (string)InvokeInstance(parser, "ResolveIconValue", value, referenceId);
         }
 
+        /// <summary>SigningBlockReader.Read(Stream): the packer named by the apk signing block.</summary>
+        public static string SigningBlockPacker(Stream stream)
+        {
+            Type type = RequireType("ApkQuickReader.SigningBlockReader");
+            MethodInfo read = type.GetMethod(
+                "Read",
+                StaticAnyVisibility,
+                null,
+                new[] { typeof(Stream) },
+                null);
+            Assert.That(
+                read,
+                Is.Not.Null,
+                "ApkQuickReader.SigningBlockReader.Read(Stream) was not found; " +
+                "update TestSupport/ProductApi.cs together with the reader so the regression stays pinned.");
+            try
+            {
+                return (string)read.Invoke(null, new object[] { stream });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                throw ex.InnerException;
+            }
+        }
+
         /// <summary>FindResourceId(typeName, entryName): name lookup across packages, smallest id wins.</summary>
         public static uint ArscFindResourceId(object arsc, string typeName, string entryName)
         {

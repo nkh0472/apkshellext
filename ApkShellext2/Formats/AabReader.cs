@@ -95,6 +95,10 @@ namespace ApkShellext2
         public override string TargetSdk => Facts().TargetSdk;
         public override bool? Debuggable => Facts().Debuggable;
 
+        // a bundle carries no APK Signing Block: the zip signature lives in a v2/v3
+        // apk built by bundletool, never in the .aab itself
+        public override string Packer => "";
+
         /// <summary>
         /// The sdk levels and the debuggable flag, walked once from the base module
         /// manifest this reader already decoded. A manifest that does not walk leaves the
