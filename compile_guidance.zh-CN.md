@@ -279,7 +279,7 @@ libwebp,因为官方 Windows 构建会额外要求一个 `libsharpyuv.dll`,而�
 ```
 ApkShellext2\
   Shell\          四个 COM 处理器(右键菜单、图标、信息提示、缩略图)
-  Formats\        IPackageReader + PackageReaderFactory、六个 reader、AXML/ARSC 解析器
+  Formats\        IPackageReader + PackageReaderFactory、六个 reader、AXML/ARSC 解析器、签名块读取器
   Imaging\        IArchive/SafeArchive、IIconSource 链与解码上限、矢量图光栅化
   Diagnostics\    ErrorLog、ModuleInitializer、DbgLog
   Preferences\    WinForms 设置窗体与 designer(Preferences.resx 仍留在根目录)

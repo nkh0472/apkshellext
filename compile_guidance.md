@@ -313,7 +313,7 @@ report — the publish folder stays flat.
 ```
 ApkShellext2\
   Shell\          the four COM handlers (context menu, icon, info tip, thumbnail)
-  Formats\        IPackageReader + PackageReaderFactory, the six readers, AXML/ARSC parsers
+  Formats\        IPackageReader + PackageReaderFactory, the six readers, AXML/ARSC parsers, the signing-block reader
   Imaging\        IArchive/SafeArchive, the IIconSource chain + decode limits, vector drawables
   Diagnostics\    ErrorLog, ModuleInitializer, DbgLog
   Preferences\    the WinForms settings form + designer (Preferences.resx stays at the root)
