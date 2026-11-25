@@ -270,8 +270,96 @@ namespace ApkShellext2.Tests
                 Assert.That(InvokeIndex(handler, 11), Is.EqualTo(0), "the separator is a no-op success");
                 Assert.That(InvokeIndex(handler, 3), Is.EqualTo(0), "the copy submenu parent is a no-op success");
                 Assert.That(InvokeIndex(handler, 200), Is.EqualTo(E_FAIL));
-                Assert.That(InvokeIndex(handler, 0), Is.EqualTo(E_FAIL),
-                    "a zero verb pointer means 'the default item', and this menu has no default item");
+                Assert.That(InvokeIndex(handler, 0), Is.EqualTo(0),
+                    "offset 0 is the root command, not a missing verb");
+            }
+        }
+
+        [Test]
+        public void InvokeCommand_TakesTheVerbFromAPlainInfoStruct()
+        {
+            AssertCopiesFilePath((uint)Marshal.SizeOf(typeof(CMINVOKECOMMANDINFO)), 0,
+                new IntPtr(4), IntPtr.Zero);
+        }
+
+        [Test]
+        public void InvokeCommand_TakesAUnicodeVerbWhenOnlyLpVerbWIsFilled()
+        {
+            AssertCopiesFilePath((uint)Marshal.SizeOf(typeof(CMINVOKECOMMANDINFOEX)), CmicUnicode,
+                IntPtr.Zero, new IntPtr(4));
+        }
+
+        [Test]
+        public void InvokeCommand_TakesAUnicodeVerbWhenBothPointersAreFilled()
+        {
+            AssertCopiesFilePath((uint)Marshal.SizeOf(typeof(CMINVOKECOMMANDINFOEX)), CmicUnicode,
+                new IntPtr(4), new IntPtr(4));
+        }
+
+        [Test]
+        public void InvokeCommand_TakesTheAnsiVerbOfAnExtendedStruct()
+        {
+            //  The shape the shell sends: the extended size and the Unicode flag, but the
+            //  command itself in lpVerb and lpVerbW left null.
+            AssertCopiesFilePath((uint)Marshal.SizeOf(typeof(CMINVOKECOMMANDINFOEX)), CmicUnicode,
+                new IntPtr(4), IntPtr.Zero);
+        }
+
+        [Test]
+        public void InvokeCommand_TreatsAZeroVerbAsTheRootCommandId()
+        {
+            using (Chinese())
+            {
+                ContextMenuHandler handler = CreateHandler(MenuFixtures.PlainApkPath());
+                Prepare(handler);
+
+                string captured = null;
+                int calls = 0;
+                Action<string> previous = CommandActions.ClipboardHandler;
+                CommandActions.ClipboardHandler = text => { calls++; captured = text; };
+                try
+                {
+                    int hr = InvokeStruct(handler, (uint)Marshal.SizeOf(typeof(CMINVOKECOMMANDINFOEX)),
+                        CmicUnicode, IntPtr.Zero, IntPtr.Zero);
+                    Assert.That(hr, Is.EqualTo(0), "a zero verb is offset 0, and offset 0 is a legal id");
+                }
+                finally
+                {
+                    CommandActions.ClipboardHandler = previous;
+                }
+                Assert.That(calls, Is.EqualTo(0), "the root item is a submenu and runs no action");
+                Assert.That(captured, Is.Null);
+            }
+        }
+
+        /// <summary>
+        /// Invokes the Copy File Path command through a hand-laid-out command info block and
+        /// checks both the result and the clipboard text the action produced.
+        /// </summary>
+        private static void AssertCopiesFilePath(uint cbSize, uint fMask, IntPtr lpVerb, IntPtr lpVerbW)
+        {
+            string path = MenuFixtures.PlainApkPath();
+            using (Chinese())
+            {
+                ContextMenuHandler handler = CreateHandler(path);
+                Prepare(handler);
+
+                string captured = null;
+                int calls = 0;
+                Action<string> previous = CommandActions.ClipboardHandler;
+                CommandActions.ClipboardHandler = text => { calls++; captured = text; };
+                try
+                {
+                    int hr = InvokeStruct(handler, cbSize, fMask, lpVerb, lpVerbW);
+                    Assert.That(hr, Is.EqualTo(0), "the command must be resolved");
+                }
+                finally
+                {
+                    CommandActions.ClipboardHandler = previous;
+                }
+
+                Assert.That(calls, Is.EqualTo(1), "the copy command runs exactly once");
+                Assert.That(captured, Is.EqualTo(Path.GetFullPath(path)));
             }
         }
 
@@ -388,6 +476,35 @@ namespace ApkShellext2.Tests
             try
             {
                 Marshal.StructureToPtr(info, block, false);
+                return handler.InvokeCommand(block);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(block);
+            }
+        }
+
+        /// <summary>
+        /// Lays a command info block out by hand, so a test can send exactly the bytes a caller
+        /// sends: the cbSize the caller claims, the flag word it claims, and whichever of the two
+        /// verb pointers it actually filled.
+        /// </summary>
+        private static int InvokeStruct(ContextMenuHandler handler, uint cbSize, uint fMask,
+            IntPtr lpVerb, IntPtr lpVerbW)
+        {
+            int size = Marshal.SizeOf(typeof(CMINVOKECOMMANDINFOEX));
+            IntPtr block = Marshal.AllocHGlobal(size);
+            try
+            {
+                for (int i = 0; i < size; i++)
+                {
+                    Marshal.WriteByte(block, i, 0);
+                }
+                Marshal.WriteInt32(block, 0, unchecked((int)cbSize));
+                Marshal.WriteInt32(block, 4, unchecked((int)fMask));
+                Marshal.WriteIntPtr(block, (int)Marshal.OffsetOf(typeof(CMINVOKECOMMANDINFOEX), "lpVerb"), lpVerb);
+                Marshal.WriteIntPtr(block, (int)Marshal.OffsetOf(typeof(CMINVOKECOMMANDINFOEX), "lpVerbW"), lpVerbW);
+                Marshal.WriteInt32(block, (int)Marshal.OffsetOf(typeof(CMINVOKECOMMANDINFOEX), "nShow"), 1);
                 return handler.InvokeCommand(block);
             }
             finally

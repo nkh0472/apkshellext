@@ -108,9 +108,12 @@ namespace ApkShellext2.Shell.Native {
                 if (pici == IntPtr.Zero) return HResult.E_INVALIDARG;
 
                 var info = (CMINVOKECOMMANDINFO)Marshal.PtrToStructure(pici, typeof(CMINVOKECOMMANDINFO));
-                bool extended = (info.fMask & CMIC.UNICODE) != 0 && info.cbSize >= (uint)InvokeInfoExSize && info.cbSize >= (uint)InvokeInfoSize;
+                //  The caller's cbSize decides which fields are really there. cbSize alone is not
+                //  trusted to mean "Unicode verb": the shell may send the extended size while it
+                //  fills only the ANSI lpVerb for an integer command.
+                bool hasExtendedFields = info.cbSize >= (uint)InvokeInfoExSize && info.cbSize >= (uint)InvokeInfoSize;
                 var extendedInfo = new CMINVOKECOMMANDINFOEX();
-                if (extended) {
+                if (hasExtendedFields) {
                     extendedInfo = (CMINVOKECOMMANDINFOEX)Marshal.PtrToStructure(pici, typeof(CMINVOKECOMMANDINFOEX));
                 }
 
@@ -120,22 +123,33 @@ namespace ApkShellext2.Shell.Native {
                     return HResult.E_FAIL;
                 }
 
-                IntPtr verbPointer = extended ? extendedInfo.lpVerbW : info.lpVerb;
-                if (verbPointer == IntPtr.Zero) {
-                    ErrorLog.Warn(ModuleName, "Invoke skipped: no verb and no command id.");
-                    return HResult.E_FAIL;
-                }
+                //  Take whichever verb pointer the caller actually filled. A pointer that is zero
+                //  says nothing on its own: the shell declares the Unicode flag but sends the
+                //  command in lpVerb, and the previous "fMask decides the field" rule dropped it.
+                bool wideVerb = hasExtendedFields && extendedInfo.lpVerbW != IntPtr.Zero;
+                IntPtr verbPointer = wideVerb ? extendedInfo.lpVerbW : info.lpVerb;
 
-                long raw = verbPointer.ToInt64();
                 CommandItem item;
-                if ((raw >> 16) == 0) {
-                    //  An integer verb is the command's offset from idCmdFirst, not the item id
-                    //  the menu stored. Callers that do hand over the absolute id are accepted too.
-                    int offset = (int)(raw & 0xFFFF);
-                    item = current.FindByIndex(offset) ?? current.FindByIndex(offset - idCmdFirst);
+                if (verbPointer == IntPtr.Zero) {
+                    //  MAKEINTRESOURCE(0) is the root command: CommandIds.First is zero, so offset
+                    //  zero is a legal id rather than "no command". The line stays in the log so a
+                    //  click that lands here can still be reconstructed from the caller's bytes.
+                    ErrorLog.Warn(ModuleName, string.Format(
+                        "Invoke without a verb pointer; treating it as command id {0} (cbSize={1} fMask=0x{2:X} lpVerb=0x{3:X} lpVerbW=0x{4:X}).",
+                        CommandIds.First, info.cbSize, (uint)info.fMask, info.lpVerb.ToInt64(),
+                        hasExtendedFields ? extendedInfo.lpVerbW.ToInt64() : 0L));
+                    item = current.FindByIndex(CommandIds.First);
                 } else {
-                    string verb = extended ? Marshal.PtrToStringUni(verbPointer) : Marshal.PtrToStringAnsi(verbPointer);
-                    item = current.FindByVerb(verb);
+                    long raw = verbPointer.ToInt64();
+                    if ((raw >> 16) == 0) {
+                        //  An integer verb is the command's offset from idCmdFirst, not the item id
+                        //  the menu stored. Callers that do hand over the absolute id are accepted too.
+                        int offset = (int)(raw & 0xFFFF);
+                        item = current.FindByIndex(offset) ?? current.FindByIndex(offset - idCmdFirst);
+                    } else {
+                        string verb = wideVerb ? Marshal.PtrToStringUni(verbPointer) : Marshal.PtrToStringAnsi(verbPointer);
+                        item = current.FindByVerb(verb);
+                    }
                 }
                 if (item == null) {
                     ErrorLog.Warn(ModuleName, "Invoke skipped: the command is not part of this menu.");
