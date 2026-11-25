@@ -64,11 +64,11 @@ namespace ApkShellext2.Tests
                 {
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK文件助手\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"更名为 Spectroid_1.1.2.apk\"",
-                    "  [1] id=102 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
-                    "    [0] id=103 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
-                    "    [1] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
-                    "    [2] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
-                    "    [3] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
+                    "  [1] id=102 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"复制信息\"",
+                    "    [0] id=103 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"复制文件路径\"",
+                    "    [1] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"复制应用名称\"",
+                    "    [2] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"复制包名\"",
+                    "    [3] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"复制版本\"",
                     "  [2] id=107 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"提取信息\"",
                     "    [0] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"导出信息 (CSV)…\"",
                     "    [1] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取 AndroidManifest.xml…\"",
@@ -139,11 +139,11 @@ namespace ApkShellext2.Tests
                 {
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK文件助手\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"更名为 My App_2.0.1.ipa\"",
-                    "  [1] id=102 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
-                    "    [0] id=103 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
-                    "    [1] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
-                    "    [2] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
-                    "    [3] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
+                    "  [1] id=102 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"复制信息\"",
+                    "    [0] id=103 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"复制文件路径\"",
+                    "    [1] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"复制应用名称\"",
+                    "    [2] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"复制包名\"",
+                    "    [3] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"复制版本\"",
                     "  [2] id=107 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"提取信息\"",
                     "    [0] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"导出信息 (CSV)…\"",
                     "  [3] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
@@ -460,7 +460,7 @@ namespace ApkShellext2.Tests
 
                 CommandItem copy = CopyParent(model);
                 Assert.That(copy.Index, Is.EqualTo(2), "the copy submenu follows rename");
-                Assert.That(copy.Text, Is.EqualTo("Copy info"));
+                Assert.That(copy.Text, Is.EqualTo("复制信息"));
                 Assert.That(copy.Children.Select(c => c.Action), Is.EqualTo(new[]
                 {
                     CommandAction.CopyFilePath,
@@ -470,10 +470,10 @@ namespace ApkShellext2.Tests
                 }));
                 Assert.That(copy.Children.Select(c => c.Text), Is.EqualTo(new[]
                 {
-                    "Copy File Path",
-                    "Copy App Name",
-                    "Copy Package Name",
-                    "Copy Version"
+                    "复制文件路径",
+                    "复制应用名称",
+                    "复制包名",
+                    "复制版本"
                 }));
             }
         }

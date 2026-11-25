@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using NUnit.Framework;
 
 namespace ApkShellext2.Tests
@@ -79,16 +81,46 @@ namespace ApkShellext2.Tests
         }
 
         [Test]
-        public void TheSdkAndPackerVariablesUseTheNeutralDescriptions()
+        public void TheSdkAndPackerVariablesAreDescribedInTheUiLanguage()
         {
-            IReadOnlyList<string> tokens = ProductApi.RenameVariableTokens();
-            IReadOnlyList<string> descriptions = ProductApi.RenameVariableDescriptions();
-            Assert.That(descriptions[tokens.ToList().IndexOf("%MinSdk%")],
+            Assert.That(Description("%MinSdk%", "en-US"),
                 Is.EqualTo("Minimum Android SDK version of the package"));
-            Assert.That(descriptions[tokens.ToList().IndexOf("%TargetSdk%")],
+            Assert.That(Description("%TargetSdk%", "en-US"),
                 Is.EqualTo("Target Android SDK version of the package"));
-            Assert.That(descriptions[tokens.ToList().IndexOf("%Packer%")],
+            Assert.That(Description("%Packer%", "en-US"),
                 Is.EqualTo("Tool that signed the package, e.g. Walle"));
+
+            Assert.That(Description("%MinSdk%", "zh-CN"),
+                Is.EqualTo("包的最低 Android SDK 版本"));
+            Assert.That(Description("%TargetSdk%", "zh-CN"),
+                Is.EqualTo("包的目标 Android SDK 版本"));
+            Assert.That(Description("%Packer%", "zh-CN"),
+                Is.EqualTo("对包签名的工具，例如 Walle"));
+        }
+
+        /// <summary>
+        /// The catalog reads its descriptions from Properties.Resources, so the text follows the
+        /// thread UI culture - which is whatever culture the machine happens to run. Each lookup
+        /// therefore pins the culture it means and puts the thread back afterwards.
+        /// </summary>
+        private static string Description(string token, string culture)
+        {
+            CultureInfo previous = Thread.CurrentThread.CurrentCulture;
+            CultureInfo previousUi = Thread.CurrentThread.CurrentUICulture;
+            try
+            {
+                Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+                Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
+
+                IReadOnlyList<string> tokens = ProductApi.RenameVariableTokens();
+                IReadOnlyList<string> descriptions = ProductApi.RenameVariableDescriptions();
+                return descriptions[tokens.ToList().IndexOf(token)];
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = previous;
+                Thread.CurrentThread.CurrentUICulture = previousUi;
+            }
         }
 
         [Test]
