@@ -419,21 +419,23 @@ COM ServerRegistration/ProgID 契约;而行为收益为零。
 单选打开唯一需要的 reader,返回 `CommandModel`:一棵前序排列的 `CommandItem` 树,每项带
 `Index`(相对 `idCmdFirst` 的偏移)、`Text`、`Verb`、`HelpText`、`Action`、`Icon`、`Enabled`、
 `IsSeparator` 和 `Children`。该目录里没有任何代码碰 WinForms;与 UI 相邻的只有
-`CommandActions`(执行重命名、导出 CSV、复制、提取文件、商店与首选项命令)、`CommandIconResolver`(把图标标记变成
-`Bitmap`)和 `Shell\StaUiHost.cs`(在带消息泵的专用 STA 线程上打开首选项窗口、CSV 保存/进度窗口
-和提取文件提示框,因此查询菜单不会加载 UI 栈)。
+`CommandActions`(执行重命名、导出 CSV、复制、提取 XML、商店与首选项命令)、`CommandIconResolver`(把图标标记变成
+`Bitmap`)和 `Shell\StaUiHost.cs`(在带消息泵的专用 STA 线程上打开首选项窗口、CSV 保存/进度窗口、
+文件夹选择器与 XML 条目提示框,因此查询菜单不会加载 UI 栈)。
 
-**导出所选文件。** 只要 `PackageReaderFactory.GetAppType` 能识别至少一个选中文件,
-`Shell\Commands\CommandCatalog.cs` 就在重命名项之后加一个 `Export` 项;只选中不受支持的文件时
-没有导出项。执行后在 STA 线程上打开 `SaveFileDialog`(默认 `apk-info.csv`),随后在线程池线程
-写文件,上百个文件也不会卡住菜单。`Formats\PackageCsvWriter.cs` 负责写表:UTF-8 带 BOM、CRLF
-(主要读者是 Excel)、RFC 4180 引号规则、每个选中路径一行且保持选择顺序,列固定为 `File`、
-`Folder`、`AppName`、`Package`、`Version`、`Revision`、`Publisher`、`AppID`、`Type`、
-`SizeBytes`、`Modified`、`Status`。`Status` 为 `ok`、`unsupported type`、`unreadable` 或
-`cancelled`;混合选择里每个路径都保留一行,CSV 自己说明跳过了什么。进度窗口显示当前计数,
-并通过 `CancellationToken` 取消;写失败记入 `ErrorLog` 并弹出消息框,绝不越过 COM 边界抛出。
+**提取信息。** `Shell\Commands\CommandCatalog.cs` 构建一个 `Extract information`(中文「提取信息」)子菜单,
+最多放三项:只要 `PackageReaderFactory.GetAppType` 能识别至少一个选中文件就有 `Export`,只要至少一个选中
+文件是 `.apk` 就有两个 XML 提取项。父项只在有子项时加入,因此只选中不受支持的文件时既没有子菜单也没有
+CSV 项,而 `.aab` 选择得到只含 CSV 项的子菜单。执行导出时在 STA 线程上打开 `SaveFileDialog`(默认
+`apk-info.csv`),随后在线程池线程写文件,上百个文件也不会卡住菜单。`Formats\PackageCsvWriter.cs` 负责
+写表:UTF-8 带 BOM、CRLF(主要读者是 Excel)、RFC 4180 引号规则、每个选中路径一行且保持选择顺序,列固定为
+`File`、`Folder`、`AppName`、`Package`、`Version`、`Revision`、`Publisher`、`AppID`、`Type`、
+`SizeBytes`、`Sha256`、`Xxh3`、`Modified`、`Status`。`Status` 为 `ok`、`unsupported type`、
+`unreadable` 或 `cancelled`;混合选择里每个路径都保留一行,CSV 自己说明跳过了什么,读不出哈希的文件
+这两格留空并在 `Status` 写 `unreadable`。进度窗口显示当前计数,并通过 `CancellationToken` 取消;写失败
+记入 `ErrorLog` 并弹出消息框,绝不越过 COM 边界抛出。
 
-**复制所选文件。** 导出项之后是 `Copy info` 子菜单,由同一次单选 reader 解析构建,包含
+**复制所选文件。** 重命名项之后是 `Copy info` 子菜单,由同一次单选 reader 解析构建,包含
 `Copy File Path`、`Copy App Name`、`Copy Package Name`、`Copy Version`;某个值只有在至少一个选中
 文件能填时才出现,因此只选中不受支持的文件时仍能复制路径,而一个值都填不出的选择没有子菜单。
 `Formats\PackageClipboardText.cs` 负责生成文本——每个文件一行、保持选择顺序,行间为 CRLF、末尾

@@ -77,27 +77,26 @@ namespace ApkShellext2.Shell.Commands {
             rename.Verb = CommandVerb.Rename;
             children.Add(rename);
 
-            // Export: available when at least one selected file has a package type the
-            // reader factory accepts, so a mixed selection still exports its readable files.
-            if (canExport) {
-                children.Add(Leaf(Resources.menuExportCsv, CommandAction.Export));
-            }
-
             var copy = CopySubmenu(copyValues);
             if (copy != null) children.Add(copy);
 
-            // Dump submenu (Android packages only)
+            // Extract information: CSV export for every readable package, the XML entries for
+            // Android packages. The parent appears only when it has at least one child.
+            var extractChildren = new List<CommandItem>();
+            if (canExport) {
+                extractChildren.Add(Leaf(Resources.menuExportCsv, CommandAction.Export));
+            }
             if (hasapk) {
-                var dump = new CommandItem(Resources.menuDump) { Icon = CommandIcon.DumpOutput };
-                dump.Children = new[] {
-                    Leaf(Resources.menuDumpManifest, CommandAction.DumpManifest),
-                    Leaf(Resources.menuDumpOthers, CommandAction.DumpXml)
-                };
-                children.Add(dump);
+                extractChildren.Add(Leaf(Resources.menuDumpManifest, CommandAction.DumpManifest));
+                extractChildren.Add(Leaf(Resources.menuDumpOthers, CommandAction.DumpXml));
+            }
+            if (extractChildren.Count > 0) {
+                var extract = new CommandItem(Resources.menuDump) { Icon = CommandIcon.DumpOutput };
+                extract.Children = extractChildren.ToArray();
+                children.Add(extract);
             }
 
-            children.Add(Separator());
-
+            var middle = new List<CommandItem>();
             string storeAppName = singleSelected ? appname : AppPackageReader.extAPK;
             if (hasapk) {
                 var store = new CommandItem(Resources.strSearchStore) { Icon = CommandIcon.GooglePlay };
@@ -118,17 +117,17 @@ namespace ApkShellext2.Shell.Commands {
                 // Hashing happens after the click, so this entry never slows the menu down.
                 if (canExport) {
                     storeChildren.Add(Leaf(Resources.menuCheckVirusTotal, CommandAction.OpenVirusTotal,
-                        CommandIcon.ApkMirror, true));
+                        CommandIcon.None, true));
                 }
                 if (storeChildren.Count > 0) {
                     store.Children = storeChildren.ToArray();
-                    children.Add(store);
+                    middle.Add(store);
                 }
             }
 
             if (hasipa && Utility.GetSetting("ShowAppleStore", "True") == "True") {
                 string appleAppName = singleSelected ? appname : AppPackageReader.extIPA;
-                children.Add(Leaf(string.Format(Resources.menuGotoAppleAppStore, appleAppName),
+                middle.Add(Leaf(string.Format(Resources.menuGotoAppleAppStore, appleAppName),
                     CommandAction.AppleAppStore, CommandIcon.AppleStore,
                     singleSelected || Utility.GetSetting("ShowAppStoreWhenMultiSelected", "True") == "True"));
             }
@@ -136,11 +135,15 @@ namespace ApkShellext2.Shell.Commands {
             if ((hasappx || hasappxbundle) && Utility.GetSetting("ShowMSStore", "True") == "True") {
                 string msAppName = singleSelected ? appname :
                     (AppPackageReader.extAPPX + @"/" + AppPackageReader.extAPPXBUNDLE);
-                children.Add(Leaf(string.Format(Resources.menuGotoMicrosoftStore, msAppName),
+                middle.Add(Leaf(string.Format(Resources.menuGotoMicrosoftStore, msAppName),
                     CommandAction.MicrosoftStore, CommandIcon.MicrosoftStore,
                     singleSelected || Utility.GetSetting("ShowAppStoreWhenMultiSelected", "True") == "True"));
             }
 
+            if (middle.Count > 0) {
+                children.Add(Separator());
+                children.AddRange(middle);
+            }
             if (children.Count > 1) {
                 children.Add(Separator());
             }

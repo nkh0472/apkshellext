@@ -361,7 +361,7 @@ By checking this, rename app file as %AppName%_%Version%_%Revision%, otherwise, 
     <value>Search in Stores</value>
   </data>
   <data name="menuDump" xml:space="preserve">
-    <value>Dump</value>
+    <value>Extract information</value>
   </data>
   <data name="strSupportAdaptiveIcon" xml:space="preserve">
     <value>Support Adaptive Icon</value>

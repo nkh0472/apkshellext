@@ -49,7 +49,7 @@ namespace ApkShellext2.Tests
                 Assert.That(item.Text, Is.EqualTo("在 VirusTotal 查看哈希"));
                 Assert.That(item.Action, Is.EqualTo(CommandAction.OpenVirusTotal));
                 Assert.That(item.Enabled, Is.True);
-                Assert.That(item.Icon, Is.EqualTo(CommandIcon.ApkMirror));
+                Assert.That(item.Icon, Is.EqualTo(CommandIcon.None));
             }
         }
 

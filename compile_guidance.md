@@ -477,25 +477,30 @@ settings, localises, opens the one reader a single selection needs and returns a
 `CommandModel`: a tree of `CommandItem`s in pre-order, each carrying `Index` (its offset from
 `idCmdFirst`), `Text`, `Verb`, `HelpText`, `Action`, `Icon`, `Enabled`, `IsSeparator` and
 `Children`. Nothing in the folder touches WinForms; the UI-adjacent pieces are
-`CommandActions` (runs the rename, CSV export, copy, dump, store and preferences commands),
+`CommandActions` (runs the rename, CSV export, copy, XML extraction, store and preferences commands),
 `CommandIconResolver` (turns an icon token into a `Bitmap`) and `Shell\StaUiHost.cs` (runs the
-Preferences window, the CSV save dialog with its progress window and the dump prompt on a
-dedicated STA thread with a message pump, so a menu query never loads the UI stack).
+Preferences window, the CSV save dialog with its progress window, the folder picker and the XML
+entry prompt on a dedicated STA thread with a message pump, so a menu query never loads the UI
+stack).
 
-**Exporting the selection.** `Shell\Commands\CommandCatalog.cs` adds one `Export` item right
-after the rename entry when `PackageReaderFactory.GetAppType` accepts at least one selected
-path; a selection of only unsupported files has no export item. Invoking it opens a
-`SaveFileDialog` (default `apk-info.csv`) on the STA thread and then writes the file on a
-thread-pool thread, so a large selection never blocks the menu. `Formats\PackageCsvWriter.cs`
-writes the table: UTF-8 with a BOM and CRLF because Excel is the main reader, RFC 4180 quoting,
-one row per selected path in selection order, and the fixed columns `File`, `Folder`, `AppName`,
-`Package`, `Version`, `Revision`, `Publisher`, `AppID`, `Type`, `SizeBytes`, `Modified`,
-`Status`. `Status` is `ok`, `unsupported type`, `unreadable` or `cancelled`; a mixed selection
-keeps every path as a row, so the CSV explains what was skipped. The progress window reports
-the running count and cancels through a `CancellationToken`; a write failure goes to
-`ErrorLog` and to a message box, never across the COM boundary.
+**Extracting information.** `Shell\Commands\CommandCatalog.cs` builds an `Extract information`
+submenu that holds up to three items: `Export` when `PackageReaderFactory.GetAppType` accepts at
+least one selected path, and the two XML extraction entries when at least one selected path is an
+`.apk`. The parent is added only when it has a child, so a selection of only unsupported files has
+neither the submenu nor the CSV item, and an `.aab` selection gets the submenu with just the CSV
+item. Invoking the export opens a `SaveFileDialog` (default `apk-info.csv`) on the STA thread and
+then writes the file on a thread-pool thread, so a large selection never blocks the menu.
+`Formats\PackageCsvWriter.cs` writes the table: UTF-8 with a BOM and CRLF because Excel is the
+main reader, RFC 4180 quoting, one row per selected path in selection order, and the fixed columns
+`File`, `Folder`, `AppName`, `Package`, `Version`, `Revision`, `Publisher`, `AppID`, `Type`,
+`SizeBytes`, `Sha256`, `Xxh3`, `Modified`, `Status`. `Status` is `ok`, `unsupported type`,
+`unreadable` or `cancelled`; a mixed selection keeps every path as a row, so the CSV explains what
+was skipped, and a file whose hashes cannot be read keeps those two cells blank with `unreadable`
+in `Status`. The progress window reports the running count and cancels through a
+`CancellationToken`; a write failure goes to `ErrorLog` and to a message box, never across the COM
+boundary.
 
-**Copying the selection.** A `Copy info` submenu follows the export item. It is built from the
+**Copying the selection.** A `Copy info` submenu follows the rename item. It is built from the
 same single-reader pass and offers `Copy File Path`, `Copy App Name`, `Copy Package Name` and
 `Copy Version`; an item exists only when some selected file can fill it, so a selection of only
 unsupported files still offers the path, and a selection that fills nothing gets no submenu.

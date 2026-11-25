@@ -227,11 +227,11 @@ namespace ApkShellext2.Tests
                 Prepare(handler);
 
                 Assert.That(ReadCommandString(handler, IdCmdFirst + 1), Is.EqualTo(CommandVerb.Rename));
-                Assert.That(ReadCommandString(handler, IdCmdFirst + 2), Is.EqualTo(CommandVerb.ExportCsv));
-                Assert.That(ReadCommandString(handler, IdCmdFirst + 4), Is.EqualTo(CommandVerb.CopyFilePath));
-                Assert.That(ReadCommandString(handler, IdCmdFirst + 5), Is.EqualTo(CommandVerb.CopyAppName));
-                Assert.That(ReadCommandString(handler, IdCmdFirst + 6), Is.EqualTo(CommandVerb.CopyPackage));
-                Assert.That(ReadCommandString(handler, IdCmdFirst + 7), Is.EqualTo(CommandVerb.CopyVersion));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 8), Is.EqualTo(CommandVerb.ExportCsv));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 3), Is.EqualTo(CommandVerb.CopyFilePath));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 4), Is.EqualTo(CommandVerb.CopyAppName));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 5), Is.EqualTo(CommandVerb.CopyPackage));
+                Assert.That(ReadCommandString(handler, IdCmdFirst + 6), Is.EqualTo(CommandVerb.CopyVersion));
                 Assert.That(ReadCommandString(handler, IdCmdFirst + 9), Is.EqualTo(CommandVerb.DumpManifest));
                 Assert.That(ReadCommandString(handler, IdCmdFirst + 10), Is.EqualTo(CommandVerb.DumpXml));
                 Assert.That(ReadCommandString(handler, IdCmdFirst + 13), Is.EqualTo(CommandVerb.GooglePlay));
@@ -248,7 +248,7 @@ namespace ApkShellext2.Tests
                 Prepare(handler);
 
                 Assert.That(RequestCommandString(handler, IdCmdFirst, GcsVerbW, 260), Is.EqualTo(E_FAIL));
-                Assert.That(RequestCommandString(handler, IdCmdFirst + 3, GcsVerbW, 260), Is.EqualTo(E_FAIL),
+                Assert.That(RequestCommandString(handler, IdCmdFirst + 2, GcsVerbW, 260), Is.EqualTo(E_FAIL),
                     "the copy submenu parent carries no verb");
                 Assert.That(RequestCommandString(handler, IdCmdFirst + 11, GcsVerbW, 260), Is.EqualTo(E_FAIL));
                 Assert.That(RequestCommandString(handler, IdCmdFirst + 200, GcsVerbW, 260), Is.EqualTo(E_FAIL));
@@ -268,7 +268,7 @@ namespace ApkShellext2.Tests
                 Prepare(handler);
 
                 Assert.That(InvokeIndex(handler, 11), Is.EqualTo(0), "the separator is a no-op success");
-                Assert.That(InvokeIndex(handler, 3), Is.EqualTo(0), "the copy submenu parent is a no-op success");
+                Assert.That(InvokeIndex(handler, 2), Is.EqualTo(0), "the copy submenu parent is a no-op success");
                 Assert.That(InvokeIndex(handler, 200), Is.EqualTo(E_FAIL));
                 Assert.That(InvokeIndex(handler, 0), Is.EqualTo(0),
                     "offset 0 is the root command, not a missing verb");
@@ -279,21 +279,21 @@ namespace ApkShellext2.Tests
         public void InvokeCommand_TakesTheVerbFromAPlainInfoStruct()
         {
             AssertCopiesFilePath((uint)Marshal.SizeOf(typeof(CMINVOKECOMMANDINFO)), 0,
-                new IntPtr(4), IntPtr.Zero);
+                new IntPtr(3), IntPtr.Zero);
         }
 
         [Test]
         public void InvokeCommand_TakesAUnicodeVerbWhenOnlyLpVerbWIsFilled()
         {
             AssertCopiesFilePath((uint)Marshal.SizeOf(typeof(CMINVOKECOMMANDINFOEX)), CmicUnicode,
-                IntPtr.Zero, new IntPtr(4));
+                IntPtr.Zero, new IntPtr(3));
         }
 
         [Test]
         public void InvokeCommand_TakesAUnicodeVerbWhenBothPointersAreFilled()
         {
             AssertCopiesFilePath((uint)Marshal.SizeOf(typeof(CMINVOKECOMMANDINFOEX)), CmicUnicode,
-                new IntPtr(4), new IntPtr(4));
+                new IntPtr(3), new IntPtr(3));
         }
 
         [Test]
@@ -302,7 +302,7 @@ namespace ApkShellext2.Tests
             //  The shape the shell sends: the extended size and the Unicode flag, but the
             //  command itself in lpVerb and lpVerbW left null.
             AssertCopiesFilePath((uint)Marshal.SizeOf(typeof(CMINVOKECOMMANDINFOEX)), CmicUnicode,
-                new IntPtr(4), IntPtr.Zero);
+                new IntPtr(3), IntPtr.Zero);
         }
 
         [Test]
@@ -440,7 +440,7 @@ namespace ApkShellext2.Tests
                 string[] second = Query(handler, out secondHr, out menu);
 
                 Assert.That(first.Length, Is.EqualTo(18));
-                Assert.That(second.Length, Is.EqualTo(12));
+                Assert.That(second.Length, Is.EqualTo(13));
                 Assert.That(second.Where(l => l.Contains("Appstore")).Count(), Is.EqualTo(1));
             }
         }
@@ -584,4 +584,3 @@ namespace ApkShellext2.Tests
         }
     }
 }
-

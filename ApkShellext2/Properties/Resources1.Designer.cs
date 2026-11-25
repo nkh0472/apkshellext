@@ -223,7 +223,7 @@ namespace ApkShellext2.Properties {
         }
         
         /// <summary>
-        ///   查找类似 Dump 的本地化字符串。
+        ///   查找类似 Extract information 的本地化字符串。
         /// </summary>
         internal static string menuDump {
             get {

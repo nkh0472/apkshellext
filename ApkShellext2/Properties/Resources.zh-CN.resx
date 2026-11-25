@@ -314,7 +314,7 @@
     <value>在 VirusTotal 查看哈希</value>
   </data>
   <data name="menuDump" xml:space="preserve">
-    <value>提取文件</value>
+    <value>提取信息</value>
   </data>
   <data name="strSupportAdaptiveIcon" xml:space="preserve">
     <value>支持自适应图标</value>

@@ -64,22 +64,22 @@ namespace ApkShellext2.Tests
                 {
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK文件助手\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"更名为 Spectroid_1.1.2.apk\"",
-                    "  [1] id=102 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"导出信息 (CSV)…\"",
-                    "  [2] id=103 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
-                    "    [0] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
-                    "    [1] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
-                    "    [2] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
-                    "    [3] id=107 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
-                    "  [3] id=108 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"提取文件\"",
-                    "    [0] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取 AndroidManifest.xml…\"",
-                    "    [1] id=110 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取指定 XML…\"",
-                    "  [4] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [5] id=112 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"搜索商店\"",
+                    "  [1] id=102 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
+                    "    [0] id=103 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
+                    "    [1] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
+                    "    [2] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
+                    "    [3] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
+                    "  [2] id=107 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"提取信息\"",
+                    "    [0] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"导出信息 (CSV)…\"",
+                    "    [1] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取 AndroidManifest.xml…\"",
+                    "    [2] id=110 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"提取指定 XML…\"",
+                    "  [3] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [4] id=112 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"搜索商店\"",
                     "    [0] id=113 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Google Play网页上查看Spectroid\"",
                     "    [1] id=114 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Amazon Appstore上查看Spectroid\"",
-                    "    [2] id=115 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在 VirusTotal 查看哈希\"",
-                    "  [6] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [7] id=117 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
+                    "    [2] id=115 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"在 VirusTotal 查看哈希\"",
+                    "  [5] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [6] id=117 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
                 }));
             }
         }
@@ -95,22 +95,22 @@ namespace ApkShellext2.Tests
                 {
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK Shell Extension\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Rename to Spectroid_1.1.2.apk\"",
-                    "  [1] id=102 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Export info (CSV)…\"",
-                    "  [2] id=103 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
-                    "    [0] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
-                    "    [1] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
-                    "    [2] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
-                    "    [3] id=107 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
-                    "  [3] id=108 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Dump\"",
-                    "    [0] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Extract AndroidManifest.xml…\"",
-                    "    [1] id=110 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Extract an XML entry…\"",
-                    "  [4] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [5] id=112 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Search in Stores\"",
+                    "  [1] id=102 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
+                    "    [0] id=103 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
+                    "    [1] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
+                    "    [2] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
+                    "    [3] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
+                    "  [2] id=107 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Extract information\"",
+                    "    [0] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Export info (CSV)…\"",
+                    "    [1] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Extract AndroidManifest.xml…\"",
+                    "    [2] id=110 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Extract an XML entry…\"",
+                    "  [3] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [4] id=112 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"Search in Stores\"",
                     "    [0] id=113 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in GooglePlay\"",
                     "    [1] id=114 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Search Spectroid in Amazon Appstore\"",
-                    "    [2] id=115 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Check the hash on VirusTotal\"",
-                    "  [6] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [7] id=117 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Preferences\""
+                    "    [2] id=115 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Check the hash on VirusTotal\"",
+                    "  [5] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
+                    "  [6] id=117 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"Preferences\""
                 }));
             }
         }
@@ -139,16 +139,17 @@ namespace ApkShellext2.Tests
                 {
                     "[0] id=100 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"APK文件助手\"",
                     "  [0] id=101 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"更名为 My App_2.0.1.ipa\"",
-                    "  [1] id=102 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"导出信息 (CSV)…\"",
-                    "  [2] id=103 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
-                    "    [0] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
-                    "    [1] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
-                    "    [2] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
-                    "    [3] id=107 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
+                    "  [1] id=102 fType=0x0 fState=0x0 submenu=1 bitmap=0 text=\"Copy info\"",
+                    "    [0] id=103 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy File Path\"",
+                    "    [1] id=104 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy App Name\"",
+                    "    [2] id=105 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Package Name\"",
+                    "    [3] id=106 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"Copy Version\"",
+                    "  [2] id=107 fType=0x0 fState=0x0 submenu=1 bitmap=1 text=\"提取信息\"",
+                    "    [0] id=108 fType=0x0 fState=0x0 submenu=0 bitmap=0 text=\"导出信息 (CSV)…\"",
                     "  [3] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [4] id=109 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Appstore上查看 My App\"",
+                    "  [4] id=110 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"在Appstore上查看 My App\"",
                     "  [5] id=0 fType=0x800 fState=0x3 submenu=0 bitmap=0 text=\"\"",
-                    "  [6] id=111 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
+                    "  [6] id=112 fType=0x0 fState=0x0 submenu=0 bitmap=1 text=\"选项和更新\""
                 }));
             }
         }
@@ -164,18 +165,19 @@ namespace ApkShellext2.Tests
                 {
                     CommandAction.None,
                     CommandAction.Rename,
-                    CommandAction.Export,
                     CommandAction.None,
                     CommandAction.CopyFilePath,
                     CommandAction.CopyAppName,
                     CommandAction.CopyPackage,
                     CommandAction.CopyVersion,
                     CommandAction.None,
+                    CommandAction.Export,
+                    CommandAction.None,
                     CommandAction.MicrosoftStore,
                     CommandAction.None,
                     CommandAction.Preferences
                 }));
-                Assert.That(model.Items[9].Text, Is.EqualTo("在Microsoft Store上查看Test App"));
+                Assert.That(model.Items[10].Text, Is.EqualTo("在Microsoft Store上查看Test App"));
                 Assert.That(model.Items[1].Text, Is.EqualTo("更名为 Test App_1.2.3.4.appx"));
                 Assert.That(model.Items[1].Children, Is.Empty);
             }
@@ -188,33 +190,33 @@ namespace ApkShellext2.Tests
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.AppxBundlePath() });
 
-                Assert.That(model.Count, Is.EqualTo(12));
+                Assert.That(model.Count, Is.EqualTo(13));
                 Assert.That(model.Items[1].Text, Is.EqualTo("更名为 Test App_1.2.3.4.appxbundle"));
-                Assert.That(model.Items[9].Action, Is.EqualTo(CommandAction.MicrosoftStore));
+                Assert.That(model.Items[10].Action, Is.EqualTo(CommandAction.MicrosoftStore));
             }
         }
 
         [Test]
-        public void Aab_HasNoDumpSubmenuAndNoStoreEntry()
+        public void Aab_HasOnlyTheExportLeafInTheExtractSubmenu()
         {
             using (Chinese())
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.AabPath() });
 
                 Assert.That(model.Count, Is.EqualTo(11),
-                    "an .aab shows the rename, the export, the copy submenu with its four values, two separators and the preferences entry");
-                Assert.That(model.Items.Count(i => i.IsSeparator), Is.EqualTo(2));
+                    "an .aab shows the rename, the copy submenu with its four values, the extract submenu with the export, one separator and the preferences entry");
+                Assert.That(model.Items.Count(i => i.IsSeparator), Is.EqualTo(1));
                 Assert.That(model.Items.Select(i => i.Action), Is.EqualTo(new[]
                 {
                     CommandAction.None,
                     CommandAction.Rename,
-                    CommandAction.Export,
                     CommandAction.None,
                     CommandAction.CopyFilePath,
                     CommandAction.CopyAppName,
                     CommandAction.CopyPackage,
                     CommandAction.CopyVersion,
                     CommandAction.None,
+                    CommandAction.Export,
                     CommandAction.None,
                     CommandAction.Preferences
                 }));
@@ -324,8 +326,8 @@ namespace ApkShellext2.Tests
                 Assert.That(model.FindByIndex(CommandIds.First), Is.SameAs(model.Root));
                 Assert.That(model.FindByIndex(1).Verb, Is.EqualTo(CommandVerb.Rename));
                 Assert.That(model.FindByVerb(CommandVerb.Rename), Is.SameAs(model.FindByIndex(1)));
-                Assert.That(model.FindByIndex(2).Verb, Is.EqualTo(CommandVerb.ExportCsv));
-                Assert.That(model.FindByVerb(CommandVerb.ExportCsv), Is.SameAs(model.FindByIndex(2)));
+                Assert.That(model.FindByIndex(8).Verb, Is.EqualTo(CommandVerb.ExportCsv));
+                Assert.That(model.FindByVerb(CommandVerb.ExportCsv), Is.SameAs(model.FindByIndex(8)));
                 Assert.That(model.FindByVerb(CommandVerb.Preferences).Index, Is.EqualTo(17));
                 Assert.That(model.FindByVerb("nope"), Is.Null);
                 Assert.That(model.FindByIndex(CommandIds.Last + 1), Is.Null);
@@ -357,7 +359,7 @@ namespace ApkShellext2.Tests
             }
         }
         [Test]
-        public void Export_IsTheItemRightAfterRename()
+        public void Export_IsTheFirstItemOfTheExtractSubmenu()
         {
             using (Chinese())
             {
@@ -366,11 +368,17 @@ namespace ApkShellext2.Tests
                 CommandItem export = model.FindByVerb(CommandVerb.ExportCsv);
                 Assert.That(export, Is.Not.Null);
                 Assert.That(export.Action, Is.EqualTo(CommandAction.Export));
-                Assert.That(export.Index, Is.EqualTo(2));
+                Assert.That(export.Index, Is.EqualTo(8));
                 Assert.That(export.Text, Is.EqualTo("导出信息 (CSV)…"));
                 Assert.That(export.Icon, Is.EqualTo(CommandIcon.None));
                 Assert.That(export.Enabled, Is.True);
-                Assert.That(model.Items[1].Action, Is.EqualTo(CommandAction.Rename));
+                Assert.That(model.FindByIndex(7).Text, Is.EqualTo("提取信息"));
+                Assert.That(model.FindByIndex(7).Children.Select(c => c.Action), Is.EqualTo(new[]
+                {
+                    CommandAction.Export,
+                    CommandAction.DumpManifest,
+                    CommandAction.DumpXml
+                }));
             }
         }
 
@@ -444,14 +452,14 @@ namespace ApkShellext2.Tests
         }
 
         [Test]
-        public void CopySubmenu_IsPlacedAfterExportAndListsTheFourValues()
+        public void CopySubmenu_FollowsRenameAndListsTheFourValues()
         {
             using (Chinese())
             {
                 CommandModel model = CommandCatalog.Build(new[] { MenuFixtures.PlainApkPath() });
 
                 CommandItem copy = CopyParent(model);
-                Assert.That(copy.Index, Is.EqualTo(3), "the copy submenu follows rename and export");
+                Assert.That(copy.Index, Is.EqualTo(2), "the copy submenu follows rename");
                 Assert.That(copy.Text, Is.EqualTo("Copy info"));
                 Assert.That(copy.Children.Select(c => c.Action), Is.EqualTo(new[]
                 {
