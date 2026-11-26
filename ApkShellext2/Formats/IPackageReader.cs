@@ -45,6 +45,13 @@ namespace ApkShellext2 {
         // cannot be resolved. Read-only, and the path is not guaranteed to exist in
         // the archive (a split bundle resolves it against the base apk only).
         string IconEntryPath { get; }
+        // The conclusion the shell shows the user: normal, suspicious or tampered,
+        // graded only from structural facts the container itself carries. A hint for
+        // the user, not a security guarantee: no signature chain is verified.
+        PackageVerdict Verdict { get; }
+        // The one-line reason(s) behind Verdict, joined with "; " and never longer
+        // than PackageVerdictRules.MaxEvidenceItems; empty when Verdict is Info.
+        string VerdictEvidence { get; }
 
         // use for other information, or file type specific info
         void setFlag(string flag, object value);

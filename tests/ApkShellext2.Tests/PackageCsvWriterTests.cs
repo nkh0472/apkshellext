@@ -205,6 +205,16 @@ namespace ApkShellext2.Tests
             }
             public string IconEntryPath { get { return ""; } }
 
+            // the writer has its own tests for the verdict columns; every other row keeps
+            // the neutral value so its width and status stay predictable
+            private PackageVerdict verdict = PackageVerdict.Info;
+            public PackageVerdict Verdict {
+                get { if (ThrowOnVerdict) throw new InvalidOperationException("verdict failed"); return verdict; }
+                set { verdict = value; }
+            }
+            public string VerdictEvidence { get; set; }
+            public bool ThrowOnVerdict { get; set; }
+
             public bool ThrowOnFacts { get; set; }
 
             private void ThrowIfRequested() {

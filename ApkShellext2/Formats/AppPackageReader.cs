@@ -69,6 +69,12 @@ namespace ApkShellext2 {
         public virtual bool? Debuggable { get { return null; } }
         public virtual string Packer { get { return ""; } }
 
+        // A container reader that can prove nothing about its own structure must not
+        // accuse its input, so the base answer stays neutral; ApkReader grades the
+        // facts it parsed and SplitApkBundleReader forwards the base apk's verdict.
+        public virtual PackageVerdict Verdict { get { return PackageVerdict.Info; } }
+        public virtual string VerdictEvidence { get { return ""; } }
+
         // use for other information, or file type specific info
         public virtual void setFlag(string flag, object value) {
             if (Flags == null)

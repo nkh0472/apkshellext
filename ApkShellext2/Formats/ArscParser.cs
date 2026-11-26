@@ -25,12 +25,17 @@ namespace ApkQuickReader
         internal const int MaxResourcePackages = 256;       // a real table holds one package
         internal const int MaxResourceEntries = 0x10000;    // entry offset index is 16 bits
         internal const int MaxResourceRefDepth = 32;        // resource reference chains are shallow
+        internal const int MaxDuplicateDefinitions = MaxResourceEntries; // one table defines far fewer ids
 
         private readonly byte[] table;
         private readonly Func<byte[], uint, string> readStringPool;
 
         // for handling loop reference
         private readonly Stack<UInt32> searchstack = new Stack<UInt32>();
+
+        // duplicate-id hint: computed at most once, see HasDuplicateIds
+        private bool duplicateIdsChecked;
+        private bool duplicateIds;
 
         /// <param name="table">resources.arsc bytes, or null when the container has none</param>
         /// <param name="readStringPool">string pool reader (owned by AxmlParser): (bytes, id) -&gt; text</param>
@@ -192,6 +197,187 @@ namespace ApkQuickReader
                 return res;
             } finally {
                 searchstack.Pop();
+            }
+        }
+
+        /// <summary>
+        /// True when the table defines the same resource id (type and entry) for the same
+        /// configuration more than once. One id legitimately repeats across configuration
+        /// chunks (the six density buckets of one mipmap, a default and a localized string
+        /// chunk), so the configuration bytes are part of the identity. A table that ships
+        /// the whole package chunk twice repeats both the id and the configuration, which
+        /// is what a repacked table with a patched package id looks like. Read-only and
+        /// cached: this is a hint, never an input to the lookup itself.
+        /// </summary>
+        public bool HasDuplicateIds {
+            get {
+                if (!duplicateIdsChecked) {
+                    duplicateIdsChecked = true;
+                    duplicateIds = FindDuplicateIds();
+                }
+                return duplicateIds;
+            }
+        }
+
+        // Walks every package and type chunk with the same bounds checks the lookups use,
+        // and stops at the first definition that was already seen. A table with more
+        // definitions than one type-chunk cap is not graded rather than risk a false
+        // accusation from a partial walk.
+        private bool FindDuplicateIds()
+        {
+            if (table == null || table.Length < 12)
+                return false;
+            try {
+                using (MemoryStream ms = new MemoryStream(table))
+                using (BinaryReader br = new BinaryReader(ms)) {
+                    ms.Seek(8, SeekOrigin.Begin); // jump type/headersize/chunksize
+                    int packageCount = br.ReadInt32();
+                    if (packageCount < 0 || packageCount > MaxResourcePackages)
+                        return false;
+
+                    // skip the global string pool
+                    long stringPoolPos = ms.Position;
+                    ms.Seek(4, SeekOrigin.Current);
+                    int stringPoolSize = br.ReadInt32();
+                    if (stringPoolSize < 8 || stringPoolPos + stringPoolSize > ms.Length)
+                        return false;
+                    ms.Seek(stringPoolPos + stringPoolSize, SeekOrigin.Begin);
+
+                    var seen = new HashSet<DefinitionKey>();
+                    int definitions = 0;
+                    for (int pack = 0; pack < packageCount; pack++) {
+                        long packPos = ms.Position;
+                        if (packPos + 12 > ms.Length) break;
+                        ms.Seek(2, SeekOrigin.Current); // type/headersize
+                        int headerSize = br.ReadInt16();
+                        int packSize = br.ReadInt32();
+                        br.ReadInt32(); // package id: a duplicated chunk patches it, the ids below repeat
+                        if (headerSize < 12 || packSize < headerSize ||
+                            packPos + packSize > ms.Length)
+                            break;
+                        long packEnd = packPos + packSize;
+
+                        long typePoolPos = SkipChunk(ms, br, packPos + headerSize, packEnd);
+                        if (typePoolPos < 0) break;
+                        long keyPoolPos = SkipChunk(ms, br, typePoolPos, packEnd);
+                        if (keyPoolPos < 0) break;
+
+                        long chunkPos = keyPoolPos;
+                        while (chunkPos + 8 <= packEnd) {
+                            ms.Seek(chunkPos, SeekOrigin.Begin);
+                            short chunkType = br.ReadInt16();
+                            short chunkHeaderSize = br.ReadInt16();
+                            int chunkSize = br.ReadInt32();
+                            if (chunkHeaderSize < 8 || chunkSize < 8 ||
+                                chunkPos + chunkSize > packEnd)
+                                break;
+                            long chunkEnd = chunkPos + chunkSize;
+
+                            // RES_TABLE_TYPE_TYPE: one configuration of one type
+                            if (chunkType == (short)RES_TYPE.RES_TABLE_TYPE_TYPE &&
+                                chunkHeaderSize >= 24) {
+                                byte typeId = br.ReadByte();
+                                byte flags = br.ReadByte();
+                                ms.Seek(2, SeekOrigin.Current); // reserved
+                                int entryCount = br.ReadInt32();
+                                int entryStart = br.ReadInt32();
+                                int configSize = br.ReadInt32();
+                                int configBytes = configSize - 4;
+                                if (entryCount >= 0 && entryCount <= MaxResourceEntries &&
+                                    entryStart >= 0 && entryStart <= chunkSize &&
+                                    configSize >= 4 && configSize <= MaxResourceConfigSize &&
+                                    configBytes <= chunkEnd - ms.Position) {
+                                    byte[] config = br.ReadBytes(configBytes);
+                                    bool sparse = (flags & 0x01) != 0;
+                                    bool offset16 = !sparse && (flags & 0x02) != 0;
+                                    long indexPos = chunkPos + chunkHeaderSize;
+                                    if (indexPos + (long)entryCount * (offset16 ? 2 : 4) <= chunkEnd) {
+                                        ms.Seek(indexPos, SeekOrigin.Begin);
+                                        for (int i = 0; i < entryCount; i++) {
+                                            uint entryId;
+                                            long offset;
+                                            if (sparse) {
+                                                entryId = br.ReadUInt16();
+                                                offset = (long)br.ReadUInt16() * 4;
+                                            } else if (offset16) {
+                                                ushort raw = br.ReadUInt16();
+                                                if (raw == 0xffff) continue; // no entry here
+                                                entryId = (uint)i;
+                                                offset = (long)raw * 4;
+                                            } else {
+                                                uint raw = br.ReadUInt32();
+                                                if (raw == 0xffffffff) continue;
+                                                entryId = (uint)i;
+                                                offset = raw;
+                                            }
+                                            if (chunkPos + entryStart + offset + 16 > chunkEnd)
+                                                continue; // entry header + Res_value must fit
+                                            if (!seen.Add(new DefinitionKey(typeId, entryId, config)))
+                                                return true;
+                                            if (++definitions > MaxDuplicateDefinitions)
+                                                return false;
+                                        }
+                                    }
+                                }
+                            }
+                            chunkPos = chunkEnd; // chunkSize >= 8 keeps this strictly forward
+                        }
+                        // the walk inside a package may stop at a malformed chunk; the next
+                        // package starts where the file says this one ends, not where we stopped
+                        ms.Seek(packEnd, SeekOrigin.Begin);
+                    }
+                }
+                return false;
+            } catch (Exception) {
+                // a malformed table proves nothing: the verdict falls back to the other facts
+                return false;
+            }
+        }
+
+        // One resource definition's identity: the id (type and entry) plus the
+        // configuration it was defined for. The configuration bytes are shared with
+        // every other key read from the same type chunk, so the set stays small.
+        private struct DefinitionKey : IEquatable<DefinitionKey>
+        {
+            private readonly byte typeId;
+            private readonly uint entryId;
+            private readonly byte[] config;
+
+            public DefinitionKey(byte typeId, uint entryId, byte[] config)
+            {
+                this.typeId = typeId;
+                this.entryId = entryId;
+                this.config = config;
+            }
+
+            public bool Equals(DefinitionKey other)
+            {
+                if (typeId != other.typeId || entryId != other.entryId)
+                    return false;
+                byte[] mine = config ?? new byte[0];
+                byte[] theirs = other.config ?? new byte[0];
+                if (mine.Length != theirs.Length)
+                    return false;
+                for (int i = 0; i < mine.Length; i++)
+                    if (mine[i] != theirs[i])
+                        return false;
+                return true;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is DefinitionKey && Equals((DefinitionKey)obj);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked {
+                    int hash = (typeId * 397) ^ (int)entryId;
+                    if (config != null)
+                        for (int i = 0; i < config.Length; i++)
+                            hash = (hash * 31) ^ config[i];
+                    return hash;
+                }
             }
         }
 

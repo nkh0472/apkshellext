@@ -290,6 +290,8 @@ namespace ApkShellext2.Tests
         public string Packer { get { return ""; } }
 
         public string IconEntryPath { get { return ""; } }
+        public PackageVerdict Verdict { get { return PackageVerdict.Info; } }
+        public string VerdictEvidence { get { return ""; } }
 
         public StubReader()
         {

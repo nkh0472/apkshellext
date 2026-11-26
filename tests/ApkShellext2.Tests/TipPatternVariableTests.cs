@@ -149,6 +149,8 @@ namespace ApkShellext2.Tests
             public string Packer { get; set; }
 
         public string IconEntryPath { get { return ""; } }
+        public PackageVerdict Verdict { get { return PackageVerdict.Info; } }
+        public string VerdictEvidence { get { return ""; } }
 
             public PatternReader()
             {

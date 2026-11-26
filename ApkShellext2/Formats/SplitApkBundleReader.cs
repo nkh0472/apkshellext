@@ -203,6 +203,10 @@ namespace ApkQuickReader {
         public override string TargetSdk { get { EnsureInner(); return inner.TargetSdk; } }
         public override bool? Debuggable { get { EnsureInner(); return inner.Debuggable; } }
         public override string Packer { get { EnsureInner(); return inner.Packer; } }
+        // the bundle carries no manifest of its own: the base apk is the package the
+        // verdict describes, and the splits only add resources on top of it
+        public override PackageVerdict Verdict { get { EnsureInner(); return inner.Verdict; } }
+        public override string VerdictEvidence { get { EnsureInner(); return inner.VerdictEvidence; } }
         public override CultureInfo Culture {
             get { EnsureInner(); return inner.Culture; }
             set { EnsureInner(); inner.Culture = value; }

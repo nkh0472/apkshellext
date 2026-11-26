@@ -1177,8 +1177,13 @@ namespace ApkQuickReader
             // (int) casts or buffer allocation in explorer's process
             manifest = zip.ReadEntryBounded(zip.GetEntry(AndroidManifestXML),
                 SafeArchive.MAX_MANIFEST, "AndroidManifest.xml");
-            resources = zip.ReadEntryBounded(zip.GetEntry(Resources_arsc),
-                SafeArchive.MAX_MANIFEST, "resources.arsc");
+            // a repacked apk can lose its table: that is a finding the verdict reports,
+            // not a reason to make the whole package unreadable, so only a missing
+            // manifest still aborts the reader
+            IArchiveEntry resourceTable = zip.GetEntry(Resources_arsc);
+            resources = resourceTable == null
+                ? null
+                : zip.ReadEntryBounded(resourceTable, SafeArchive.MAX_MANIFEST, "resources.arsc");
         }
 
         public override AppPackageReader.AppType Type {
@@ -1241,6 +1246,53 @@ namespace ApkQuickReader
             }
         }
 
+        private bool verdictRead;
+        private PackageVerdict verdict;
+        private string verdictEvidence = "";
+
+        /// <summary>
+        /// The structural verdict, graded once from what this reader already parsed. It
+        /// is a hint for the user, not a security guarantee; every fact below is
+        /// optional, so a getter that fails leaves that fact out and the rules grade the
+        /// evidence collected so far instead of throwing into the shell.
+        /// </summary>
+        public override PackageVerdict Verdict {
+            get { EnsureVerdict(); return verdict; }
+        }
+
+        public override string VerdictEvidence {
+            get { EnsureVerdict(); return verdictEvidence; }
+        }
+
+        private void EnsureVerdict() {
+            if (verdictRead) return;
+            verdictRead = true;
+            var evidence = new PackageVerdictEvidence();
+            try {
+                string iconPath = IconEntryPath;
+                evidence.IconReferenceWithoutResourceTable =
+                    iconIsReference && resources == null;
+                // a missing table resolves the reference to a pseudo path such as
+                // "(0x7F080000)": that is not an archive path, and the missing-table
+                // rule above names the real problem, so it is not reported twice
+                evidence.IconEntryMissing = resources != null && iconPath.Length > 0 &&
+                    zip.GetEntry(iconPath) == null;
+                evidence.Packer = Packer;
+                evidence.Debuggable = Debuggable == true;
+                evidence.DuplicateResourceIds = resources != null &&
+                    NewAxmlParser().HasDuplicateResourceIds;
+            } catch (Exception ex) {
+                Log("verdict unreadable: " + ex.Message);
+            }
+            try {
+                verdict = PackageVerdictRules.Grade(evidence, out verdictEvidence);
+            } catch (Exception ex) {
+                verdict = PackageVerdict.Info;
+                verdictEvidence = "";
+                Log("verdict rules failed: " + ex.Message);
+            }
+        }
+
         private static string ReadPackerFromStream(Stream stream) {
             if (stream == null || !stream.CanSeek) return "";
             long position = stream.Position;
@@ -1289,6 +1341,9 @@ namespace ApkQuickReader
 
         private bool iconEntryPathRead;
         private string iconEntryPath = "";
+        // the manifest named the icon by resource id rather than by file path: the
+        // verdict needs that distinction to tell "no table" apart from "no icon path"
+        private bool iconIsReference;
 
         /// <summary>
         /// The path the manifest icon attribute resolves to through the same
@@ -1307,6 +1362,7 @@ namespace ApkQuickReader
                     int dataType;
                     string path = ((IManifestIconLookup)this)
                         .ResolveIconPath(TagApplication, AttrIcon, out referenceId, out dataType);
+                    iconIsReference = dataType == (int)DATA_TYPE.TYPE_REFERENCE;
                     iconEntryPath = path ?? "";
                 } catch (Exception ex) {
                     iconEntryPathRead = true;
