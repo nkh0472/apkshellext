@@ -21,16 +21,22 @@ namespace ApkShellext2 {
         /// <summary>The file name the save dialog starts with.</summary>
         public const string DefaultFileName = "apk-info.csv";
 
-        /// <summary>The header row, in the order the columns are written.</summary>
+        /// <summary>
+        /// The header row, in the order the columns are written. The order is a contract:
+        /// external scripts that pin column numbers must be updated with it.
+        /// </summary>
         public static readonly string[] Columns = {
             "File", "Folder", "AppName", "Package", "Version", "Revision",
-            "Publisher", "AppID", "Type", "SizeBytes", "Sha256", "Xxh3", "Modified", "Status"
+            "Publisher", "AppID", "Type", "MinSdk", "TargetSdk", "Debuggable", "Packer",
+            "SizeBytes", "Sha256", "Xxh3", "Modified", "Status"
         };
 
         public const string StatusOk = "ok";
         public const string StatusUnsupported = "unsupported type";
         public const string StatusUnreadable = "unreadable";
         public const string StatusCancelled = "cancelled";
+        /// <summary>Prefix of a status that names why the platform facts could not be read.</summary>
+        public const string StatusErrorPrefix = "error: ";
 
         /// <summary>Writes the selection using the production reader factory.</summary>
         public static PackageCsvResult Write(Stream output, IEnumerable<string> paths) {
@@ -69,6 +75,7 @@ namespace ApkShellext2 {
                     string fileName = SafeFileName(fullPath);
                     string appName = "", package = "", version = "", revision = "";
                     string publisher = "", appId = "", type = "";
+                    string minSdk = "", targetSdk = "", debuggable = "", packer = "";
                     string size = "", modified = "";
                     string sha256 = "", xxh3 = "";
                     string status;
@@ -88,6 +95,8 @@ namespace ApkShellext2 {
                             } else {
                                 ReadSizeAndModified(file, out size, out modified);
                                 bool hashesRead = TryReadHashes(path, out sha256, out xxh3);
+                                string factsError = "";
+                                bool factsRead = true;
                                 try {
                                     using (IPackageReader reader = create(path)) {
                                         if (reader == null)
@@ -99,9 +108,15 @@ namespace ApkShellext2 {
                                         publisher = reader.Publisher ?? "";
                                         appId = reader.AppID ?? "";
                                         type = reader.Type.ToString();
+                                        factsRead = TryReadPlatformFacts(
+                                            reader, out minSdk, out targetSdk, out debuggable, out packer, out factsError);
                                     }
-                                    status = hashesRead ? StatusOk : StatusUnreadable;
+                                    if (!factsRead)
+                                        status = StatusErrorPrefix + factsError;
+                                    else
+                                        status = hashesRead ? StatusOk : StatusUnreadable;
                                 } catch (Exception) {
+                                    minSdk = ""; targetSdk = ""; debuggable = ""; packer = "";
                                     status = StatusUnreadable;
                                 }
                             }
@@ -110,7 +125,8 @@ namespace ApkShellext2 {
 
                     WriteRecord(writer, new[] {
                         fileName, folder, appName, package, version, revision,
-                        publisher, appId, type, size, sha256, xxh3, modified, status
+                        publisher, appId, type, minSdk, targetSdk, debuggable, packer,
+                        size, sha256, xxh3, modified, status
                     });
                     result.Rows++;
                     if (status != StatusOk && status != StatusCancelled) result.Errors++;
@@ -193,6 +209,52 @@ namespace ApkShellext2 {
                 // a file that cannot be read keeps both hash columns blank
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Reads the platform facts the reader exposes. A getter that throws blanks all four
+        /// columns of this row and returns its one-line reason, because the other columns are
+        /// already known and a single bad fact must not fail the export.
+        /// </summary>
+        private static bool TryReadPlatformFacts(
+            IPackageReader reader,
+            out string minSdk, out string targetSdk, out string debuggable, out string packer,
+            out string error) {
+            minSdk = ""; targetSdk = ""; debuggable = ""; packer = ""; error = "";
+            try {
+                minSdk = reader.MinSdk ?? "";
+                targetSdk = reader.TargetSdk ?? "";
+                bool? flag = reader.Debuggable;
+                debuggable = !flag.HasValue ? "" : (flag.Value ? "true" : "false");
+                packer = reader.Packer ?? "";
+                return true;
+            } catch (Exception ex) {
+                minSdk = ""; targetSdk = ""; debuggable = ""; packer = "";
+                error = OneLineMessage(ex);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Collapses an exception message onto one line so it cannot split a CSV record.
+        /// Falls back to the exception type when the message is empty.
+        /// </summary>
+        private static string OneLineMessage(Exception exception) {
+            string message = exception.Message ?? "";
+            var line = new StringBuilder();
+            bool pendingSpace = false;
+            foreach (char c in message) {
+                if (char.IsWhiteSpace(c)) {
+                    if (line.Length > 0) pendingSpace = true;
+                    continue;
+                }
+                if (pendingSpace) {
+                    line.Append(' ');
+                    pendingSpace = false;
+                }
+                line.Append(c);
+            }
+            return line.Length == 0 ? exception.GetType().Name : line.ToString();
         }
 
         private static void WriteRecord(TextWriter writer, string[] values) {

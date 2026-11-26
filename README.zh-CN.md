@@ -31,7 +31,7 @@
 | **悬浮信息** | 版本、包名、体积、Min/Max SDK、打包器 | 包里取不到的事实，连标签一起整行省略 |
 | **右键菜单** | Win10 与 Win11 用同一套条目 | Windows 11 22H2 及以上是现代 `IExplorerCommand` 菜单；Windows 10 与 Win11 的「显示更多选项」仍是经典 `IContextMenu` 菜单 |
 | **重命名** | 按模板批量重命名 | 支持 `%AppName%`、`%Version%`、`%Package%`、`%Attr(tag,attr)` 等；首选项在输入框旁列出变量，点击插入到光标处 |
-| **提取信息** | 导出 CSV，或提取某个 XML 条目 | CSV：UTF-8 带 BOM，每个选中文件一行，含 SHA-256、XXH3 与状态列，读不出的文件也占一行。XML：写进你选的文件夹，文件名带重命名模板前缀 |
+| **提取信息** | 导出 CSV，或提取某个 XML 条目 | CSV：UTF-8 带 BOM，每个选中文件一行，固定 18 列——MinSdk、TargetSdk、Debuggable、Packer 四列位于 Type 与 SizeBytes 之间——另有 SHA-256、XXH3 与状态列，读不出的文件也占一行。列顺序属于对外契约：请按表头取列，不要写死列号。XML：写进你选的文件夹，文件名带重命名模板前缀 |
 | **复制信息** | 文件路径、应用名、包名、版本 | 多选时一行一个值，按选择顺序 |
 | **商店页面** | Google Play、Amazon Appstore、VirusTotal | VirusTotal 条目只在点击时才后台算哈希，随后打开 `virustotal.com/gui/file/<sha256>` |
 | **首选项** | 所有开关集中在一处 | 界面语言、应用名语言、角标、各商店菜单项、缩略图与自适应图标开关、错误日志 |
