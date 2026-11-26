@@ -40,12 +40,12 @@ namespace ApkShellext2 {
 
                 if (m_icon == null)
                     throw new Exception("Cannot find Icon from Stream, draw default");
-                if (m_icon.Height < outputSize && Utility.GetSetting("StretchThumbnail", "True") != "True")
+                if (m_icon.Height < outputSize && !Utility.GetSettingBool("StretchThumbnail", true))
                     outputSize = m_icon.Height;
 
                 if (log != null) log("Got icon, resizing...");
                 Bitmap composed;
-                if (Utility.GetSetting("ShowOverlayIcon") == "True") {
+                if (Utility.GetSettingBool("ShowOverlayIcon", false)) {
                     if (log != null) log("Draw overlay");
                     composed = Utility.CombineBitmap(m_icon,
                         Utility.AppTypeIcon(AppPackageReader.AppType.AndroidApp),

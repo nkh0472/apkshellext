@@ -23,7 +23,7 @@ namespace ApkShellext2.Shell.Commands {
 
             var paths = selectedPaths.ToArray();
             var root = new CommandItem(RootTitle()) {
-                Icon = Utility.GetSetting("ShowMenuIcon", "True") == "True"
+                Icon = Utility.GetSettingBool("ShowMenuIcon", true)
                     ? CommandIcon.PackageThumbnails
                     : CommandIcon.Logo
             };
@@ -101,16 +101,16 @@ namespace ApkShellext2.Shell.Commands {
             if (hasapk) {
                 var store = new CommandItem(Resources.strSearchStore) { Icon = CommandIcon.GooglePlay };
                 var storeChildren = new List<CommandItem>();
-                bool storeEnabled = singleSelected || (Utility.GetSetting("ShowAppStoreWhenMultiSelected", "True") == "True");
-                if (Utility.GetSetting("ShowGooglePlay", "True") == "True") {
+                bool storeEnabled = singleSelected || (Utility.GetSettingBool("ShowAppStoreWhenMultiSelected", true));
+                if (Utility.GetSettingBool("ShowGooglePlay", true)) {
                     storeChildren.Add(Leaf(string.Format(Resources.menuGotoGooglePlay, storeAppName),
                         CommandAction.GooglePlay, CommandIcon.GooglePlay, storeEnabled));
                 }
-                if (Utility.GetSetting("ShowAmazonStore", "True") == "True") {
+                if (Utility.GetSettingBool("ShowAmazonStore", true)) {
                     storeChildren.Add(Leaf(string.Format(Resources.menuGotoAmazonAppStore, storeAppName),
                         CommandAction.AmazonAppStore, CommandIcon.AmazonStore, storeEnabled));
                 }
-                if (Utility.GetSetting("ShowApkMirror", "False") == "True") {
+                if (Utility.GetSettingBool("ShowApkMirror", false)) {
                     storeChildren.Add(Leaf(string.Format(Resources.menuGotoApkMirror, storeAppName),
                         CommandAction.ApkMirror, CommandIcon.ApkMirror, storeEnabled));
                 }
@@ -125,19 +125,19 @@ namespace ApkShellext2.Shell.Commands {
                 }
             }
 
-            if (hasipa && Utility.GetSetting("ShowAppleStore", "True") == "True") {
+            if (hasipa && Utility.GetSettingBool("ShowAppleStore", true)) {
                 string appleAppName = singleSelected ? appname : AppPackageReader.extIPA;
                 middle.Add(Leaf(string.Format(Resources.menuGotoAppleAppStore, appleAppName),
                     CommandAction.AppleAppStore, CommandIcon.AppleStore,
-                    singleSelected || Utility.GetSetting("ShowAppStoreWhenMultiSelected", "True") == "True"));
+                    singleSelected || Utility.GetSettingBool("ShowAppStoreWhenMultiSelected", true)));
             }
 
-            if ((hasappx || hasappxbundle) && Utility.GetSetting("ShowMSStore", "True") == "True") {
+            if ((hasappx || hasappxbundle) && Utility.GetSettingBool("ShowMSStore", true)) {
                 string msAppName = singleSelected ? appname :
                     (AppPackageReader.extAPPX + @"/" + AppPackageReader.extAPPXBUNDLE);
                 middle.Add(Leaf(string.Format(Resources.menuGotoMicrosoftStore, msAppName),
                     CommandAction.MicrosoftStore, CommandIcon.MicrosoftStore,
-                    singleSelected || Utility.GetSetting("ShowAppStoreWhenMultiSelected", "True") == "True"));
+                    singleSelected || Utility.GetSettingBool("ShowAppStoreWhenMultiSelected", true)));
             }
 
             if (middle.Count > 0) {
@@ -167,7 +167,7 @@ namespace ApkShellext2.Shell.Commands {
             Utility.Localize();
 
             string newVerAvai = "";
-            if (Utility.NewVersionAvailible() && Utility.GetSetting("ShowNewVersion", "True") == "True")
+            if (Utility.NewVersionAvailible() && Utility.GetSettingBool("ShowNewVersion", true))
                 newVerAvai = " (" + string.Format(Resources.strNewVersionAvailible, Utility.GetSetting("LatestVersion")) + ")";
             return Resources.menuMain + newVerAvai;
         }

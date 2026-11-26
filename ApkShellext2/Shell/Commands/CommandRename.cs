@@ -35,7 +35,7 @@ namespace ApkShellext2.Shell.Commands {
                 }
 
                 newFileName = Regex.Replace(newFileName, @"[\\/:*?""<>|-]+", ""); // remove invalid chars (incl. backslash: File.Move below)
-                if (Utility.GetSetting("ReplaceSpace") == "True") {
+                if (Utility.GetSettingBool("ReplaceSpace", false)) {
                     newFileName = Regex.Replace(newFileName, @"\s+", "_");
                 }
                 string oldFileName = Path.GetFileName(path);

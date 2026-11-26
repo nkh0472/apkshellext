@@ -75,8 +75,8 @@ namespace ApkShellext2 {
         private static bool? Init() {
             try {
                 using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\ApkShellext2")) {
-                    if (key != null && string.Equals(key.GetValue("DebugLog") as string, "True",
-                        StringComparison.OrdinalIgnoreCase))
+                    object raw = key == null ? null : key.GetValue("DebugLog");
+                    if (raw != null && Utility.GetSettingBool("DebugLog", false))
                         return true;
                 }
             } catch { }

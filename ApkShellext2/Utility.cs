@@ -177,7 +177,7 @@ namespace ApkShellext2 {
         /// </summary>
         public static CultureInfo requestedNameCulture() {
             try {
-                if (GetSetting("UseAppNameLanguage", "False") != "True")
+                if (!GetSettingBool("UseAppNameLanguage", false))
                     return null;
                 string name = GetSetting("AppNameLanguage", "").Trim();
                 if (name.Length > 0) {
@@ -276,7 +276,7 @@ namespace ApkShellext2 {
         public static void CheckUpdate() {
             // Opt-out: HKCU\SOFTWARE\ApkShellext2 "CheckForUpdates"=dword 0 / "False"
             // stops the daily background request to GitHub entirely.
-            if (Utility.GetSetting("CheckForUpdates", "True") != "True") return;
+            if (!Utility.GetSettingBool("CheckForUpdates", true)) return;
             // Menu building must never wait on this: the mutex, the registry
             // and the network all move to a fire-and-forget background thread.
             Thread thUpdate = new Thread(new ThreadStart(() => {

@@ -342,7 +342,7 @@ namespace ApkQuickReader
             int best = 0;
             if (densityRequested) {
                 int bestDensity = 0;
-                bool supAI = Utility.GetSetting("SupportAdaptiveIcon", "False") == "True" && !ignoreXmlDensity;
+                bool supAI = Utility.GetSettingBool("SupportAdaptiveIcon", false) && !ignoreXmlDensity;
                 System.Text.StringBuilder dbg = ApkShellext2.DbgLog.Enabled ? new System.Text.StringBuilder() : null;
                 for (int i = 0; i < r.configs.Count; i++) {
                     if (!supAI) {
@@ -357,7 +357,7 @@ namespace ApkQuickReader
                     if (dbg != null) dbg.Append("[" + i + " " + r.values[i] + " d=" + density + "]");
                 }
                 if (dbg != null) ApkShellext2.DbgLog.W("APPLYFILTER supAI=" + supAI + " ignXml=" + ignoreXmlDensity +
-                    " raw=" + Utility.GetSetting("SupportAdaptiveIcon", "False") + " n=" + r.configs.Count + dbg + " -> " + r.values[best]);
+                    " raw=" + Utility.GetSettingBool("SupportAdaptiveIcon", false) + " n=" + r.configs.Count + dbg + " -> " + r.values[best]);
             }
             return best;
         }

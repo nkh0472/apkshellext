@@ -88,24 +88,24 @@ namespace ApkShellext2 {
             toolTip1.SetToolTip(btnUpdate, Resources.strGotoProjectSite);
 
             chkDebugLog.Text = Resources.strDebugLog;
-            chkDebugLog.Checked = Utility.GetSetting("DebugLog", "False") == "True";
+            chkDebugLog.Checked = Utility.GetSettingBool("DebugLog", false);
 
             #endregion
 
             #region Icon Panel
             ckShowOverlay.Text = Resources.strShowOverlayIcon;
             toolTip1.SetToolTip(ckShowOverlay, Resources.strShowOverlayIconToolTip);
-            ckShowOverlay.Checked = Utility.GetSetting("ShowOverLayIcon","False")=="True";
+            ckShowOverlay.Checked = Utility.GetSettingBool("ShowOverLayIcon", false);
             ckShowIPA.Text = Resources.strShowIpaIcon;
-            ckShowIPA.Checked = Utility.GetSetting("ShowIpaIcon","True") == "True";
+            ckShowIPA.Checked = Utility.GetSettingBool("ShowIpaIcon", true);
             ckShowAppxIcon.Text = Resources.strShowAppxIcon;
-            ckShowAppxIcon.Checked = Utility.GetSetting("ShowAppxIcon","False") == "True";
+            ckShowAppxIcon.Checked = Utility.GetSettingBool("ShowAppxIcon", false);
             ckStretchThumbnail.Text = Resources.strStretchThumbnail;
-            ckStretchThumbnail.Checked = Utility.GetSetting("StretchThumbnail","True") == "True";
+            ckStretchThumbnail.Checked = Utility.GetSettingBool("StretchThumbnail", true);
             ckEnableThumbnail.Text = Resources.strEnableThumbnail;
             ckEnableThumbnail.Checked = Utility.GetSettingBool("EnableThumbnail", true);
             ckAdaptiveIconSupport.Text = Resources.strSupportAdaptiveIcon;
-            ckAdaptiveIconSupport.Checked = Utility.GetSetting("SupportAdaptiveIcon", "False") == "True";
+            ckAdaptiveIconSupport.Checked = Utility.GetSettingBool("SupportAdaptiveIcon", false);
 
             btnClearCache.Text = Resources.strClearCache;
             #endregion
@@ -113,22 +113,22 @@ namespace ApkShellext2 {
             #region ContextMenu Panel
             ckAlwaysShowStore.Text = Resources.strAlwaysShowGooglePlay;
             toolTip1.SetToolTip(ckAlwaysShowStore, Resources.strAlwaysShowGooglePlayToolTip);
-            ckAlwaysShowStore.Checked = Utility.GetSetting("ShowAppStoreWhenMultiSelected") == "True";
-            ckShowMenuIcon.Checked = Utility.GetSetting("ShowMenuIcon") == "True";
+            ckAlwaysShowStore.Checked = Utility.GetSettingBool("ShowAppStoreWhenMultiSelected", false);
+            ckShowMenuIcon.Checked = Utility.GetSettingBool("ShowMenuIcon", false);
             ckShowMenuIcon.Text = Resources.strShowContextMenuIcon;
-            ckShowNewVersionInfo.Checked = Utility.GetSetting("ShowNewVersion") == "True";
+            ckShowNewVersionInfo.Checked = Utility.GetSettingBool("ShowNewVersion", false);
             ckShowNewVersionInfo.Text = Resources.strShowNewVerInfo;
-            ckShowGoogle.Checked = Utility.GetSetting("ShowGooglePlay") == "True";
+            ckShowGoogle.Checked = Utility.GetSettingBool("ShowGooglePlay", false);
             ckShowGoogle.Text = Resources.strShowGooglePlay;
-            ckShowAM.Checked = Utility.GetSetting("ShowApkMirror") == "True";
+            ckShowAM.Checked = Utility.GetSettingBool("ShowApkMirror", false);
             ckShowAM.Text = Resources.strShowApkMirror;
-            ckShowAmazon.Checked = Utility.GetSetting("ShowAmazonStore") == "True";
+            ckShowAmazon.Checked = Utility.GetSettingBool("ShowAmazonStore", false);
             ckShowAmazon.Text = Resources.strShowAmazonStore;
-            ckShowApple.Checked = Utility.GetSetting("ShowAppleStore") == "True";
+            ckShowApple.Checked = Utility.GetSettingBool("ShowAppleStore", false);
             ckShowApple.Text = Resources.strShowAppleStore;
-            ckShowMS.Checked = Utility.GetSetting("ShowMSStore") == "True";
+            ckShowMS.Checked = Utility.GetSettingBool("ShowMSStore", false);
             ckShowMS.Text = Resources.strShowMSStore;
-            ckShowAM.Checked = Utility.GetSetting("ShowApkMirror") == "True";
+            ckShowAM.Checked = Utility.GetSettingBool("ShowApkMirror", false);
             ckShowAM.Text = Resources.strShowApkMirror;
             #endregion
 
@@ -140,12 +140,12 @@ namespace ApkShellext2 {
             btnResetRenamePattern_Click(this, new EventArgs());
 
             ckReplaceSpace.Text = Resources.strReplaceSpaceWith_;
-            ckReplaceSpace.Checked = Utility.GetSetting("ReplaceSpace", "False") == "True";
+            ckReplaceSpace.Checked = Utility.GetSettingBool("ReplaceSpace", false);
             txtReplaceWhiteSpace.Enabled = ckReplaceSpace.Checked;
             txtReplaceWhiteSpace.Text = Utility.GetSetting("ReplaceSpaceChar", "_");
 
             ckUseAppNameLang.Text = Resources.strUseAppNameLang;
-            ckUseAppNameLang.Checked = Utility.GetSetting("UseAppNameLanguage", "False") == "True";
+            ckUseAppNameLang.Checked = Utility.GetSettingBool("UseAppNameLanguage", false);
             if (!appLangCulturesLoaded) {
                 combAppNameLang.Items.Add(Resources.strFollowUiLanguage);
                 appLangCultures.Add(null);

@@ -44,11 +44,11 @@ namespace ApkShellext2 {
 
             try {
                 using (IPackageReader reader = PackageReaderFactory.Create(path)) {
-                    if (reader.Type == AppPackageReader.AppType.iOSApp && Utility.GetSetting("ShowIpaIcon", "True") != "True") {
+                    if (reader.Type == AppPackageReader.AppType.iOSApp && !Utility.GetSettingBool("ShowIpaIcon", true)) {
                         icon = Utility.AppTypeIcon(reader.Type);
                     } else if ((reader.Type == AppPackageReader.AppType.WindowsPhoneApp ||
                         reader.Type == AppPackageReader.AppType.WindowsPhoneAppBundle) &&
-                        Utility.GetSetting("ShowAppxIcon", "False") != "True") {
+                        !Utility.GetSettingBool("ShowAppxIcon", false)) {
                         icon = Utility.AppTypeIcon(reader.Type);
                     } else {
                         icon = reader.getIcon(new Size((int)iconSize, (int)iconSize));
@@ -67,7 +67,7 @@ namespace ApkShellext2 {
         }
 
         private static Bitmap ApplyOverlay(Bitmap icon, string path, string module) {
-            if (icon == null || Utility.GetSetting("ShowOverLayIcon") != "True") return icon;
+            if (icon == null || !Utility.GetSettingBool("ShowOverLayIcon", false)) return icon;
             try {
                 Bitmap composed = Utility.CombineBitmap(icon,
                     Utility.AppTypeIcon(PackageReaderFactory.GetAppType(path)),
