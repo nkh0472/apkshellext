@@ -225,7 +225,19 @@ namespace ApkQuickReader {
                 using (b) return Utility.ResizeBitmap(b, size);
             }
             EnsureInner();
-            return inner.getIcon(size);
+            Bitmap fromBase = inner.getIcon(size);
+            if (fromBase != null) return fromBase;
+            // The base apk named a launcher icon that it does not hold: on a real
+            // device that file comes from the density/language split installed next
+            // to it. Look there before falling back to the generic icon.
+            return ConfigSplitIconSource.TryRead(outer, inner.IconEntryPath, size,
+                inner as IVectorIconRenderer, Log);
+        }
+
+        // The bundle's icon reference is the base apk's: splits carry no manifest of
+        // their own, they only add resources.
+        public override string IconEntryPath {
+            get { EnsureInner(); return inner.IconEntryPath; }
         }
 
         private bool TryGetRootIcon(out Bitmap icon) {

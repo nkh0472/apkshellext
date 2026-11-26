@@ -1286,6 +1286,36 @@ namespace ApkQuickReader
         public override Bitmap getIcon(Size size) {
             return getImage(TagApplication, AttrIcon, size);
         }
+
+        private bool iconEntryPathRead;
+        private string iconEntryPath = "";
+
+        /// <summary>
+        /// The path the manifest icon attribute resolves to through the same
+        /// AxmlParser/ArscParser rules the icon chain uses. Resolved once and kept: a
+        /// bundle reader needs the path to look for the file in the configuration
+        /// splits, and parsing the manifest again for every candidate would be waste.
+        /// A missing, unreadable or unresolvable reference answers with the empty
+        /// string instead of throwing - this is a lookup hint, not a decoding step.
+        /// </summary>
+        public override string IconEntryPath {
+            get {
+                if (iconEntryPathRead) return iconEntryPath;
+                iconEntryPathRead = true;
+                try {
+                    uint referenceId;
+                    int dataType;
+                    string path = ((IManifestIconLookup)this)
+                        .ResolveIconPath(TagApplication, AttrIcon, out referenceId, out dataType);
+                    iconEntryPath = path ?? "";
+                } catch (Exception ex) {
+                    iconEntryPathRead = true;
+                    iconEntryPath = "";
+                    Log("manifest icon path unreadable: " + ex.Message);
+                }
+                return iconEntryPath;
+            }
+        }
         /// <summary>
         /// Get a Image object from manifest and resources
         /// </summary>

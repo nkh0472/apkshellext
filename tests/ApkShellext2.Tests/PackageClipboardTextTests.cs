@@ -289,6 +289,8 @@ namespace ApkShellext2.Tests
         public bool? Debuggable { get { return null; } }
         public string Packer { get { return ""; } }
 
+        public string IconEntryPath { get { return ""; } }
+
         public StubReader()
         {
             PackageName = "";

@@ -203,6 +203,7 @@ namespace ApkShellext2.Tests
                 get { ThrowIfRequested(); return packer; }
                 set { packer = value; }
             }
+            public string IconEntryPath { get { return ""; } }
 
             public bool ThrowOnFacts { get; set; }
 

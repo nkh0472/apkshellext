@@ -148,6 +148,8 @@ namespace ApkShellext2.Tests
             public bool? Debuggable { get; set; }
             public string Packer { get; set; }
 
+        public string IconEntryPath { get { return ""; } }
+
             public PatternReader()
             {
                 FileName = "";

@@ -53,6 +53,11 @@ namespace ApkShellext2 {
 
         public virtual Bitmap Icon { get { return null; } }
 
+        // Containers that do not parse a manifest icon reference answer with the
+        // empty path; ApkReader resolves it and SplitApkBundleReader forwards the
+        // base apk's answer.
+        public virtual string IconEntryPath { get { return ""; } }
+
         public virtual string AppID { get { return ""; } }
 
         public virtual AppType Type { get { return AppType.AndroidApp; } }

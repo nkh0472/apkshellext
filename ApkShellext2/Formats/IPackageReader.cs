@@ -39,6 +39,12 @@ namespace ApkShellext2 {
         // Packer/hardening tool named by the APK signing block; empty when the
         // container has no signing block or it names none of the known tools
         string Packer { get; }
+        // The archive path the manifest's icon reference resolves to, e.g.
+        // "res/mipmap-xxhdpi/ic_launcher.png": what the container says, not what it
+        // holds. Empty when the container has no icon reference or the reference
+        // cannot be resolved. Read-only, and the path is not guaranteed to exist in
+        // the archive (a split bundle resolves it against the base apk only).
+        string IconEntryPath { get; }
 
         // use for other information, or file type specific info
         void setFlag(string flag, object value);
