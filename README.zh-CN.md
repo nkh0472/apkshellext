@@ -1,6 +1,6 @@
 # ApkShellext2
 
-[![release](https://img.shields.io/badge/release_4.1.2-blue)](https://github.com/nkh0472/apkshellext/releases)
+[![release](https://img.shields.io/badge/release_4.2.0-blue)](https://github.com/nkh0472/apkshellext/releases)
 [![.NET](https://img.shields.io/badge/.NET_Framework-4.8-512BD4)](#从源码构建)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -74,6 +74,7 @@
 
 | 版本 | 摘要 |
 |------|------|
+| 4.2.0 | 右键菜单告诉你这个包是什么：CSV 增加 `MinSdk`、`TargetSdk`、`Debuggable`、`Packer`、`Verdict`、`Evidence` 六列；`.apks` 从 `toc.pb` 读出最低 SDK；base 包把图标放在配置 split 里时也能显示；语言名走 ASCII 守卫并有测试。图标引用没有资源表的包现在判为 `Tampered`，不再显示 `unreadable` — dll 943,104 B，7z 717,249 B |
 | 4.1.2 | 设置：所有功能开关改为按布尔值读取，手工写入或旧版本留下的 DWORD（`1`/`0`）、`yes`/`on`/`1` 不会再静默把功能关掉（角标、缩略图拉伸、自适应图标、商店条目、调试日志）；新增 19 条测试钉住可接受的写法，README 功能特性改为两张表格 — dll 935,424 B，7z 714,456 B |
 | 4.1.1 | 翻译：3.x/4.x 新增命令用到的 24 条文案（复制菜单、VirusTotal 项、文件夹选择器、重命名变量说明）补齐到全部 19 种语言，不再回退英文；新增测试保证每种语言的资源文件与中性文件保持同步 — dll 935,936 B（尺寸不变），7z 708,473 B → 714,213 B |
 | 4.1.0 | 右键菜单：新增「复制信息」子菜单（文件路径、应用名、包名、版本，多选时每个文件一行），「提取信息」子菜单改为收纳 CSV 导出与两项 XML 提取（现代文件夹选择器、文件名带重命名前缀），新增「在 VirusTotal 查看哈希」项，CSV 增加 SHA-256 与 XXH3-64 两列，信息提示可显示 min/target SDK 与打包器，菜单图标改为与系统小图标同尺寸——dll 909,312 B → 935,936 B，7z 698,828 B → 708,473 B | 

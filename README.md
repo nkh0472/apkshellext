@@ -1,6 +1,6 @@
 # ApkShellext2
 
-[![release](https://img.shields.io/badge/release_4.1.2-blue)](https://github.com/nkh0472/apkshellext/releases)
+[![release](https://img.shields.io/badge/release_4.2.0-blue)](https://github.com/nkh0472/apkshellext/releases)
 [![.NET](https://img.shields.io/badge/.NET_Framework-4.8-512BD4)](#build-from-source)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -78,6 +78,7 @@ Full bilingual release notes are on the [Releases page](https://github.com/nkh04
 
 | Version | Summary |
 |---------|---------|
+| 4.2.0 | The context menu shows what a package is: CSV gains `MinSdk`, `TargetSdk`, `Debuggable`, `Packer`, `Verdict` and `Evidence` columns; an `.apks` reports the minimum SDK from its `toc.pb`; a base package whose icon lives in a configuration split now shows that icon; locale names go through an ASCII guard with tests. A package whose icon reference has no resource table is graded `Tampered` instead of `unreadable` — dll 943,104 B, 7z 717,249 B |
 | 4.1.2 | Settings: every feature switch is read as a boolean, so a DWORD (`1`/`0`) or `yes`/`on`/`1` written by hand or by an older build no longer silently turns a feature off (overlay badges, thumbnail stretching, adaptive icons, store entries, debug log); 19 tests pin the accepted forms, and the README features section is now two tables — dll 935,424 B, 7z 714,456 B |
 | 4.1.1 | Translations: the 24 strings the 3.x/4.x commands added (copy menu, VirusTotal entry, folder picker, rename-variable descriptions) now exist in all 19 languages instead of falling back to English, and a test keeps every satellite in step with the neutral file — dll 935,936 B (no size change), 7z 708,473 B → 714,213 B |
 | 4.1.0 | Context menu: **Copy info** submenu (file path, app name, package and version, one line per file of a multi-selection), **Extract information** submenu that now holds the CSV export and both XML extractions with a folder picker and rename-prefixed file names, **Check the hash on VirusTotal** entry, SHA-256 and XXH3-64 columns in the CSV, min/target SDK and packer facts in the info tip, and menu bitmaps sized like the shell icons — dll 909,312 B → 935,936 B, 7z 698,828 B → 708,473 B | 
