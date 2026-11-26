@@ -45,7 +45,6 @@ namespace ApkQuickReader
         /// one parser for both the manifest reference and the table, so the walk happens
         /// once per grade.
         /// </summary>
-        internal bool HasDuplicateResourceIds { get { return arsc.HasDuplicateIds; } }
 
         // Every forward chunk walk in this class is driven by a
         // while (ms.Position < ms.Length) loop. A malformed chunk header

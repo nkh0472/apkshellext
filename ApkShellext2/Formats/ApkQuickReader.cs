@@ -1279,8 +1279,6 @@ namespace ApkQuickReader
                     zip.GetEntry(iconPath) == null;
                 evidence.Packer = Packer;
                 evidence.Debuggable = Debuggable == true;
-                evidence.DuplicateResourceIds = resources != null &&
-                    NewAxmlParser().HasDuplicateResourceIds;
             } catch (Exception ex) {
                 Log("verdict unreadable: " + ex.Message);
             }

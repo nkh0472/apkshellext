@@ -13,7 +13,7 @@ namespace ApkShellext2 {
     public enum PackageVerdict {
         /// <summary>No structural evidence of repacking or tampering.</summary>
         Info,
-        /// <summary>A repacking marker, a debuggable manifest or a duplicate resource table.</summary>
+        /// <summary>A repacking marker or a debuggable manifest.</summary>
         Suspicious,
         /// <summary>The container contradicts what its own manifest and table say.</summary>
         Tampered
@@ -39,9 +39,6 @@ namespace ApkShellext2 {
 
         /// <summary>The manifest explicitly marks the package debuggable.</summary>
         public bool Debuggable { get; set; }
-
-        /// <summary>The resource table defines one id for one configuration more than once.</summary>
-        public bool DuplicateResourceIds { get; set; }
     }
 
     /// <summary>
@@ -80,8 +77,6 @@ namespace ApkShellext2 {
                 items.Add("signed by " + evidence.Packer);
             if (evidence.Debuggable)
                 items.Add("the manifest marks the package debuggable");
-            if (evidence.DuplicateResourceIds)
-                items.Add("the resource table has duplicate ids");
 
             if (items.Count > MaxEvidenceItems)
                 items.RemoveRange(MaxEvidenceItems, items.Count - MaxEvidenceItems);

@@ -131,20 +131,9 @@ namespace ApkShellext2.Tests
         }
 
         [Test]
-        public void ADuplicateResourceTableIsSuspicious()
-        {
-            byte[] apk = Apk(Fixture("spectroid-manifest.bin"), Fixture("spectroid-arsc-dup.bin"), HealthyIconEntry);
-            using (ApkQuickReader.ApkReader reader = Open(apk))
-            {
-                Assert.That(reader.Verdict, Is.EqualTo(PackageVerdict.Suspicious));
-                Assert.That(reader.VerdictEvidence, Is.EqualTo("the resource table has duplicate ids"));
-            }
-        }
-
-        [Test]
         public void EvidenceKeepsTheTamperedReasonsFirstAndCapsAtThree()
         {
-            byte[] apk = Apk(Manifest(debuggable: true, icon: "res/missing.png"), Fixture("spectroid-arsc-dup.bin"));
+            byte[] apk = Apk(Manifest(debuggable: true, icon: "res/missing.png"), Fixture("spectroid-resources.arsc"));
             apk = SigningBlockBuilder.Insert(apk, SigningBlockBuilder.Block(SigningBlockBuilder.Pair.Of(SigningBlockBuilder.Walle)));
             using (ApkQuickReader.ApkReader reader = Open(apk))
             {
@@ -211,8 +200,7 @@ namespace ApkShellext2.Tests
             {
                 IconEntryMissing = true,
                 Packer = "Walle",
-                Debuggable = true,
-                DuplicateResourceIds = true
+                Debuggable = true
             };
             string text;
             Assert.That(PackageVerdictRules.Grade(evidence, out text), Is.EqualTo(PackageVerdict.Tampered));
