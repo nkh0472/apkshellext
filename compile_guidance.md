@@ -493,7 +493,10 @@ then writes the file on a thread-pool thread, so a large selection never blocks 
 `Formats\PackageCsvWriter.cs` writes the table: UTF-8 with a BOM and CRLF because Excel is the
 main reader, RFC 4180 quoting, one row per selected path in selection order, and the fixed columns
 `File`, `Folder`, `AppName`, `Package`, `Version`, `Revision`, `Publisher`, `AppID`, `Type`,
-`SizeBytes`, `Sha256`, `Xxh3`, `Modified`, `Status`. `Status` is `ok`, `unsupported type`,
+`MinSdk`, `TargetSdk`, `Debuggable`, `Packer`, `Verdict`, `Evidence`, `SizeBytes`, `Sha256`,
+`Xxh3`, `Modified`, `Status`. `Verdict` is `Info`, `Suspicious` or `Tampered`, and `Evidence` is the
+one-line reason(s) behind it (`; `-joined, at most three, empty for `Info`); both cells stay blank
+when a reader cannot answer, and a verdict never changes `Status`. `Status` is `ok`, `unsupported type`,
 `unreadable` or `cancelled`; a mixed selection keeps every path as a row, so the CSV explains what
 was skipped, and a file whose hashes cannot be read keeps those two cells blank with `unreadable`
 in `Status`. The progress window reports the running count and cancels through a

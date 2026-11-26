@@ -261,7 +261,7 @@ namespace ApkShellext2.Tests
             Assert.That(PackageCsvWriter.Columns, Is.EqualTo(new[] {
                 "File", "Folder", "AppName", "Package", "Version", "Revision",
                 "Publisher", "AppID", "Type", "MinSdk", "TargetSdk", "Debuggable", "Packer",
-                "SizeBytes", "Sha256", "Xxh3", "Modified", "Status"
+                "Verdict", "Evidence", "SizeBytes", "Sha256", "Xxh3", "Modified", "Status"
             }));
             Assert.That(Fields(header), Is.EqualTo(PackageCsvWriter.Columns));
         }
@@ -308,13 +308,13 @@ namespace ApkShellext2.Tests
             Assert.That(row[11], Is.Empty, "a null Debuggable renders blank");
             Assert.That(row[12], Is.Empty);
             FileHash expectedHash = FileHasher.Compute(path);
-            Assert.That(row[14], Is.EqualTo(expectedHash.Sha256));
-            Assert.That(row[15], Is.EqualTo(expectedHash.Xxh3));
-            Assert.That(row[17], Is.EqualTo("ok"));
+            Assert.That(row[16], Is.EqualTo(expectedHash.Sha256));
+            Assert.That(row[17], Is.EqualTo(expectedHash.Xxh3));
+            Assert.That(row[19], Is.EqualTo("ok"));
         }
 
         [Test]
-        public void AHealthyApkWritesAllEighteenColumns()
+        public void AHealthyApkWritesEveryColumn()
         {
             string path = File("Healthy.apk");
             var reader = new FakeReader {
@@ -340,7 +340,38 @@ namespace ApkShellext2.Tests
             Assert.That(row[10], Is.EqualTo("34"));
             Assert.That(row[11], Is.EqualTo("true"));
             Assert.That(row[12], Is.EqualTo("Walle"));
-            Assert.That(row[17], Is.EqualTo("ok"));
+            Assert.That(row[13], Is.EqualTo("Info"), "a neutral reader reports the neutral verdict");
+            Assert.That(row[14], Is.Empty, "Info has no evidence text");
+            Assert.That(row[19], Is.EqualTo("ok"));
+        }
+
+        [Test]
+        public void AVerdictIsWrittenBeforeTheStatusColumn()
+        {
+            string path = File("Suspicious.apk");
+            var reader = new FakeReader {
+                Verdict = PackageVerdict.Suspicious,
+                VerdictEvidence = "signed by Walle"
+            };
+
+            string[] row = Fields(Lines(Text(Write(new[] { path }, p => reader)))[1]);
+
+            Assert.That(row[13], Is.EqualTo("Suspicious"));
+            Assert.That(row[14], Is.EqualTo("signed by Walle"));
+            Assert.That(row[19], Is.EqualTo("ok"));
+        }
+
+        [Test]
+        public void AVerdictFailureLeavesBothCellsBlankAndKeepsTheStatus()
+        {
+            string path = File("Broken.apk");
+            var reader = new FakeReader { ThrowOnVerdict = true };
+
+            string[] row = Fields(Lines(Text(Write(new[] { path }, p => reader)))[1]);
+
+            Assert.That(row[13], Is.Empty);
+            Assert.That(row[14], Is.Empty);
+            Assert.That(row[19], Is.EqualTo("ok"), "a failed hint must not turn the row into an error");
         }
 
         [Test]
@@ -357,7 +388,7 @@ namespace ApkShellext2.Tests
             Assert.That(row[10], Is.EqualTo("34"));
             Assert.That(row[11], Is.EqualTo("true"));
             Assert.That(row[12], Is.EqualTo("Walle"), "the packer is named from the signing block");
-            Assert.That(row[17], Is.EqualTo("ok"));
+            Assert.That(row[19], Is.EqualTo("ok"));
         }
 
         [Test]
@@ -371,7 +402,7 @@ namespace ApkShellext2.Tests
             Assert.That(row[10], Is.EqualTo("30"));
             Assert.That(row[11], Is.Empty, "no debuggable attribute renders blank");
             Assert.That(row[12], Is.Empty, "no signing block pair renders blank");
-            Assert.That(row[17], Is.EqualTo("ok"));
+            Assert.That(row[19], Is.EqualTo("ok"));
         }
 
         [Test]
@@ -383,7 +414,7 @@ namespace ApkShellext2.Tests
 
             Assert.That(row[11], Is.EqualTo("false"));
             Assert.That(row[12], Is.Empty);
-            Assert.That(row[17], Is.EqualTo("ok"));
+            Assert.That(row[19], Is.EqualTo("ok"));
         }
 
         [Test]
@@ -399,7 +430,7 @@ namespace ApkShellext2.Tests
             Assert.That(row[10], Is.Empty);
             Assert.That(row[11], Is.Empty);
             Assert.That(row[12], Is.Empty);
-            Assert.That(row[17], Is.EqualTo("ok"));
+            Assert.That(row[19], Is.EqualTo("ok"));
         }
 
         [Test]
@@ -418,7 +449,7 @@ namespace ApkShellext2.Tests
             Assert.That(apkRow[9], Is.EqualTo("21"));
             Assert.That(unsupportedRow[8], Is.Empty);
             Assert.That(unsupportedRow[9], Is.Empty);
-            Assert.That(unsupportedRow[17], Is.EqualTo("unsupported type"));
+            Assert.That(unsupportedRow[19], Is.EqualTo("unsupported type"));
         }
 
         [Test]
@@ -442,7 +473,9 @@ namespace ApkShellext2.Tests
             Assert.That(row[10], Is.Empty);
             Assert.That(row[11], Is.Empty);
             Assert.That(row[12], Is.Empty);
-            Assert.That(row[17], Is.EqualTo("error: facts failed"),
+            Assert.That(row[13], Is.EqualTo("Info"), "the hint does not depend on the facts that failed");
+            Assert.That(row[14], Is.Empty);
+            Assert.That(row[19], Is.EqualTo("error: facts failed"),
                 "the newline in the message is collapsed so the record stays on one line");
             Assert.That(result.Errors, Is.EqualTo(1));
         }
@@ -456,9 +489,9 @@ namespace ApkShellext2.Tests
 
             string[] row = Fields(Lines(Text(Write(new[] { path }, p => new FakeReader())))[1]);
 
-            Assert.That(row[13], Is.EqualTo("10"));
-            Assert.That(row[16], Does.Match(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$"));
-            DateTimeOffset parsed = DateTimeOffset.Parse(row[16], CultureInfo.InvariantCulture);
+            Assert.That(row[15], Is.EqualTo("10"));
+            Assert.That(row[18], Does.Match(@"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$"));
+            DateTimeOffset parsed = DateTimeOffset.Parse(row[18], CultureInfo.InvariantCulture);
             Assert.That(parsed.LocalDateTime, Is.EqualTo(when));
         }
 
@@ -471,7 +504,7 @@ namespace ApkShellext2.Tests
             string[] row = Fields(Lines(Text(Write(new[] { path }, p => reader)))[1]);
 
             Assert.That(row[8], Is.EqualTo("iOSApp"));
-            Assert.That(row[17], Is.EqualTo("ok"));
+            Assert.That(row[19], Is.EqualTo("ok"));
         }
 
         [Test]
@@ -494,7 +527,7 @@ namespace ApkShellext2.Tests
                 Assert.That(row[10], Is.Empty);
                 Assert.That(row[11], Is.Empty);
                 Assert.That(row[12], Is.Empty);
-                Assert.That(row[17], Is.EqualTo("unsupported type"));
+                Assert.That(row[19], Is.EqualTo("unsupported type"));
             }
 
             Assert.That(called, Is.False);
@@ -522,9 +555,9 @@ namespace ApkShellext2.Tests
 
             Assert.That(called, Is.False);
             Assert.That(row[8], Is.EqualTo("AndroidApp"), "the extension still names the type");
-            Assert.That(row[14], Is.Empty, "a file that cannot be read has no hash");
-            Assert.That(row[15], Is.Empty, "a file that cannot be read has no hash");
-            Assert.That(row[17], Is.EqualTo("unreadable"));
+            Assert.That(row[16], Is.Empty, "a file that cannot be read has no hash");
+            Assert.That(row[17], Is.Empty, "a file that cannot be read has no hash");
+            Assert.That(row[19], Is.EqualTo("unreadable"));
             Assert.That(result.Errors, Is.EqualTo(1));
         }
 
@@ -544,7 +577,7 @@ namespace ApkShellext2.Tests
                 row = Fields(Lines(Text(output))[1]);
             }
 
-            Assert.That(row[17], Is.EqualTo("unreadable"));
+            Assert.That(row[19], Is.EqualTo("unreadable"));
             Assert.That(result.Rows, Is.EqualTo(1));
             Assert.That(result.Errors, Is.EqualTo(1));
             Assert.That(result.Cancelled, Is.False);
@@ -577,7 +610,7 @@ namespace ApkShellext2.Tests
             Assert.That(result.Cancelled, Is.True);
             Assert.That(result.Rows, Is.EqualTo(1));
             Assert.That(lines.Length, Is.EqualTo(3));
-            Assert.That(Fields(lines[1])[17], Is.EqualTo("cancelled"));
+            Assert.That(Fields(lines[1])[19], Is.EqualTo("cancelled"));
         }
 
         [Test]
@@ -604,8 +637,8 @@ namespace ApkShellext2.Tests
 
             Assert.That(result.Cancelled, Is.True);
             Assert.That(result.Rows, Is.EqualTo(2));
-            Assert.That(Fields(lines[1])[17], Is.EqualTo("ok"));
-            Assert.That(Fields(lines[2])[17], Is.EqualTo("cancelled"));
+            Assert.That(Fields(lines[1])[19], Is.EqualTo("ok"));
+            Assert.That(Fields(lines[2])[19], Is.EqualTo("cancelled"));
             Assert.That(progress, Is.EqualTo(new[] { "1/2", "2/2" }));
         }
 
@@ -737,13 +770,13 @@ namespace ApkShellext2.Tests
 
             Assert.That(lines.Length, Is.EqualTo(5), "header plus three rows plus the empty tail");
             Assert.That(Fields(lines[1])[0], Is.EqualTo("Ok.apk"));
-            Assert.That(Fields(lines[1])[17], Is.EqualTo("ok"));
+            Assert.That(Fields(lines[1])[19], Is.EqualTo("ok"));
             Assert.That(Fields(lines[2])[0], Is.EqualTo("notes.txt"));
-            Assert.That(Fields(lines[2])[17], Is.EqualTo("unsupported type"));
+            Assert.That(Fields(lines[2])[19], Is.EqualTo("unsupported type"));
             Assert.That(Fields(lines[2]).Length, Is.EqualTo(PackageCsvWriter.Columns.Length),
                 "an unsupported row is padded to the same width as every other row");
             Assert.That(Fields(lines[3])[0], Is.EqualTo("Missing.apk"));
-            Assert.That(Fields(lines[3])[17], Is.EqualTo("unreadable"));
+            Assert.That(Fields(lines[3])[19], Is.EqualTo("unreadable"));
         }
 
         [Test]

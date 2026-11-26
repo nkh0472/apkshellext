@@ -430,7 +430,10 @@ CSV 项,而 `.aab` 选择得到只含 CSV 项的子菜单。执行导出时在 S
 `apk-info.csv`),随后在线程池线程写文件,上百个文件也不会卡住菜单。`Formats\PackageCsvWriter.cs` 负责
 写表:UTF-8 带 BOM、CRLF(主要读者是 Excel)、RFC 4180 引号规则、每个选中路径一行且保持选择顺序,列固定为
 `File`、`Folder`、`AppName`、`Package`、`Version`、`Revision`、`Publisher`、`AppID`、`Type`、
-`SizeBytes`、`Sha256`、`Xxh3`、`Modified`、`Status`。`Status` 为 `ok`、`unsupported type`、
+`MinSdk`、`TargetSdk`、`Debuggable`、`Packer`、`Verdict`、`Evidence`、`SizeBytes`、`Sha256`、
+`Xxh3`、`Modified`、`Status`。`Verdict` 为 `Info`、`Suspicious`、`Tampered`,`Evidence` 是其一行
+理由(以 `; ` 连接、最多三条,`Info` 时为空);reader 答不出时两格留空,判定不改变 `Status`。
+`Status` 为 `ok`、`unsupported type`、
 `unreadable` 或 `cancelled`;混合选择里每个路径都保留一行,CSV 自己说明跳过了什么,读不出哈希的文件
 这两格留空并在 `Status` 写 `unreadable`。进度窗口显示当前计数,并通过 `CancellationToken` 取消;写失败
 记入 `ErrorLog` 并弹出消息框,绝不越过 COM 边界抛出。

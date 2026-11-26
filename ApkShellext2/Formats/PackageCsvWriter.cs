@@ -28,7 +28,7 @@ namespace ApkShellext2 {
         public static readonly string[] Columns = {
             "File", "Folder", "AppName", "Package", "Version", "Revision",
             "Publisher", "AppID", "Type", "MinSdk", "TargetSdk", "Debuggable", "Packer",
-            "SizeBytes", "Sha256", "Xxh3", "Modified", "Status"
+            "Verdict", "Evidence", "SizeBytes", "Sha256", "Xxh3", "Modified", "Status"
         };
 
         public const string StatusOk = "ok";
@@ -76,6 +76,7 @@ namespace ApkShellext2 {
                     string appName = "", package = "", version = "", revision = "";
                     string publisher = "", appId = "", type = "";
                     string minSdk = "", targetSdk = "", debuggable = "", packer = "";
+                    string verdict = "", evidence = "";
                     string size = "", modified = "";
                     string sha256 = "", xxh3 = "";
                     string status;
@@ -110,6 +111,7 @@ namespace ApkShellext2 {
                                         type = reader.Type.ToString();
                                         factsRead = TryReadPlatformFacts(
                                             reader, out minSdk, out targetSdk, out debuggable, out packer, out factsError);
+                                        TryReadVerdict(reader, out verdict, out evidence);
                                     }
                                     if (!factsRead)
                                         status = StatusErrorPrefix + factsError;
@@ -126,7 +128,7 @@ namespace ApkShellext2 {
                     WriteRecord(writer, new[] {
                         fileName, folder, appName, package, version, revision,
                         publisher, appId, type, minSdk, targetSdk, debuggable, packer,
-                        size, sha256, xxh3, modified, status
+                        verdict, evidence, size, sha256, xxh3, modified, status
                     });
                     result.Rows++;
                     if (status != StatusOk && status != StatusCancelled) result.Errors++;
@@ -232,6 +234,27 @@ namespace ApkShellext2 {
                 minSdk = ""; targetSdk = ""; debuggable = ""; packer = "";
                 error = OneLineMessage(ex);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Reads the structural verdict. A getter that throws leaves both columns blank
+        /// and never changes the status of the row: the status still describes what
+        /// happened to the file, not to the hint. The verdict is read first, so a failing
+        /// verdict blanks both cells, while a failing evidence line keeps the verdict.
+        /// </summary>
+        private static void TryReadVerdict(IPackageReader reader, out string verdict, out string evidence) {
+            verdict = "";
+            evidence = "";
+            try {
+                verdict = reader.Verdict.ToString();
+            } catch (Exception) {
+                return;
+            }
+            try {
+                evidence = reader.VerdictEvidence ?? "";
+            } catch (Exception) {
+                evidence = "";
             }
         }
 
