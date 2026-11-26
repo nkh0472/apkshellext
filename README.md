@@ -24,17 +24,26 @@ A Windows shell extension that shows the real app icon, package info tip and a m
 
 ## Features
 
-- Real package icons at every Explorer zoom level, with Android adaptive-icon rendering and automatic fallback to the legacy icon when a variant cannot be drawn
-- Modern rendering pipeline: VectorDrawable → SVG rasterization (linear/radial gradients, nested groups, clip paths), adaptive icons with Android's 1.5x center-crop zoom, framework color references — pixel-consistent with Android's own output
-- Localized app names: labels follow your UI language, or a language you pick in Preferences (since 3.3.0)
-- Info tip with version, package name, size, target platform and other parsed metadata; the tip can show the min/target SDK and the packer, and a line whose fact the package does not carry is omitted whole
-- Context menu: batch rename with custom patterns, an **Extract information** submenu that exports the selected packages to one CSV file (UTF-8 with BOM, one row per file, SHA-256 and XXH3 columns, and a status column so an unreadable file still gets a row) and extracts `AndroidManifest.xml` or another XML entry into a chosen folder, copy the selection's file paths, app names, package names or versions, open the app's store page
-- Menu integration written in this repository: the icon, info-tip and thumbnail handlers plus the context menu run on the Windows shell interfaces directly, Windows 11 22H2+ gets the modern `IExplorerCommand` menu, and Windows 10 as well as the Windows 11 "Show more options" entry keep the classic menu with the same items in the same order
-- Preferences lists the rename-pattern variables next to the field; clicking one inserts it at the caret
-- Overlay badges distinguishing app types
-- Localized UI in 19 languages — translation pull requests welcome
-- Hardened archive parsing: decompression-ratio and size caps on every read path (since 3.4.0), libwebp 1.6.0 (since 3.1.0)
+Everything below runs inside Explorer itself — one DLL, no service and no background process.
 
+| Area | What it does | Details |
+|------|--------------|---------|
+| **Icons** | Real app icon at every Explorer zoom level | Android adaptive icons are drawn with Android's own 1.5x center-crop; when a variant cannot be drawn the legacy icon is used instead |
+| **Thumbnails** | Preview in the folder view for `.apk` files | Filled to the requested size; 256 px in the large-icon view |
+| **Info tip** | Version, package, size, Min/Max SDK and packer | A fact the package does not carry takes its whole line with it, label included |
+| **Context menu** | One menu, same items on Windows 10 and 11 | Windows 11 22H2+ gets the modern `IExplorerCommand` menu; Windows 10 and the Windows 11 *Show more options* entry keep the classic `IContextMenu` menu |
+| **Rename** | Batch rename from a pattern | `%AppName%`, `%Version%`, `%Package%`, `%Attr(tag,attr)` and more; Preferences lists the variables next to the field and inserts one at the caret |
+| **Extract information** | Export to CSV, or extract an XML entry | CSV: UTF-8 with BOM, one row per selected file, SHA-256 and XXH3 columns, a status column so an unreadable file still gets a row. XML: written into a folder you pick, file name prefixed with the rename pattern |
+| **Copy information** | File paths, app names, package names, versions | A multi-selection yields one value per line, in selection order |
+| **Store pages** | Google Play, Amazon Appstore, VirusTotal | The VirusTotal entry hashes the file in the background only when clicked, then opens `virustotal.com/gui/file/<sha256>` |
+| **Preferences** | One place for every switch | UI language, app-name language, overlay badges, per-store menu items, thumbnail and adaptive-icon switches, error log |
+
+| Built on | Detail |
+|----------|--------|
+| **Own shell integration** | Icon, info-tip, thumbnail and context-menu handlers are implemented in this repository directly against the Windows shell interfaces — no third-party shell framework, no dependency on a menu helper |
+| **19 languages** | Every string ships in 19 languages; a guard test keeps each translation in step with the neutral resource, so a half-translated menu fails the build |
+| **Hardened parsing** | Every read path has a size and decompression-ratio cap, and hostile input is bounded before it allocates; libwebp 1.6.0 draws WebP icons |
+| **Small footprint** | One ~0.9 MB DLL plus two `libwebp` binaries, the install scripts and the language folders |
 ## Install
 
 1. Download the latest release archive and extract it to a permanent folder (e.g. `C:\Program Files\ApkShellext2\`).
