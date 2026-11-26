@@ -244,6 +244,47 @@ namespace ApkShellext2.Tests
             return Convert.ToInt64(field.GetRawConstantValue());
         }
 
+        // ------------------------------------------------------------------
+        // bundletool table of contents (ApkQuickReader.TocPb)
+        // ------------------------------------------------------------------
+
+        private static Type TocPbType
+        {
+            get { return RequireType("ApkQuickReader.TocPb"); }
+        }
+
+        /// <summary>
+        /// Calls ApkQuickReader.TocPb.TryReadMinSdk(byte[], out int), the parser that decides
+        /// which minimum sdk an .apks reports. It is internal, and the fixture must see both
+        /// the answer and the out value; a guard exception escapes unwrapped.
+        /// </summary>
+        public static bool TryReadTocMinSdk(byte[] data, out int minSdk)
+        {
+            minSdk = 0;
+            MethodInfo method = TocPbType.GetMethod("TryReadMinSdk", StaticAnyVisibility);
+            Assert.That(method, Is.Not.Null, "ApkQuickReader.TocPb.TryReadMinSdk was not found; update TestSupport/ProductApi.cs.");
+            object[] arguments = { data, 0 };
+            try
+            {
+                bool ok = (bool)method.Invoke(null, arguments);
+                minSdk = (int)arguments[1];
+                return ok;
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw; // unreachable: Throw() always rethrows
+            }
+        }
+
+        /// <summary>Reads a TocPb cap (MaxTocPbBytes, MaxDepth, MaxFieldsPerMessage) that ships.</summary>
+        public static long TocPbConstant(string name)
+        {
+            FieldInfo field = TocPbType.GetField(name, StaticAnyVisibility);
+            Assert.That(field, Is.Not.Null, "ApkQuickReader.TocPb." + name + " was not found; update TestSupport/ProductApi.cs.");
+            return Convert.ToInt64(field.GetRawConstantValue());
+        }
+
         /// <summary>
         /// Calls an SVG parser's public Parse(string) entry point (number list, unit,
         /// unit list, transform list, path data). The converters also carry an internal

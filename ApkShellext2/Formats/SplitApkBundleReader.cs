@@ -38,6 +38,11 @@ namespace ApkQuickReader {
         // caps + ratio doctrine centralised in SafeArchive (shared by all readers)
         private const long MAX_JSON_BYTES = 2L * 1024 * 1024;
 
+        // bundletool's table of contents; read once on demand and kept for the reader's life
+        private const string TOC_ENTRY = "toc.pb";
+        private bool tocMinSdkRead;
+        private int tocMinSdk;
+
         public SplitApkBundleReader(string filename) {
             FileName = filename;
             outerStream = new FileStream(filename, FileMode.Open, FileAccess.Read,
@@ -160,6 +165,23 @@ namespace ApkQuickReader {
             return Encoding.UTF8.GetString(b, off, b.Length - off);
         }
 
+        // The container metadata is read under the same caps as every other entry, and the
+        // toc.pb is read once so a CSV listing many columns does not inflate it repeatedly.
+        private int TocMinSdk() {
+            if (tocMinSdkRead) return tocMinSdk;
+            tocMinSdkRead = true;
+            IArchiveEntry toc = outer.GetEntry(TOC_ENTRY);
+            if (toc == null || !outer.IsFile(toc)) return tocMinSdk;
+            try {
+                byte[] data = outer.ReadEntryBounded(toc, TocPb.MaxTocPbBytes, "metadata " + TOC_ENTRY);
+                int value;
+                if (TocPb.TryReadMinSdk(data, out value) && value > 0) tocMinSdk = value;
+            } catch (InvalidDataException ex) {
+                Log("toc.pb is unreadable, keeping the split's minSdk: " + ex.Message);
+            }
+            return tocMinSdk;
+        }
+
         public override AppPackageReader.AppType Type { get { return AppType.AndroidApp; } }
         public override string AppName { get { EnsureInner(); return inner.AppName; } }
         public override string PackageName { get { EnsureInner(); return inner.PackageName; } }
@@ -167,8 +189,17 @@ namespace ApkQuickReader {
         public override string Revision { get { EnsureInner(); return inner.Revision; } }
         public override string Publisher { get { EnsureInner(); return inner.Publisher; } }
         public override string AppID { get { EnsureInner(); return inner.AppID; } }
-        // the base apk carries the manifest and the signing block of the whole bundle
-        public override string MinSdk { get { EnsureInner(); return inner.MinSdk; } }
+        // bundletool raises every split's minSdk to 21; the real minimum is the one the
+        // table of contents declares, and that is what an .apks should report. A broken
+        // toc.pb leaves the split's own value in place instead of failing the file.
+        public override string MinSdk {
+            get {
+                int toc = TocMinSdk();
+                if (toc > 0) return toc.ToString(CultureInfo.InvariantCulture);
+                EnsureInner();
+                return inner.MinSdk;
+            }
+        }
         public override string TargetSdk { get { EnsureInner(); return inner.TargetSdk; } }
         public override bool? Debuggable { get { EnsureInner(); return inner.Debuggable; } }
         public override string Packer { get { EnsureInner(); return inner.Packer; } }
